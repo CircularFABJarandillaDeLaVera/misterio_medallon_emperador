@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
+  <link rel="stylesheet" href="/static/css/estilos.css" />
+</head>
+<body>
+  <main class="contenedor">
+    <section class="tarjeta">
+      <h1>CLUEDO JARANDILLA</h1>
+      <p class="subtitulo">El misterio del medallón imperial</p>
+
+      <p>Código de sala</p>
+      <p class="codigo-sala" id="codigo">{{ codigo }}</p>
+
+      <p><strong>Jugadores conectados:</strong></p>
+      <ul class="lista-jugadores" id="jugadores"></ul>
+
+      <div id="lobby-personajes">
+        <p><strong>ELIGE TU PERSONAJE</strong></p>
+        <div id="personajes"></div>
+      </div>
+
+      <p class="estado" id="estado">Esperando jugadores…</p>
+
+      <button id="btn-comenzar" type="button">COMENZAR PARTIDA</button>
+      <p id="error" class="error"></p>
+
+      <div id="partida" hidden>
+        <h2>EL MISTERIO COMIENZA</h2>
+        <p class="turno" id="turno"></p>
+        <p><strong>ORDEN DE JUEGO</strong></p>
+        <ol id="orden"></ol>
+        <div class="accesos">
+          <button id="btn-ver-cartas" type="button" class="secundario">🃏 MIS CARTAS</button>
+          <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
+        </div>
+        <p class="estado" id="total"></p>
+      </div>
+      <div id="modal-cartas" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Mis cartas">
+          <h2>MIS CARTAS</h2>
+          <p class="nota-privada">Privadas: solo tú puedes verlas.</p>
+          <div id="mis-cartas"></div>
+          <button id="btn-cerrar-cartas" type="button">VOLVER A LA PARTIDA</button>
+        </div>
+      </div>
+      <div id="modal-hoja" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Hoja de investigación">
+          <h2>HOJA DE INVESTIGACIÓN</h2>
+          <p class="nota-privada">Privada: solo tú ves tus marcas. Toca una carta para alternar entre SIN INFORMACIÓN y DESCARTADA.</p>
+          <div id="hoja"></div>
+          <button id="btn-cerrar-hoja" type="button">VOLVER A LA PARTIDA</button>
+          <p id="error-hoja" class="error"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/sala.js"></script>
+</body>
+</html>

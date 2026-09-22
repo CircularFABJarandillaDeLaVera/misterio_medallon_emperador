@@ -1,0 +1,381 @@
+:root {
+  --fondo: #12101c;
+  --fondo-tarjeta: #1d1930;
+  --dorado: #c9a227;
+  --dorado-claro: #e8c766;
+  --texto: #f2ead8;
+  --texto-tenue: #b8ad93;
+  --error: #e0685c;
+  --verde: #7fb069;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--texto);
+  background: radial-gradient(circle at 50% 0%, #2a2347 0%, var(--fondo) 60%);
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.contenedor {
+  width: 100%;
+  max-width: 460px;
+  margin: auto;
+}
+
+.tarjeta {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--dorado);
+  border-radius: 12px;
+  padding: 24px 20px;
+  box-shadow: 0 0 40px rgba(201, 162, 39, 0.15);
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  letter-spacing: 3px;
+  color: var(--dorado-claro);
+}
+
+.subtitulo {
+  margin: 6px 0 20px;
+  font-style: italic;
+  color: var(--texto-tenue);
+}
+
+.separador {
+  color: var(--dorado);
+  letter-spacing: 6px;
+  margin: 12px 0;
+}
+
+label {
+  display: block;
+  text-align: left;
+  margin: 12px 0 4px;
+  font-size: 0.9rem;
+  color: var(--texto-tenue);
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.05rem;
+  border-radius: 8px;
+  border: 1px solid #4a4266;
+  background: #12101c;
+  color: var(--texto);
+}
+
+input:focus {
+  outline: 2px solid var(--dorado);
+  border-color: var(--dorado);
+}
+
+button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--dorado);
+  color: #1d1930;
+}
+
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+button.secundario {
+  background: transparent;
+  color: var(--dorado-claro);
+  border: 1px solid var(--dorado);
+}
+
+.error {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  color: var(--error);
+  font-size: 0.95rem;
+}
+
+.codigo-sala {
+  font-size: 2rem;
+  letter-spacing: 4px;
+  color: var(--dorado-claro);
+  margin: 8px 0;
+}
+
+.lista-jugadores {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  text-align: left;
+}
+
+.lista-jugadores li {
+  padding: 10px 12px;
+  margin: 6px 0;
+  border-radius: 8px;
+  background: #262140;
+  border: 1px solid #4a4266;
+}
+
+.etiqueta-anfitrion {
+  float: right;
+  font-size: 0.8rem;
+  color: var(--dorado-claro);
+  border: 1px solid var(--dorado);
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+
+.estado {
+  font-style: italic;
+  color: var(--texto-tenue);
+}
+
+.misterio {
+  font-size: 1.3rem;
+  color: var(--dorado-claro);
+  margin-top: 16px;
+}
+
+#partida h2 {
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+  font-size: 1.3rem;
+}
+
+.grupo-cartas {
+  text-align: left;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #262140;
+  border: 1px solid #4a4266;
+}
+
+.grupo-cartas h3 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+}
+
+.grupo-cartas ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.grupo-cartas li {
+  padding: 3px 0;
+}
+
+#personajes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.personaje {
+  margin-top: 0;
+  padding: 10px 8px;
+  font-size: 0.85rem;
+  font-weight: normal;
+  background: #262140;
+  color: var(--texto);
+  border: 1px solid #4a4266;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.personaje strong {
+  color: var(--dorado-claro);
+}
+
+.personaje span {
+  font-size: 0.78rem;
+  color: var(--texto-tenue);
+}
+
+.personaje.mio {
+  border: 2px solid var(--dorado);
+}
+
+.personaje.ocupado {
+  opacity: 0.45;
+}
+
+.turno {
+  font-size: 1.2rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: var(--dorado-claro);
+}
+
+#orden {
+  text-align: left;
+  padding-left: 24px;
+}
+
+#orden li.en-turno {
+  font-weight: bold;
+  color: var(--dorado-claro);
+}
+
+.accesos {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.accesos button {
+  margin-top: 0;
+  padding: 12px 8px;
+  font-size: 0.9rem;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 16, 0.82);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-caja {
+  width: 100%;
+  max-width: 460px;
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--dorado);
+  border-radius: 12px;
+  padding: 20px 16px;
+  box-shadow: 0 0 40px rgba(201, 162, 39, 0.25);
+  text-align: center;
+}
+
+.modal-caja h2 {
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+  font-size: 1.2rem;
+  margin: 0 0 6px;
+}
+
+.nota-privada {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--texto-tenue);
+  margin: 0 0 10px;
+}
+
+#hoja,
+#mis-cartas {
+  text-align: left;
+}
+
+.hoja-cabecera {
+  width: 100%;
+  margin-top: 0;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--dorado-claro);
+  border: none;
+  cursor: pointer;
+}
+
+.hoja-flecha {
+  font-size: 1rem;
+  color: var(--dorado);
+}
+
+.hoja-cuerpo[hidden] {
+  display: none;
+}
+
+.hoja-fila {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  font-weight: normal;
+  letter-spacing: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #262140;
+  color: var(--texto);
+  border: 1px solid #4a4266;
+  font-size: 0.9rem;
+}
+
+.hoja-nombre {
+  text-align: left;
+}
+
+.hoja-estado {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border-radius: 20px;
+  padding: 3px 10px;
+  border: 1px solid #4a4266;
+  color: var(--texto-tenue);
+}
+
+.hoja-fila.estado-la_tengo {
+  border-color: var(--verde);
+}
+
+.hoja-fila.estado-la_tengo .hoja-estado {
+  color: #1d1930;
+  background: var(--verde);
+  border-color: var(--verde);
+}
+
+.hoja-fila.estado-descartada {
+  opacity: 0.75;
+  border-color: var(--error);
+}
+
+.hoja-fila.estado-descartada .hoja-estado {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.hoja-fila.estado-vista {
+  border-color: var(--dorado-claro);
+}
+
+.hoja-fila.estado-vista .hoja-estado {
+  color: #1d1930;
+  background: var(--dorado-claro);
+  border-color: var(--dorado-claro);
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cluedo Jarandilla — El misterio del medallón imperial</title>
+  <link rel="stylesheet" href="/static/css/estilos.css" />
+</head>
+<body>
+  <main class="contenedor">
+    <section class="tarjeta">
+      <h1>CLUEDO JARANDILLA</h1>
+      <p class="subtitulo">El misterio del medallón imperial</p>
+      <div class="separador">❦ ❦ ❦</div>
+
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+      <label for="alias">Tu alias</label>
+      <input id="alias" type="text" maxlength="20" autocomplete="off"
+             placeholder="Ej. Paco" />
+
+      <button id="btn-nueva" type="button">NUEVA PARTIDA</button>
+
+      <div class="separador">— o —</div>
+
+      <label for="codigo">Código de sala</label>
+      <input id="codigo" type="text" autocomplete="off"
+             placeholder="JARA-XXXX" style="text-transform: uppercase" />
+
+      <button id="btn-unirse" class="secundario" type="button">UNIRME</button>
+
+      <p id="error" class="error"></p>
+    </section>
+  </main>
+  <script src="/static/js/inicio.js"></script>
+</body>
+</html>
