@@ -31,6 +31,9 @@ PERSONAJE_POR_ID: dict[str, dict] = {p["id"]: p for p in SOSPECHOSOS}
 ESTADO_ESPERANDO = "esperando"
 ESTADO_INICIADA = "iniciada"
 
+JUGADA_ESPERANDO_SOSPECHA = "esperando_sospecha"
+JUGADA_ESPERANDO_REFUTADOR = "esperando_eleccion_refutador"
+
 MIN_JUGADORES = 3
 MAX_JUGADORES = 6
 
@@ -97,6 +100,9 @@ class Sala:
         # SIN INFORMACIÓN es la ausencia de marca. Nada de esto es público.
         self.descartes: dict[str, set[str]] = {}  # jugador_id -> carta_ids
         self.vistas: dict[str, set[str]] = {}  # jugador_id -> carta_ids (Sprint 4)
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.sospecha_pendiente: dict | None = None
+        self.ultima_jugada: dict | None = None
 
     def jugador_por_id(self, jugador_id: str) -> dict | None:
         for j in self.jugadores:
@@ -207,9 +213,110 @@ class Sala:
         )
         self.turno_actual = 0
         self.estado = ESTADO_INICIADA
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.sospecha_pendiente = None
+        self.ultima_jugada = None
         for j in self.jugadores:
             self.descartes.setdefault(j["id"], set())
             self.vistas.setdefault(j["id"], set())
+
+    @staticmethod
+    def _validar_carta_categoria(carta_id: str, categoria: str) -> str:
+        cid = (carta_id or "").strip().lower()
+        carta = CARTA_POR_ID.get(cid)
+        if carta is None or carta["categoria"] != categoria:
+            raise ValueError(f"{categoria.capitalize()} no valido.")
+        return cid
+
+    def buscar_refutador(
+        self, investigador_id: str, ids_sospecha: set[str]
+    ) -> tuple[str, list[str]] | None:
+        """Primer rival con coincidencias, recorriendo el orden circular."""
+        if investigador_id not in self.orden_turnos:
+            return None
+        inicio = self.orden_turnos.index(investigador_id)
+        for salto in range(1, len(self.orden_turnos)):
+            candidato = self.orden_turnos[(inicio + salto) % len(self.orden_turnos)]
+            coincidencias = [
+                carta["id"]
+                for carta in self.manos.get(candidato, [])
+                if carta["id"] in ids_sospecha
+            ]
+            if coincidencias:
+                return candidato, coincidencias
+        return None
+
+    def avanzar_turno(self) -> None:
+        if self.orden_turnos:
+            self.turno_actual = (self.turno_actual + 1) % len(self.orden_turnos)
+        self.sospecha_pendiente = None
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+
+    def _resolver_refutacion(self, carta_id: str) -> None:
+        pendiente = self.sospecha_pendiente
+        if pendiente is None:
+            raise ValueError("No hay una refutacion pendiente.")
+        investigador_id = pendiente["investigador_id"]
+        self.vistas.setdefault(investigador_id, set()).add(carta_id)
+        self.ultima_jugada = {
+            "sospecha": dict(pendiente["sospecha"]),
+            "investigador_id": investigador_id,
+            "investigador_alias": self.jugador_por_id(investigador_id)["alias"],
+            "resultado": "refutada",
+            "refutador_id": pendiente["refutador_id"],
+            "refutador_alias": self.jugador_por_id(pendiente["refutador_id"])["alias"],
+            "carta_id": carta_id,  # solo se serializa para el investigador
+        }
+        self.avanzar_turno()
+
+    def formular_sospecha(
+        self, jugador_id: str, sospechoso_id: str, lugar_id: str, objeto_id: str
+    ) -> None:
+        if self.estado != ESTADO_INICIADA:
+            raise ValueError("La partida no esta iniciada.")
+        en_turno = self.jugador_en_turno()
+        if en_turno is None or en_turno["id"] != jugador_id:
+            raise ValueError("Solo el jugador en turno puede formular una sospecha.")
+        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+            raise ValueError("Ya hay una sospecha pendiente.")
+        sospecha = {
+            "sospechoso_id": self._validar_carta_categoria(sospechoso_id, "sospechoso"),
+            "lugar_id": self._validar_carta_categoria(lugar_id, "lugar"),
+            "objeto_id": self._validar_carta_categoria(objeto_id, "objeto"),
+        }
+        self.ultima_jugada = None
+        hallazgo = self.buscar_refutador(jugador_id, set(sospecha.values()))
+        if hallazgo is None:
+            self.ultima_jugada = {
+                "sospecha": sospecha,
+                "investigador_id": jugador_id,
+                "investigador_alias": en_turno["alias"],
+                "resultado": "sin_refutacion",
+            }
+            self.avanzar_turno()
+            return
+        refutador_id, coincidencias = hallazgo
+        self.sospecha_pendiente = {
+            "investigador_id": jugador_id,
+            "refutador_id": refutador_id,
+            "sospecha": sospecha,
+            "coincidencias": coincidencias,
+        }
+        if len(coincidencias) == 1:
+            self._resolver_refutacion(coincidencias[0])
+        else:
+            self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
+
+    def mostrar_carta(self, jugador_id: str, carta_id: str) -> None:
+        pendiente = self.sospecha_pendiente
+        if self.estado_jugada != JUGADA_ESPERANDO_REFUTADOR or pendiente is None:
+            raise ValueError("No hay una refutacion pendiente.")
+        if pendiente["refutador_id"] != jugador_id:
+            raise ValueError("No puedes resolver esta refutacion.")
+        cid = (carta_id or "").strip().lower()
+        if cid not in pendiente["coincidencias"] or cid not in self.mano_ids(jugador_id):
+            raise ValueError("La carta elegida no es una opcion valida.")
+        self._resolver_refutacion(cid)
 
     def mano_ids(self, jugador_id: str) -> set[str]:
         return {c["id"] for c in self.manos.get(jugador_id, [])}
@@ -284,6 +391,44 @@ class Sala:
         personaje = PERSONAJE_POR_ID.get(personaje_id)
         return personaje["nombre"] if personaje else None
 
+    def _sospecha_publica(self, datos: dict) -> dict:
+        return {
+            clave: {"id": cid, "nombre": CARTA_POR_ID[cid]["nombre"]}
+            for clave, cid in datos.items()
+        }
+
+    def jugada_publica(self) -> dict:
+        """Estado visible de la jugada, sin opciones ni carta mostrada."""
+        fuente = self.sospecha_pendiente or self.ultima_jugada
+        if fuente is None:
+            return {"estado": self.estado_jugada}
+        resultado = fuente.get("resultado", "pendiente")
+        publico = {
+            "estado": self.estado_jugada,
+            "investigador_alias": fuente["investigador_alias"]
+            if "investigador_alias" in fuente
+            else self.jugador_por_id(fuente["investigador_id"])["alias"],
+            "sospecha": self._sospecha_publica(fuente["sospecha"]),
+            "resultado": resultado,
+        }
+        if resultado == "refutada":
+            publico["refutador_alias"] = fuente["refutador_alias"]
+        return publico
+
+    def jugada_privada(self, jugador_id: str) -> dict:
+        privada = dict(self.jugada_publica())
+        pendiente = self.sospecha_pendiente
+        if pendiente and pendiente["investigador_id"] == jugador_id:
+            privada["esperando_resolucion"] = True
+        if pendiente and pendiente["refutador_id"] == jugador_id:
+            privada["opciones_refutacion"] = [
+                dict(CARTA_POR_ID[cid]) for cid in pendiente["coincidencias"]
+            ]
+        ultima = self.ultima_jugada
+        if ultima and ultima.get("carta_id") and ultima["investigador_id"] == jugador_id:
+            privada["carta_mostrada"] = dict(CARTA_POR_ID[ultima["carta_id"]])
+        return privada
+
     def estado_publico(self) -> dict:
         """Seguro para todos: personajes, orden y recuentos. Nunca cartas."""
         en_turno = self.jugador_en_turno()
@@ -310,6 +455,7 @@ class Sala:
                 for jid in self.orden_turnos
             ],
             "turno_alias": en_turno["alias"] if en_turno else None,
+            "jugada": self.jugada_publica(),
         }
 
     def estado_privado(self, jugador_id: str) -> dict:
@@ -333,6 +479,7 @@ class Sala:
             "jugadores": publico["jugadores"],
             "orden": publico["orden"],
             "turno_alias": publico["turno_alias"],
+            "jugada": self.jugada_privada(jugador_id),
         }
 
 

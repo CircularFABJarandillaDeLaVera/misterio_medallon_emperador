@@ -1,4 +1,13 @@
 # CLUEDO JARANDILLA — El misterio del medallón imperial
+## Sprint 4
+
+La partida permite formular una sospecha y busca automáticamente al primer
+refutador según el orden de turnos. Si tiene varias coincidencias, elige en
+privado; la carta seleccionada llega solo al investigador, se marca
+automáticamente como `VISTA` en su hoja y el turno avanza una posición. La
+refutación pendiente se conserva al reconectar.
+
+Todavía no existen la acusación final ni el tablero o movimiento.
 
 Proyecto cultural de Circular FAB. Juego multijugador inspirado en lugares
 y personajes de Jarandilla de la Vera.

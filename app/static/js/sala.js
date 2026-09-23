@@ -26,6 +26,14 @@ const btnVerHoja = document.getElementById("btn-ver-hoja");
 const btnVerCartas = document.getElementById("btn-ver-cartas");
 const btnCerrarHoja = document.getElementById("btn-cerrar-hoja");
 const btnCerrarCartas = document.getElementById("btn-cerrar-cartas");
+const jugadaDiv = document.getElementById("jugada");
+const btnSospecha = document.getElementById("btn-sospecha");
+const modalSospecha = document.getElementById("modal-sospecha");
+const modalRefutacion = document.getElementById("modal-refutacion");
+const opcionesRefutacion = document.getElementById("opciones-refutacion");
+const selectSospechoso = document.getElementById("sospecha-sospechoso");
+const selectLugar = document.getElementById("sospecha-lugar");
+const selectObjeto = document.getElementById("sospecha-objeto");
 
 if (!jugadorId) {
   window.location.href = "/";
@@ -146,6 +154,7 @@ function pintarSala(sala) {
     pintarTurno(sala);
     pintarCartas(sala.mis_cartas);
     pintarHoja(sala.investigacion || []);
+    pintarJugada(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
@@ -183,6 +192,62 @@ function pintarTurno(sala) {
   } else {
     turnoP.textContent = `TURNO DE ${(sala.turno_alias || "").toUpperCase()}`;
   }
+}
+
+function llenarSelect(select, cartas, categoria) {
+  select.innerHTML = '<option value="">-- Selecciona --</option>';
+  cartas.filter((c) => c.categoria === categoria).forEach((c) => {
+    const opcion = document.createElement("option");
+    opcion.value = c.id;
+    opcion.textContent = c.nombre;
+    select.appendChild(opcion);
+  });
+}
+
+function pintarJugada(sala) {
+  const jugada = sala.jugada || {};
+  jugadaDiv.innerHTML = "";
+  const puedeSospechar = sala.es_mi_turno && jugada.estado === "esperando_sospecha";
+  btnSospecha.hidden = !puedeSospechar;
+  if (jugada.sospecha) {
+    const titulo = document.createElement("strong");
+    titulo.textContent = `${jugada.investigador_alias} HA FORMULADO UNA SOSPECHA`;
+    jugadaDiv.appendChild(titulo);
+    ["sospechoso", "lugar", "objeto"].forEach((categoria) => {
+      const linea = document.createElement("p");
+      linea.textContent = `${TITULOS[categoria]}: ${jugada.sospecha[`${categoria}_id`].nombre}`;
+      jugadaDiv.appendChild(linea);
+    });
+  }
+  const resultado = document.createElement("p");
+  if (jugada.resultado === "sin_refutacion") {
+    resultado.textContent = "NADIE HA PODIDO REFUTAR LA SOSPECHA";
+  } else if (jugada.resultado === "refutada") {
+    resultado.textContent = `SOSPECHA REFUTADA POR ${jugada.refutador_alias}`;
+  } else if (jugada.esperando_resolucion) {
+    resultado.textContent = "ESPERANDO RESPUESTA...";
+  } else if (jugada.resultado === "pendiente") {
+    resultado.textContent = "RESOLVIENDO SOSPECHA...";
+  }
+  if (jugada.carta_mostrada) {
+    resultado.textContent += ` ${jugada.refutador_alias} TE HA MOSTRADO: ${jugada.carta_mostrada.nombre}`;
+  }
+  jugadaDiv.appendChild(resultado);
+
+  const opciones = Array.isArray(jugada.opciones_refutacion)
+    ? jugada.opciones_refutacion : [];
+  modalRefutacion.hidden = opciones.length === 0;
+  opcionesRefutacion.innerHTML = "";
+  opciones.forEach((carta) => {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.textContent = carta.nombre;
+    boton.addEventListener("click", () => {
+      boton.disabled = true;
+      ws.send(JSON.stringify({ accion: "mostrar_carta", carta_id: carta.id }));
+    });
+    opcionesRefutacion.appendChild(boton);
+  });
 }
 
 function pintarCartas(misCartas) {
@@ -369,3 +434,27 @@ if (btnCerrarHoja) {
 if (btnCerrarCartas) {
   btnCerrarCartas.addEventListener("click", cerrarCartas);
 }
+
+btnSospecha.addEventListener("click", () => {
+  const cartas = (ultimaSala && ultimaSala.investigacion) || [];
+  llenarSelect(selectSospechoso, cartas, "sospechoso");
+  llenarSelect(selectLugar, cartas, "lugar");
+  llenarSelect(selectObjeto, cartas, "objeto");
+  modalSospecha.hidden = false;
+});
+document.getElementById("btn-cancelar-sospecha").addEventListener("click", () => {
+  modalSospecha.hidden = true;
+});
+document.getElementById("btn-confirmar-sospecha").addEventListener("click", () => {
+  if (!selectSospechoso.value || !selectLugar.value || !selectObjeto.value) {
+    error.textContent = "Selecciona sospechoso, lugar y objeto.";
+    return;
+  }
+  ws.send(JSON.stringify({
+    accion: "formular_sospecha",
+    sospechoso_id: selectSospechoso.value,
+    lugar_id: selectLugar.value,
+    objeto_id: selectObjeto.value,
+  }));
+  modalSospecha.hidden = true;
+});

@@ -31,6 +31,8 @@
       <div id="partida" hidden>
         <h2>EL MISTERIO COMIENZA</h2>
         <p class="turno" id="turno"></p>
+        <div id="jugada" class="grupo-cartas"></div>
+        <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
         <p><strong>ORDEN DE JUEGO</strong></p>
         <ol id="orden"></ol>
         <div class="accesos">
@@ -38,6 +40,24 @@
           <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
         </div>
         <p class="estado" id="total"></p>
+      </div>
+      <div id="modal-sospecha" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Formular sospecha">
+          <h2>FORMULAR SOSPECHA</h2>
+          <label>SOSPECHOSO<select id="sospecha-sospechoso"></select></label>
+          <label>LUGAR<select id="sospecha-lugar"></select></label>
+          <label>OBJETO<select id="sospecha-objeto"></select></label>
+          <button id="btn-confirmar-sospecha" type="button">CONFIRMAR SOSPECHA</button>
+          <button id="btn-cancelar-sospecha" type="button" class="secundario">CANCELAR</button>
+        </div>
+      </div>
+      <div id="modal-refutacion" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Refutar sospecha">
+          <h2>PUEDES REFUTAR LA SOSPECHA</h2>
+          <p>ELIGE UNA CARTA PARA MOSTRAR:</p>
+          <div id="opciones-refutacion"></div>
+          <p class="nota-privada">Solo el investigador verá la carta que elijas.</p>
+        </div>
       </div>
       <div id="modal-cartas" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Mis cartas">

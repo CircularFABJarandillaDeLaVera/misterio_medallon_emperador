@@ -6,6 +6,8 @@ El misterio nunca sale del servidor.
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +25,7 @@ plantillas = Jinja2Templates(directory="app/templates")
 gestor = GestorSalas()
 # codigo sala -> jugador_id -> websockets abiertos de ese jugador
 conexiones: dict[str, dict[str, list[WebSocket]]] = {}
+cerrojos: dict[str, asyncio.Lock] = {}
 
 
 class EntradaAlias(BaseModel):
@@ -104,6 +107,7 @@ async def crear_partida(entrada: EntradaAlias):
     except ValueError as exc:
         return _respuesta_error(str(exc))
     conexiones.setdefault(sala.codigo, {})
+    cerrojos.setdefault(sala.codigo, asyncio.Lock())
     return {
         "codigo": sala.codigo,
         "jugador_id": anfitrion["id"],
@@ -160,7 +164,8 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
             accion = datos.get("accion")
             if accion == "iniciar":
                 try:
-                    sala.iniciar(jugador_id)
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.iniciar(jugador_id)
                 except ValueError as exc:
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
@@ -168,6 +173,27 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
             elif accion == "elegir_personaje":
                 try:
                     sala.elegir_personaje(jugador_id, datos.get("personaje_id", ""))
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+            elif accion == "formular_sospecha":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.formular_sospecha(
+                            jugador_id,
+                            datos.get("sospechoso_id", ""),
+                            datos.get("lugar_id", ""),
+                            datos.get("objeto_id", ""),
+                        )
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+            elif accion == "mostrar_carta":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.mostrar_carta(jugador_id, datos.get("carta_id", ""))
                 except ValueError as exc:
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
@@ -197,6 +223,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
             if not sala.jugadores:
                 gestor.salas.pop(sala.codigo, None)
                 conexiones.pop(sala.codigo, None)
+                cerrojos.pop(sala.codigo, None)
             else:
                 await difundir(sala.codigo)
         # En partida iniciada el jugador y su mano se conservan

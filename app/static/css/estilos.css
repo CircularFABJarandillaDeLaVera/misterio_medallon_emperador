@@ -282,6 +282,29 @@ button.secundario {
   margin: 0 0 6px;
 }
 
+.modal-caja label {
+  display: block;
+  margin: 14px 0;
+  text-align: left;
+  color: var(--dorado-claro);
+  font-weight: bold;
+}
+
+.modal-caja select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  color: var(--texto);
+  background: #262140;
+  border: 1px solid #4a4266;
+  border-radius: 6px;
+}
+
+#jugada:empty {
+  display: none;
+}
+
 .nota-privada {
   font-size: 0.85rem;
   font-style: italic;
