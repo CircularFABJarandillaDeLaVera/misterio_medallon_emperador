@@ -25,6 +25,7 @@ from app.datos.jarandilla import (
     OBJETOS,
     SOSPECHOSOS,
 )
+from app.motor.tablero import TABLERO, PosicionesParticipantes, tirar_dado
 
 # Vista de solo lectura sobre los sospechosos canónicos (sin duplicar datos).
 PERSONAJE_POR_ID: dict[str, dict] = {p["id"]: p for p in SOSPECHOSOS}
@@ -35,6 +36,21 @@ ESTADO_TERMINADA = "terminada"
 
 JUGADA_ESPERANDO_SOSPECHA = "esperando_sospecha"
 JUGADA_ESPERANDO_REFUTADOR = "esperando_eleccion_refutador"
+JUGADA_ESPERANDO_MOVIMIENTO = "esperando_movimiento"
+JUGADA_ESPERANDO_DESTINO = "esperando_destino"
+
+MODO_RAPIDO = "rapido"
+MODO_TABLERO = "tablero"
+MODOS = frozenset({MODO_RAPIDO, MODO_TABLERO})
+
+POSICIONES_INICIALES = {
+    "vera": "parador",
+    "bruno": "iglesia-san-agustin",
+    "lucia": "ermita-sopetran",
+    "alvaro": "nuestra-senora-torre",
+    "mateo": "museo-escobazos",
+    "eulalia": "puente-parral",
+}
 
 MIN_JUGADORES = 1
 MAX_JUGADORES = 6
@@ -107,8 +123,11 @@ def repartir(cartas: list[dict], ids_jugadores: list[str]) -> dict[str, list[dic
 
 
 class Sala:
-    def __init__(self, codigo: str):
+    def __init__(self, codigo: str, modo: str = MODO_RAPIDO):
+        if modo not in MODOS:
+            raise ValueError("Modo de partida no válido.")
         self.codigo = codigo
+        self.modo = modo
         self.estado = ESTADO_ESPERANDO
         self.jugadores: list[dict] = []  # humanos y PNJ comparten estructura
         self.misterio: dict | None = None  # SECRETO: nunca sale del servidor
@@ -134,12 +153,22 @@ class Sala:
         self.ganador_id: str | None = None
         # Conocimiento privado deducido sin consultar el misterio.
         self.soluciones_deducidas: dict[str, dict] = {}
+        self.posiciones = PosicionesParticipantes(TABLERO)
+        self.tirada_pendiente: int | None = None
+        self.rutas_pendientes: dict[str, tuple[str, ...]] = {}
 
     def jugador_por_id(self, jugador_id: str) -> dict | None:
         for j in self.jugadores:
             if j["id"] == jugador_id:
                 return j
         return None
+
+    def cambiar_modo(self, modo: str) -> None:
+        if self.estado != ESTADO_ESPERANDO:
+            raise ValueError("El modo no puede cambiarse después de iniciar.")
+        if modo not in MODOS:
+            raise ValueError("Modo de partida no válido.")
+        self.modo = modo
 
     def alias_existe(self, alias: str) -> bool:
         limpio = normalizar_alias(alias).lower()
@@ -265,7 +294,11 @@ class Sala:
         )
         self.turno_actual = 0
         self.estado = ESTADO_INICIADA
-        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.estado_jugada = (
+            JUGADA_ESPERANDO_MOVIMIENTO
+            if self.modo == MODO_TABLERO
+            else JUGADA_ESPERANDO_SOSPECHA
+        )
         self.sospecha_pendiente = None
         self.ultima_jugada = None
         self.refutacion_deadline = None
@@ -274,9 +307,15 @@ class Sala:
         self.resultado_final = None
         self.ganador_id = None
         self.soluciones_deducidas.clear()
+        self.tirada_pendiente = None
+        self.rutas_pendientes = {}
         for j in self.jugadores:
             self.descartes.setdefault(j["id"], set())
             self.vistas.setdefault(j["id"], set())
+            if self.modo == MODO_TABLERO:
+                self.posiciones.asignar(
+                    j["id"], POSICIONES_INICIALES[j["personaje_id"]]
+                )
 
     @staticmethod
     def _validar_carta_categoria(carta_id: str, categoria: str) -> str:
@@ -313,8 +352,87 @@ class Sala:
                     self.turno_actual = indice
                     break
         self.sospecha_pendiente = None
-        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.estado_jugada = (
+            JUGADA_ESPERANDO_MOVIMIENTO
+            if self.modo == MODO_TABLERO
+            else JUGADA_ESPERANDO_SOSPECHA
+        )
         self.pnj_pensando_id = None
+        self.tirada_pendiente = None
+        self.rutas_pendientes = {}
+
+    def _participante_en_turno_para_mover(self, jugador_id: str) -> dict:
+        if self.modo != MODO_TABLERO or self.estado != ESTADO_INICIADA:
+            raise ValueError("El movimiento solo está disponible en modo tablero.")
+        jugador = self.jugador_en_turno()
+        if jugador is None or jugador["id"] != jugador_id:
+            raise ValueError("Solo el jugador en turno puede mover.")
+        if not jugador["activo_investigacion"]:
+            raise ValueError("Este participante está eliminado.")
+        return jugador
+
+    def _tirar_dado_tablero(self, jugador_id: str, rng=None) -> int:
+        self._participante_en_turno_para_mover(jugador_id)
+        if self.estado_jugada != JUGADA_ESPERANDO_MOVIMIENTO:
+            raise ValueError("No puedes tirar el dado en este momento.")
+        posicion = self.posiciones.obtener(jugador_id)
+        tirada = tirar_dado(rng)
+        rutas = TABLERO.rutas_legales(posicion, tirada)
+        self.tirada_pendiente = tirada
+        self.rutas_pendientes = {}
+        for ruta in rutas:
+            self.rutas_pendientes.setdefault(ruta.destino, ruta.posiciones)
+        self.estado_jugada = JUGADA_ESPERANDO_DESTINO
+        return tirada
+
+    def tirar_dado_tablero(self, jugador_id: str, rng=None) -> int:
+        jugador = self._participante_en_turno_para_mover(jugador_id)
+        if jugador["tipo"] != TIPO_HUMANO:
+            raise ValueError("Este participante no puede realizar movimiento humano.")
+        return self._tirar_dado_tablero(jugador_id, rng)
+
+    def _mover(self, jugador_id: str, destino_id: str) -> None:
+        self._participante_en_turno_para_mover(jugador_id)
+        if self.estado_jugada != JUGADA_ESPERANDO_DESTINO:
+            raise ValueError("No hay una tirada pendiente.")
+        ruta = self.rutas_pendientes.get(destino_id)
+        origen = self.posiciones.obtener(jugador_id)
+        if ruta is None or not TABLERO.validar_movimiento(
+            origen, destino_id, self.tirada_pendiente, ruta
+        ):
+            raise ValueError("Destino de movimiento no válido.")
+        self.posiciones.asignar(jugador_id, destino_id)
+        self.tirada_pendiente = None
+        self.rutas_pendientes = {}
+        if TABLERO.es_ubicacion(destino_id):
+            self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        else:
+            self.avanzar_turno()
+
+    def mover(self, jugador_id: str, destino_id: str) -> None:
+        jugador = self._participante_en_turno_para_mover(jugador_id)
+        if jugador["tipo"] != TIPO_HUMANO:
+            raise ValueError("Este participante no puede realizar movimiento humano.")
+        self._mover(jugador_id, destino_id)
+
+    def _usar_pasadizo(self, jugador_id: str) -> str:
+        self._participante_en_turno_para_mover(jugador_id)
+        if self.estado_jugada != JUGADA_ESPERANDO_MOVIMIENTO:
+            raise ValueError("No puedes usar un pasadizo en este momento.")
+        origen = self.posiciones.obtener(jugador_id)
+        destinos = TABLERO.destinos_pasadizo(origen)
+        if len(destinos) != 1:
+            raise ValueError("No hay un pasadizo disponible desde esta ubicación.")
+        destino = TABLERO.usar_pasadizo(origen, destinos[0])
+        self.posiciones.asignar(jugador_id, destino)
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        return destino
+
+    def usar_pasadizo(self, jugador_id: str) -> str:
+        jugador = self._participante_en_turno_para_mover(jugador_id)
+        if jugador["tipo"] != TIPO_HUMANO:
+            raise ValueError("Este participante no puede realizar movimiento humano.")
+        return self._usar_pasadizo(jugador_id)
 
     def investigadores_activos(self) -> list[dict]:
         return [j for j in self.jugadores if j["activo_investigacion"]]
@@ -353,7 +471,10 @@ class Sala:
             raise ValueError("Solo el jugador en turno puede resolver el misterio.")
         if not jugador["activo_investigacion"]:
             raise ValueError("Estas eliminado como investigador.")
-        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+        fases_resolver = {JUGADA_ESPERANDO_SOSPECHA}
+        if self.modo == MODO_TABLERO:
+            fases_resolver.add(JUGADA_ESPERANDO_MOVIMIENTO)
+        if self.estado_jugada not in fases_resolver:
             raise ValueError("Hay una refutacion pendiente.")
         acusacion = {
             "sospechoso_id": self._validar_carta_categoria(sospechoso_id, "sospechoso"),
@@ -409,31 +530,120 @@ class Sala:
             peso += perfil["sospechada"]
         return peso
 
-    def elegir_sospecha_pnj(self, jugador_id: str, rng=None) -> dict:
+    def elegir_sospecha_pnj(
+        self, jugador_id: str, rng=None, lugar_id: str | None = None
+    ) -> dict:
         """Seleccion ponderada usando solo mano, VISTA y memoria publica."""
         rng = rng or random
         elegidas = {}
-        for categoria, cartas in (
+        categorias = [
             ("sospechoso_id", SOSPECHOSOS),
-            ("lugar_id", LUGARES),
             ("objeto_id", OBJETOS),
-        ):
+        ]
+        if lugar_id is None:
+            categorias.insert(1, ("lugar_id", LUGARES))
+        for categoria, cartas in categorias:
             elegidas[categoria] = rng.choices(
                 cartas,
                 weights=[self.peso_carta_pnj(jugador_id, c["id"]) for c in cartas],
                 k=1,
             )[0]["id"]
+        if lugar_id is not None:
+            elegidas["lugar_id"] = self._validar_carta_categoria(lugar_id, "lugar")
         return elegidas
 
+    def _adjuntar_movimiento_pnj(self, movimiento: dict) -> None:
+        if self.sospecha_pendiente is not None:
+            self.sospecha_pendiente["movimiento_pnj"] = movimiento
+        elif self.ultima_jugada is not None:
+            self.ultima_jugada["movimiento_pnj"] = movimiento
+
+    def _formular_sospecha_pnj_tablero(
+        self, jugador_id: str, posicion: str, movimiento: dict, rng
+    ) -> None:
+        sospecha = self.elegir_sospecha_pnj(
+            jugador_id, rng=rng, lugar_id=posicion
+        )
+        self.formular_sospecha(jugador_id, **sospecha, rng=rng)
+        self._adjuntar_movimiento_pnj(movimiento)
+
+    def _ejecutar_turno_pnj_tablero(self, jugador: dict, rng) -> None:
+        jugador_id = jugador["id"]
+        posicion_origen = self.posiciones.obtener(jugador_id)
+        pasadizos = TABLERO.destinos_pasadizo(posicion_origen)
+        if TABLERO.es_ubicacion(posicion_origen):
+            acciones = ["tirar", "sospechar"]
+            pesos = [70, 30]
+            if pasadizos:
+                acciones = ["tirar", "sospechar", "pasadizo"]
+                pesos = [60, 25, 15]
+            accion = rng.choices(acciones, weights=pesos, k=1)[0]
+        else:
+            accion = "tirar"
+
+        origen = self.describir_posicion(posicion_origen)["nombre"]
+        if accion == "sospechar":
+            self._formular_sospecha_pnj_tablero(
+                jugador_id,
+                posicion_origen,
+                {"accion": "sospecha_aqui", "origen": origen},
+                rng,
+            )
+            return
+        if accion == "pasadizo":
+            destino_id = self._usar_pasadizo(jugador_id)
+            destino = self.describir_posicion(destino_id)["nombre"]
+            self._formular_sospecha_pnj_tablero(
+                jugador_id,
+                destino_id,
+                {"accion": "pasadizo", "origen": origen, "destino": destino},
+                rng,
+            )
+            return
+
+        tirada = self._tirar_dado_tablero(jugador_id, rng)
+        destinos_ubicacion = [
+            destino for destino in self.rutas_pendientes if TABLERO.es_ubicacion(destino)
+        ]
+        candidatos = destinos_ubicacion or list(self.rutas_pendientes)
+        destino_id = rng.choice(candidatos)
+        destino = self.describir_posicion(destino_id)["nombre"]
+        movimiento = {
+            "accion": "movimiento",
+            "tirada": tirada,
+            "origen": origen,
+            "destino": destino,
+        }
+        self._mover(jugador_id, destino_id)
+        if TABLERO.es_ubicacion(destino_id):
+            self._formular_sospecha_pnj_tablero(
+                jugador_id, destino_id, movimiento, rng
+            )
+        else:
+            self.ultima_jugada = {
+                "tipo": "movimiento",
+                "investigador_id": jugador_id,
+                "investigador_alias": jugador["alias"],
+                "movimiento_pnj": movimiento,
+            }
+
     def ejecutar_turno_pnj(self, rng=None) -> None:
+        rng = rng or random
         jugador = self.jugador_en_turno()
         if jugador is None or jugador["tipo"] != TIPO_PNJ:
             raise ValueError("El turno actual no pertenece a un PNJ.")
-        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+        fase_esperada = (
+            JUGADA_ESPERANDO_MOVIMIENTO
+            if self.modo == MODO_TABLERO
+            else JUGADA_ESPERANDO_SOSPECHA
+        )
+        if self.estado_jugada != fase_esperada:
             raise ValueError("La jugada anterior aun no esta resuelta.")
         solucion = self.deducir_solucion_pnj(jugador["id"])
         if solucion:
             self.resolver_misterio(jugador["id"], **solucion)
+        elif self.modo == MODO_TABLERO:
+            self._ejecutar_turno_pnj_tablero(jugador, rng)
         else:
             sospecha = self.elegir_sospecha_pnj(jugador["id"], rng=rng)
             self.formular_sospecha(jugador["id"], **sospecha, rng=rng)
@@ -453,6 +663,10 @@ class Sala:
             "refutador_alias": self.jugador_por_id(pendiente["refutador_id"])["alias"],
             "carta_id": carta_id,  # solo se serializa para el investigador
         }
+        if pendiente.get("movimiento_pnj"):
+            self.ultima_jugada["movimiento_pnj"] = dict(
+                pendiente["movimiento_pnj"]
+            )
         self.refutacion_deadline = None
         self.avanzar_turno()
 
@@ -502,13 +716,24 @@ class Sala:
             raise ValueError("Solo el jugador en turno puede formular una sospecha.")
         if not en_turno["activo_investigacion"]:
             raise ValueError("Estas eliminado como investigador.")
-        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+        sospecha_sin_mover = (
+            self.modo == MODO_TABLERO
+            and self.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO
+        )
+        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA and not sospecha_sin_mover:
             raise ValueError("Ya hay una sospecha pendiente.")
         sospecha = {
             "sospechoso_id": self._validar_carta_categoria(sospechoso_id, "sospechoso"),
             "lugar_id": self._validar_carta_categoria(lugar_id, "lugar"),
             "objeto_id": self._validar_carta_categoria(objeto_id, "objeto"),
         }
+        if self.modo == MODO_TABLERO:
+            posicion = self.posiciones.obtener(jugador_id)
+            if not TABLERO.es_ubicacion(posicion) or sospecha["lugar_id"] != posicion:
+                raise ValueError("La sospecha debe realizarse en tu ubicación actual.")
+        # Consumir la alternativa inicial antes de entrar en refutación
+        # impide dado o pasadizo incluso tras recargar/reconectar.
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.cartas_sospechadas.update(sospecha.values())
         self.pnj_pensando_id = None
         self.ultima_jugada = None
@@ -638,6 +863,27 @@ class Sala:
         personaje = PERSONAJE_POR_ID.get(personaje_id)
         return personaje["nombre"] if personaje else None
 
+    def describir_posicion(self, posicion: str | None) -> dict | None:
+        if not posicion:
+            return None
+        if posicion in TABLERO.ubicaciones:
+            return {
+                "id": posicion,
+                "nombre": TABLERO.ubicaciones[posicion]["nombre"],
+                "tipo": "ubicacion",
+            }
+        for camino in TABLERO.caminos.values():
+            if posicion in camino.casillas:
+                numero = camino.casillas.index(posicion) + 1
+                origen = TABLERO.ubicaciones[camino.origen]["nombre"]
+                destino = TABLERO.ubicaciones[camino.destino]["nombre"]
+                return {
+                    "id": posicion,
+                    "nombre": f"Camino {origen} ↔ {destino} · {numero}/4",
+                    "tipo": "casilla",
+                }
+        return None
+
     def _sospecha_publica(self, datos: dict) -> dict:
         return {
             clave: {"id": cid, "nombre": CARTA_POR_ID[cid]["nombre"]}
@@ -650,6 +896,13 @@ class Sala:
         if fuente is None:
             return {"estado": self.estado_jugada}
         resultado = fuente.get("resultado", "pendiente")
+        if fuente.get("tipo") == "movimiento":
+            return {
+                "estado": self.estado_jugada,
+                "tipo": "movimiento",
+                "investigador_alias": fuente["investigador_alias"],
+                "movimiento_pnj": dict(fuente["movimiento_pnj"]),
+            }
         if fuente.get("tipo") in {"acusacion", "final"}:
             publico = {
                 "estado": self.estado_jugada,
@@ -669,6 +922,8 @@ class Sala:
         }
         if resultado == "refutada":
             publico["refutador_alias"] = fuente["refutador_alias"]
+        if fuente.get("movimiento_pnj"):
+            publico["movimiento_pnj"] = dict(fuente["movimiento_pnj"])
         return publico
 
     def jugada_privada(self, jugador_id: str) -> dict:
@@ -698,6 +953,7 @@ class Sala:
         return {
             "codigo": self.codigo,
             "estado": self.estado,
+            "modo": self.modo,
             "jugadores": [
                 {
                     "alias": j["alias"],
@@ -707,6 +963,12 @@ class Sala:
                     "personaje": self.nombre_personaje(j["personaje_id"]),
                     "tipo": j["tipo"],
                     "activo": j["activo_investigacion"],
+                    **(
+                        {"posicion": self.describir_posicion(
+                            self.posiciones.obtener(j["id"])
+                        )}
+                        if self.modo == MODO_TABLERO else {}
+                    ),
                 }
                 for j in self.jugadores
             ],
@@ -727,6 +989,8 @@ class Sala:
                 self.jugador_por_id(self.pnj_pensando_id)["alias"]
                 if self.pnj_pensando_id else None
             ),
+            "fase_tablero": self.estado_jugada if self.modo == MODO_TABLERO else None,
+            "tirada": self.tirada_pendiente,
             "jugada": self.jugada_publica(),
             "resultado_final": self.resultado_final,
             "ganador_alias": (
@@ -755,6 +1019,7 @@ class Sala:
         return {
             "codigo": self.codigo,
             "estado": self.estado,
+            "modo": self.modo,
             "alias": jugador["alias"] if jugador else "",
             "es_anfitrion": bool(jugador and jugador["es_anfitrion"]),
             "personaje_id": jugador["personaje_id"] if jugador else None,
@@ -773,6 +1038,10 @@ class Sala:
             "turno_tipo": publico["turno_tipo"],
             "pnj_pensando_alias": publico["pnj_pensando_alias"],
             "jugada": self.jugada_privada(jugador_id),
+            "posicion": self.describir_posicion(
+                self.posiciones.obtener(jugador_id)
+            ),
+            "movimiento": self._movimiento_privado(jugador_id),
             "resultado_final": publico["resultado_final"],
             "ganador_alias": publico["ganador_alias"],
             **(
@@ -781,6 +1050,41 @@ class Sala:
             ),
         }
 
+    def _movimiento_privado(self, jugador_id: str) -> dict:
+        if self.modo != MODO_TABLERO:
+            return {}
+        jugador = self.jugador_por_id(jugador_id)
+        en_turno = self.jugador_en_turno()
+        es_turno_humano = bool(
+            jugador
+            and en_turno
+            and en_turno["id"] == jugador_id
+            and jugador["tipo"] == TIPO_HUMANO
+            and jugador["activo_investigacion"]
+        )
+        datos = {
+            "fase": self.estado_jugada,
+            "puede_tirar": es_turno_humano
+            and self.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO,
+            "tirada": self.tirada_pendiente,
+            "puede_sospechar": es_turno_humano
+            and self.estado_jugada == JUGADA_ESPERANDO_SOSPECHA,
+        }
+        if es_turno_humano and self.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO:
+            posicion = self.posiciones.obtener(jugador_id)
+            if TABLERO.es_ubicacion(posicion):
+                datos["puede_sospechar_aqui"] = True
+                datos["ubicacion_actual"] = self.describir_posicion(posicion)
+            destinos = TABLERO.destinos_pasadizo(posicion)
+            if destinos:
+                datos["pasadizo"] = self.describir_posicion(destinos[0])
+        if es_turno_humano and self.estado_jugada == JUGADA_ESPERANDO_DESTINO:
+            datos["destinos"] = [
+                self.describir_posicion(destino)
+                for destino in self.rutas_pendientes
+            ]
+        return datos
+
 
 class GestorSalas:
     """Registro en memoria de todas las salas."""
@@ -788,14 +1092,14 @@ class GestorSalas:
     def __init__(self):
         self.salas: dict[str, Sala] = {}
 
-    def crear_sala(self, alias: str) -> tuple[Sala, dict]:
+    def crear_sala(self, alias: str, modo: str = MODO_RAPIDO) -> tuple[Sala, dict]:
         error = validar_alias(alias)
         if error:
             raise ValueError(error)
         codigo = generar_codigo()
         while codigo in self.salas:
             codigo = generar_codigo()
-        sala = Sala(codigo)
+        sala = Sala(codigo, modo=modo)
         anfitrion = sala.agregar_jugador(alias, es_anfitrion=True)
         self.salas[codigo] = sala
         return sala, anfitrion

@@ -22,7 +22,7 @@ $("btn-nueva").addEventListener("click", async () => {
   const respuesta = await fetch("/api/partidas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ alias }),
+    body: JSON.stringify({ alias, modo: $("modo").value }),
   });
   if (!respuesta.ok) {
     $("error").textContent = await leerError(respuesta);

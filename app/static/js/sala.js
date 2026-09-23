@@ -46,6 +46,14 @@ const confResolverLugar = document.getElementById("conf-resolver-lugar");
 const confResolverObjeto = document.getElementById("conf-resolver-objeto");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const finalPartida = document.getElementById("final-partida");
+const modoPartida = document.getElementById("modo-partida");
+const movimientoDiv = document.getElementById("movimiento");
+const posicionActual = document.getElementById("posicion-actual");
+const resultadoDado = document.getElementById("resultado-dado");
+const btnSospechaAqui = document.getElementById("btn-sospecha-aqui");
+const btnTirar = document.getElementById("btn-tirar");
+const btnPasadizo = document.getElementById("btn-pasadizo");
+const destinosMovimiento = document.getElementById("destinos-movimiento");
 
 if (!jugadorId) {
   window.location.href = "/";
@@ -138,6 +146,7 @@ function pintarPersonajes(sala) {
 
 function pintarSala(sala) {
   error.textContent = "";
+  modoPartida.textContent = sala.modo === "tablero" ? "MODO TABLERO" : "MODO RÁPIDO";
   lista.innerHTML = "";
   sala.jugadores.forEach((j) => {
     const li = document.createElement("li");
@@ -169,6 +178,7 @@ function pintarSala(sala) {
     pintarCartas(sala.mis_cartas);
     pintarHoja(sala.investigacion || []);
     pintarJugada(sala);
+    pintarMovimiento(sala);
     pintarFinal(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
@@ -207,7 +217,8 @@ function pintarTurno(sala) {
   } else if (sala.es_mi_turno) {
     turnoP.textContent = "ES TU TURNO";
   } else {
-    turnoP.textContent = `TURNO DE ${(sala.turno_alias || "").toUpperCase()}`;
+    const tipoTurno = sala.turno_tipo === "pnj" ? " · PNJ" : "";
+    turnoP.textContent = `TURNO DE ${(sala.turno_alias || "").toUpperCase()}${tipoTurno}`;
   }
 }
 
@@ -227,7 +238,25 @@ function pintarJugada(sala) {
   const puedeSospechar = sala.estado === "iniciada" && sala.activo_investigacion &&
     sala.es_mi_turno && jugada.estado === "esperando_sospecha";
   btnSospecha.hidden = !puedeSospechar;
-  btnResolver.hidden = !puedeSospechar;
+  const puedeResolver = sala.estado === "iniciada" && sala.activo_investigacion &&
+    sala.es_mi_turno && (jugada.estado === "esperando_sospecha" ||
+      (sala.modo === "tablero" && jugada.estado === "esperando_movimiento"));
+  btnResolver.hidden = !puedeResolver;
+  if (jugada.movimiento_pnj) {
+    const movimientoPnj = document.createElement("p");
+    const m = jugada.movimiento_pnj;
+    if (m.accion === "sospecha_aqui") {
+      movimientoPnj.textContent =
+        `${jugada.investigador_alias} decide investigar ${m.origen} sin moverse.`;
+    } else if (m.accion === "pasadizo") {
+      movimientoPnj.textContent =
+        `${jugada.investigador_alias} usa el pasadizo desde ${m.origen} hasta ${m.destino}.`;
+    } else {
+      movimientoPnj.textContent =
+        `${jugada.investigador_alias} ha tirado un ${m.tirada} y se mueve desde ${m.origen} hasta ${m.destino}.`;
+    }
+    jugadaDiv.appendChild(movimientoPnj);
+  }
   if (jugada.sospecha) {
     const titulo = document.createElement("strong");
     titulo.textContent = `${jugada.investigador_alias} HA FORMULADO UNA SOSPECHA`;
@@ -286,6 +315,37 @@ function pintarJugada(sala) {
       avisoTimeoutRefutacion.textContent = "";
     }
   }
+}
+
+function pintarMovimiento(sala) {
+  movimientoDiv.hidden = sala.modo !== "tablero";
+  if (sala.modo !== "tablero") return;
+  const movimiento = sala.movimiento || {};
+  posicionActual.textContent = `POSICIÓN ACTUAL: ${(sala.posicion && sala.posicion.nombre) || "—"}`;
+  resultadoDado.textContent = movimiento.tirada ? `HAS SACADO: ${movimiento.tirada}` : "";
+  btnTirar.disabled = false;
+  btnPasadizo.disabled = false;
+  btnSospechaAqui.hidden = !movimiento.puede_sospechar_aqui;
+  btnTirar.hidden = !movimiento.puede_tirar;
+  btnPasadizo.hidden = !movimiento.pasadizo;
+  if (movimiento.pasadizo) {
+    btnPasadizo.textContent = `🌀 USAR PASADIZO A ${movimiento.pasadizo.nombre}`;
+  }
+  if (movimiento.puede_sospechar_aqui && movimiento.ubicacion_actual) {
+    btnSospechaAqui.textContent =
+      `🔎 FORMULAR SOSPECHA EN ${movimiento.ubicacion_actual.nombre.toUpperCase()}`;
+  }
+  destinosMovimiento.innerHTML = "";
+  (movimiento.destinos || []).forEach((destino) => {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.textContent = destino.nombre;
+    boton.addEventListener("click", () => {
+      boton.disabled = true;
+      ws.send(JSON.stringify({ accion: "mover", destino_id: destino.id }));
+    });
+    destinosMovimiento.appendChild(boton);
+  });
 }
 
 function pintarFinal(sala) {
@@ -493,12 +553,30 @@ if (btnCerrarCartas) {
   btnCerrarCartas.addEventListener("click", cerrarCartas);
 }
 
-btnSospecha.addEventListener("click", () => {
+function abrirSospecha() {
   const cartas = (ultimaSala && ultimaSala.investigacion) || [];
   llenarSelect(selectSospechoso, cartas, "sospechoso");
   llenarSelect(selectLugar, cartas, "lugar");
   llenarSelect(selectObjeto, cartas, "objeto");
+  const modoTablero = ultimaSala && ultimaSala.modo === "tablero";
+  selectLugar.parentElement.hidden = modoTablero;
+  selectLugar.disabled = modoTablero;
+  if (modoTablero && ultimaSala.posicion) {
+    selectLugar.value = ultimaSala.posicion.id;
+  }
   modalSospecha.hidden = false;
+}
+
+btnSospecha.addEventListener("click", abrirSospecha);
+btnSospechaAqui.addEventListener("click", abrirSospecha);
+
+btnTirar.addEventListener("click", () => {
+  btnTirar.disabled = true;
+  ws.send(JSON.stringify({ accion: "tirar_dado" }));
+});
+btnPasadizo.addEventListener("click", () => {
+  btnPasadizo.disabled = true;
+  ws.send(JSON.stringify({ accion: "usar_pasadizo" }));
 });
 document.getElementById("btn-cancelar-sospecha").addEventListener("click", () => {
   modalSospecha.hidden = true;

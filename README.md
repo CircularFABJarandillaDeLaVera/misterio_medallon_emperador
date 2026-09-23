@@ -52,6 +52,22 @@ dos vecinos del anillo y directamente con la Plaza.
 Este grafo es la autoridad para el tablero físico y para las futuras variantes
 online e híbrida. El modo rápido actual todavía no exige movimiento.
 
+## Modo tablero online (Fase 6B)
+
+Al crear una sala puede elegirse modo rápido o modo tablero. En tablero, cada
+personaje comienza en su ubicación canónica y el turno humano sigue las mismas
+reglas aplicables al tablero físico:
+
+1. Comienza el turno en la posición conservada por el servidor.
+2. Si la ubicación tiene pasadizo, puede usarse en lugar del dado.
+3. En caso contrario se tira 1d6 y se elige uno de los destinos legales.
+4. Si se termina en una casilla intermedia, el turno acaba.
+5. Si se entra en una ubicación, el movimiento termina y se formula allí una
+   sospecha; el lugar no puede elegirse ni falsificarse.
+
+El movimiento PNJ en modo tablero queda intencionadamente pendiente para la
+Fase 6C. Los PNJ del modo rápido mantienen su comportamiento completo.
+
 Proyecto cultural de Circular FAB. Juego multijugador inspirado en lugares
 y personajes de Jarandilla de la Vera.
 

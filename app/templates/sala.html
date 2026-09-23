@@ -14,6 +14,7 @@
 
       <p>Código de sala</p>
       <p class="codigo-sala" id="codigo">{{ codigo }}</p>
+      <p id="modo-partida" class="estado"></p>
 
       <p><strong>Jugadores conectados:</strong></p>
       <ul class="lista-jugadores" id="jugadores"></ul>
@@ -31,6 +32,14 @@
       <div id="partida" hidden>
         <h2>EL MISTERIO COMIENZA</h2>
         <p class="turno" id="turno"></p>
+        <div id="movimiento" class="grupo-cartas" hidden>
+          <p id="posicion-actual"></p>
+          <p id="resultado-dado"></p>
+          <button id="btn-sospecha-aqui" type="button" hidden>🔎 FORMULAR SOSPECHA AQUÍ</button>
+          <button id="btn-tirar" type="button" hidden>🎲 TIRAR DADO</button>
+          <button id="btn-pasadizo" type="button" hidden>🌀 USAR PASADIZO</button>
+          <div id="destinos-movimiento"></div>
+        </div>
         <div id="jugada" class="grupo-cartas"></div>
         <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
         <button id="btn-resolver" type="button" hidden>🏆 RESOLVER EL MISTERIO</button>

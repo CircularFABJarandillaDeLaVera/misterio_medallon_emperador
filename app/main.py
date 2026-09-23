@@ -18,9 +18,11 @@ from app.datos.jarandilla import SOSPECHOSOS
 from app.motor.sala import (
     ESTADO_ESPERANDO,
     ESTADO_TERMINADA,
+    JUGADA_ESPERANDO_MOVIMIENTO,
     JUGADA_ESPERANDO_REFUTADOR,
     JUGADA_ESPERANDO_SOSPECHA,
     TIPO_PNJ,
+    MODO_TABLERO,
     GestorSalas,
 )
 
@@ -36,19 +38,29 @@ cerrojos: dict[str, asyncio.Lock] = {}
 tareas_pnj: dict[str, asyncio.Task] = {}
 PAUSA_TURNO_PNJ_SEGUNDOS = 3.0
 PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS = 5.0
+PAUSA_LECTURA_SOSPECHA_PNJ_SEGUNDOS = 5.0
 
 
 def pausa_antes_de_turno_pnj(sala) -> float:
     """Ritmo contextual: depende del INVESTIGADOR de la ultima jugada.
 
-    Jugada humana -> siguiente PNJ = ~5 s (tiempo de lectura del
-    refutador y de la carta privada). Jugada PNJ (o sin jugada previa)
-    -> siguiente PNJ = ~3 s. Nunca bloquea: solo indica la duracion
-    del asyncio.sleep exterior al cerrojo.
+    Sospecha PNJ de tablero ya resuelta -> ~5 s de lectura. Esta pausa
+    sustituye la pausa PNJ genérica, no se suma a ella. Jugada humana
+    -> siguiente PNJ = ~5 s. Otro caso PNJ (o sin jugada previa) -> ~3 s.
+    Nunca bloquea: solo indica la duración del asyncio.sleep exterior
+    al cerrojo.
     """
     ultima = getattr(sala, "ultima_jugada", None)
     if ultima:
         investigador = sala.jugador_por_id(ultima.get("investigador_id", ""))
+        if (
+            sala.modo == MODO_TABLERO
+            and investigador is not None
+            and investigador.get("tipo") == TIPO_PNJ
+            and ultima.get("sospecha")
+            and ultima.get("resultado") in {"refutada", "sin_refutacion"}
+        ):
+            return PAUSA_LECTURA_SOSPECHA_PNJ_SEGUNDOS
         if investigador is not None and investigador.get("tipo") != TIPO_PNJ:
             return PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS
     return PAUSA_TURNO_PNJ_SEGUNDOS
@@ -67,7 +79,11 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
                 if (
                     jugador is None
                     or jugador["tipo"] != TIPO_PNJ
-                    or sala.estado_jugada != JUGADA_ESPERANDO_SOSPECHA
+                    or sala.estado_jugada != (
+                        JUGADA_ESPERANDO_MOVIMIENTO
+                        if sala.modo == MODO_TABLERO
+                        else JUGADA_ESPERANDO_SOSPECHA
+                    )
                 ):
                     return
                 jugador_id = jugador["id"]
@@ -81,11 +97,18 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
                 if (
                     jugador is None
                     or jugador["id"] != jugador_id
-                    or sala.estado_jugada != JUGADA_ESPERANDO_SOSPECHA
+                    or sala.estado_jugada != (
+                        JUGADA_ESPERANDO_MOVIMIENTO
+                        if sala.modo == MODO_TABLERO
+                        else JUGADA_ESPERANDO_SOSPECHA
+                    )
                 ):
                     continue
                 sala.ejecutar_turno_pnj()
             await difundir(codigo)
+            if sala.estado == ESTADO_TERMINADA:
+                cancelar_timeout_refutacion(codigo)
+                return
             # La jugada PNJ también puede dejar una refutación pendiente
             # de un humano eliminado: programa el watchdog con el deadline
             # ya creado (nunca lo reinicia). Sin esto, el timeout real no
@@ -184,6 +207,7 @@ def cancelar_timeout_refutacion(codigo: str) -> None:
 
 class EntradaAlias(BaseModel):
     alias: str = ""
+    modo: str = "rapido"
 
 
 class EntradaUnirse(BaseModel):
@@ -257,7 +281,7 @@ def ver_sala(request: Request, codigo: str):
 @app.post("/api/partidas")
 async def crear_partida(entrada: EntradaAlias):
     try:
-        sala, anfitrion = gestor.crear_sala(entrada.alias)
+        sala, anfitrion = gestor.crear_sala(entrada.alias, entrada.modo)
     except ValueError as exc:
         return _respuesta_error(str(exc))
     conexiones.setdefault(sala.codigo, {})
@@ -351,6 +375,31 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+            elif accion == "tirar_dado":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.tirar_dado_tablero(jugador_id)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+            elif accion == "mover":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.mover(jugador_id, datos.get("destino_id", ""))
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
+            elif accion == "usar_pasadizo":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.usar_pasadizo(jugador_id)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
                 programar_timeout_refutacion(sala.codigo)
             elif accion == "resolver_misterio":
                 try:
