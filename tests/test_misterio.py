@@ -207,6 +207,7 @@ def test_privacidad_manos_y_misterio_por_websocket():
                 "personaje_id",
                 "personaje",
                 "tipo",
+                "activo",
             }
     assert "misterio" not in json.dumps(publico)
 

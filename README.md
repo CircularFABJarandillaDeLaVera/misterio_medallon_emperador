@@ -18,6 +18,15 @@ refutaciones y conocimiento privado. Los turnos PNJ se ejecutan de forma
 asíncrona con una pausa narrativa de aproximadamente tres segundos, durante
 la cual permanece visible el resultado de la jugada anterior.
 
+## Sprint 5
+
+Durante su turno, un investigador activo puede intentar resolver el misterio.
+Una acusación correcta termina la partida; una incorrecta elimina al
+investigador de futuros turnos, aunque conserva sus cartas y sigue refutando.
+Los PNJ solo acusan cuando pueden deducir una combinación mediante su mano,
+cartas vistas o una sospecha propia no refutada. La solución permanece secreta
+hasta el final, incluido el caso en que todos los investigadores fallen.
+
 Proyecto cultural de Circular FAB. Juego multijugador inspirado en lugares
 y personajes de Jarandilla de la Vera.
 

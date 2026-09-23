@@ -6,6 +6,7 @@ no tienen conexiones simuladas y el misterio nunca sale del servidor.
 from __future__ import annotations
 
 import asyncio
+import time
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -16,6 +17,8 @@ from pydantic import BaseModel
 from app.datos.jarandilla import SOSPECHOSOS
 from app.motor.sala import (
     ESTADO_ESPERANDO,
+    ESTADO_TERMINADA,
+    JUGADA_ESPERANDO_REFUTADOR,
     JUGADA_ESPERANDO_SOSPECHA,
     TIPO_PNJ,
     GestorSalas,
@@ -83,15 +86,100 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
                     continue
                 sala.ejecutar_turno_pnj()
             await difundir(codigo)
+            # La jugada PNJ también puede dejar una refutación pendiente
+            # de un humano eliminado: programa el watchdog con el deadline
+            # ya creado (nunca lo reinicia). Sin esto, el timeout real no
+            # se disparaba cuando el investigador era un PNJ.
+            programar_timeout_refutacion(codigo)
     finally:
         if tareas_pnj.get(codigo) is tarea_actual:
             tareas_pnj.pop(codigo, None)
 
 
 def programar_turno_pnj(codigo: str) -> None:
+    sala = gestor.obtener(codigo)
+    if sala is None or sala.estado == ESTADO_TERMINADA:
+        return
     existente = tareas_pnj.get(codigo)
     if existente is None or existente.done():
         tareas_pnj[codigo] = asyncio.create_task(_cadena_turnos_pnj(codigo))
+
+
+# Watchdog server-side del timeout de refutación (Microfase 5A).
+# Una sola tarea por sala; nunca duerme con el cerrojo cogido.
+tareas_refutacion: dict[str, asyncio.Task] = {}
+
+
+def _necesita_timeout_refutacion(sala) -> bool:
+    """Solo HUMANO + ELIMINADO + VARIAS coincidencias pendientes."""
+    if (
+        sala.estado_jugada != JUGADA_ESPERANDO_REFUTADOR
+        or not sala.sospecha_pendiente
+    ):
+        return False
+    refutador = sala.jugador_por_id(
+        sala.sospecha_pendiente["refutador_id"]
+    )
+    return (
+        refutador is not None
+        and refutador["tipo"] != TIPO_PNJ
+        and not refutador["activo_investigacion"]
+        and len(sala.sospecha_pendiente["coincidencias"]) > 1
+    )
+
+
+async def _vigilar_refutacion_eliminado(codigo: str) -> None:
+    """Espera al deadline y resuelve automáticamente si sigue pendiente.
+
+    La carrera manual/timeout se gana bajo el cerrojo de la sala: quien
+    resuelva primero (mostrar_carta o este watchdog) deja
+    sospecha_pendiente a None y el otro es no-op. Solo la resolución
+    ganadora difunde y programa la cadena PNJ, exactamente una vez.
+    """
+    tarea_actual = asyncio.current_task()
+    try:
+        sala = gestor.obtener(codigo)
+        if sala is None or not _necesita_timeout_refutacion(sala):
+            return
+        deadline = sala.refutacion_deadline
+        if deadline is None:
+            return
+        retraso = deadline - time.monotonic()
+        if retraso > 0:
+            await asyncio.sleep(retraso)
+        async with cerrojos.setdefault(codigo, asyncio.Lock()):
+            sala = gestor.obtener(codigo)
+            if sala is None or sala.refutacion_deadline != deadline:
+                return  # rancia: otra jugada manda o ya se resolvió
+            if sala.resolver_refutacion_eliminado_auto() is None:
+                return  # la elección manual ganó la carrera
+        await difundir(codigo)
+        programar_turno_pnj(codigo)
+    finally:
+        if tareas_refutacion.get(codigo) is tarea_actual:
+            tareas_refutacion.pop(codigo, None)
+
+
+def programar_timeout_refutacion(codigo: str) -> None:
+    """Programa el watchdog sin reiniciar jamás el deadline de la sala."""
+    sala = gestor.obtener(codigo)
+    if sala is None or sala.estado == ESTADO_TERMINADA:
+        return
+    if not _necesita_timeout_refutacion(sala):
+        return
+    if sala.refutacion_deadline is None:
+        return
+    existente = tareas_refutacion.get(codigo)
+    if existente is None or existente.done():
+        tareas_refutacion[codigo] = asyncio.create_task(
+            _vigilar_refutacion_eliminado(codigo)
+        )
+
+
+def cancelar_timeout_refutacion(codigo: str) -> None:
+    tarea = tareas_refutacion.pop(codigo, None)
+    if tarea:
+        tarea.cancel()
 
 
 class EntradaAlias(BaseModel):
@@ -225,6 +313,9 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     conexiones.setdefault(sala.codigo, {}).setdefault(jugador_id, []).append(ws)
     await _enviar_privado(sala, jugador_id, ws)
     programar_turno_pnj(sala.codigo)
+    # Reconexión con refutación pendiente: rearma el watchdog con el
+    # deadline existente de la sala, sin reiniciar el plazo.
+    programar_timeout_refutacion(sala.codigo)
     try:
         while True:
             datos = await ws.receive_json()
@@ -260,6 +351,26 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+                programar_timeout_refutacion(sala.codigo)
+            elif accion == "resolver_misterio":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.resolver_misterio(
+                            jugador_id,
+                            datos.get("sospechoso_id", ""),
+                            datos.get("lugar_id", ""),
+                            datos.get("objeto_id", ""),
+                        )
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                if sala.estado == ESTADO_TERMINADA:
+                    tarea = tareas_pnj.pop(sala.codigo, None)
+                    if tarea and tarea is not asyncio.current_task():
+                        tarea.cancel()
+                    cancelar_timeout_refutacion(sala.codigo)
+                await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
             elif accion == "mostrar_carta":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -267,6 +378,8 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 except ValueError as exc:
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
+                # La elección manual ganó: el watchdog pendiente es no-op.
+                cancelar_timeout_refutacion(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
             elif accion == "marcar_investigacion":
@@ -298,6 +411,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 tarea = tareas_pnj.pop(sala.codigo, None)
                 if tarea:
                     tarea.cancel()
+                cancelar_timeout_refutacion(sala.codigo)
             else:
                 await difundir(sala.codigo)
         # En partida iniciada el jugador y su mano se conservan

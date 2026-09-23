@@ -33,6 +33,8 @@
         <p class="turno" id="turno"></p>
         <div id="jugada" class="grupo-cartas"></div>
         <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
+        <button id="btn-resolver" type="button" hidden>🏆 RESOLVER EL MISTERIO</button>
+        <div id="final-partida" class="grupo-cartas" hidden></div>
         <p><strong>ORDEN DE JUEGO</strong></p>
         <ol id="orden"></ol>
         <div class="accesos">
@@ -40,6 +42,30 @@
           <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
         </div>
         <p class="estado" id="total"></p>
+      </div>
+      <div id="modal-resolver" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Resolver el misterio">
+          <h2>🏆 RESOLVER EL MISTERIO</h2>
+          <p class="nota-privada">Es irreversible. Si fallas quedarás eliminado como investigador.</p>
+          <label>SOSPECHOSO<select id="resolver-sospechoso"></select></label>
+          <label>LUGAR<select id="resolver-lugar"></select></label>
+          <label>OBJETO<select id="resolver-objeto"></select></label>
+          <button id="btn-confirmar-resolver" type="button">CONTINUAR</button>
+          <button id="btn-cancelar-resolver" type="button" class="secundario">CANCELAR</button>
+        </div>
+      </div>
+      <div id="modal-confirmar-resolver" class="modal" hidden>
+        <div class="modal-caja" role="dialog" aria-label="Confirmar resolución">
+          <h2>🏆 ¿RESOLVER EL MISTERIO?</h2>
+          <div class="grupo-cartas">
+            <p id="conf-resolver-sospechoso"></p>
+            <p id="conf-resolver-lugar"></p>
+            <p id="conf-resolver-objeto"></p>
+          </div>
+          <p class="nota-privada">Si la acusación es incorrecta quedarás eliminado como investigador.</p>
+          <button id="btn-enviar-resolver" type="button">RESOLVER EL MISTERIO</button>
+          <button id="btn-cancelar-confirmar-resolver" type="button" class="secundario">CANCELAR</button>
+        </div>
       </div>
       <div id="modal-sospecha" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Formular sospecha">
@@ -56,6 +82,7 @@
           <h2>PUEDES REFUTAR LA SOSPECHA</h2>
           <p>ELIGE UNA CARTA PARA MOSTRAR:</p>
           <div id="opciones-refutacion"></div>
+          <p id="aviso-timeout-refutacion" class="nota-privada" hidden></p>
           <p class="nota-privada">Solo el investigador verá la carta que elijas.</p>
         </div>
       </div>

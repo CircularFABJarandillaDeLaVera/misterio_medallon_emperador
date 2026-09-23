@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import random
 import secrets
+import time
 import uuid
 
 from app.datos.jarandilla import (
@@ -30,6 +31,7 @@ PERSONAJE_POR_ID: dict[str, dict] = {p["id"]: p for p in SOSPECHOSOS}
 
 ESTADO_ESPERANDO = "esperando"
 ESTADO_INICIADA = "iniciada"
+ESTADO_TERMINADA = "terminada"
 
 JUGADA_ESPERANDO_SOSPECHA = "esperando_sospecha"
 JUGADA_ESPERANDO_REFUTADOR = "esperando_eleccion_refutador"
@@ -50,6 +52,10 @@ PERFILES_PNJ = {
     "mateo": {"desconocida": 55, "sospechada": 30, "conocida": 15},
     "eulalia": {"desconocida": 50, "sospechada": 40, "conocida": 10},
 }
+
+# Timeout server-side para refutación de humano eliminado (Microfase 5A).
+# Solo HUMANO + ELIMINADO + VARIAS coincidencias. Segundos aproximados.
+TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS = 3.0
 
 # Hoja de investigación privada (Microfase 3B). Terminología de OBJETOS.
 INV_SIN_INFORMACION = "sin_informacion"
@@ -117,8 +123,17 @@ class Sala:
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente: dict | None = None
         self.ultima_jugada: dict | None = None
+        # Deadline monotónico de la refutación pendiente de un humano
+        # eliminado (Microfase 5A). Vive en la sala: sobrevive a
+        # recargas y reconexiones porque nunca se reinicia salvo
+        # nueva sospecha o resolución.
+        self.refutacion_deadline: float | None = None
         self.cartas_sospechadas: set[str] = set()  # memoria exclusivamente publica
         self.pnj_pensando_id: str | None = None
+        self.resultado_final: str | None = None
+        self.ganador_id: str | None = None
+        # Conocimiento privado deducido sin consultar el misterio.
+        self.soluciones_deducidas: dict[str, dict] = {}
 
     def jugador_por_id(self, jugador_id: str) -> dict | None:
         for j in self.jugadores:
@@ -143,6 +158,7 @@ class Sala:
             "es_anfitrion": es_anfitrion,
             "personaje_id": personaje_id,
             "tipo": tipo,
+            "activo_investigacion": True,
         }
         self.jugadores.append(jugador)
         self.descartes.setdefault(jugador["id"], set())
@@ -156,6 +172,7 @@ class Sala:
                 self.manos.pop(jugador_id, None)
                 self.descartes.pop(jugador_id, None)
                 self.vistas.pop(jugador_id, None)
+                self.soluciones_deducidas.pop(jugador_id, None)
                 # Si se va el anfitrión, el más antiguo hereda el rol.
                 if eliminado["es_anfitrion"] and self.jugadores:
                     self.jugadores[0]["es_anfitrion"] = True
@@ -251,8 +268,12 @@ class Sala:
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente = None
         self.ultima_jugada = None
+        self.refutacion_deadline = None
         self.cartas_sospechadas.clear()
         self.pnj_pensando_id = None
+        self.resultado_final = None
+        self.ganador_id = None
+        self.soluciones_deducidas.clear()
         for j in self.jugadores:
             self.descartes.setdefault(j["id"], set())
             self.vistas.setdefault(j["id"], set())
@@ -284,11 +305,96 @@ class Sala:
         return None
 
     def avanzar_turno(self) -> None:
-        if self.orden_turnos:
-            self.turno_actual = (self.turno_actual + 1) % len(self.orden_turnos)
+        if self.estado == ESTADO_INICIADA and self.orden_turnos:
+            for salto in range(1, len(self.orden_turnos) + 1):
+                indice = (self.turno_actual + salto) % len(self.orden_turnos)
+                candidato = self.jugador_por_id(self.orden_turnos[indice])
+                if candidato and candidato["activo_investigacion"]:
+                    self.turno_actual = indice
+                    break
         self.sospecha_pendiente = None
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.pnj_pensando_id = None
+
+    def investigadores_activos(self) -> list[dict]:
+        return [j for j in self.jugadores if j["activo_investigacion"]]
+
+    def deducir_solucion_pnj(self, jugador_id: str) -> dict | None:
+        """Deduce solo desde mano, VISTA o una conclusión privada ya obtenida."""
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None or jugador["tipo"] != TIPO_PNJ:
+            return None
+        explicita = self.soluciones_deducidas.get(jugador_id)
+        if explicita:
+            return dict(explicita)
+        excluidas = self.mano_ids(jugador_id) | self.vistas.get(jugador_id, set())
+        categorias = (
+            ("sospechoso_id", SOSPECHOSOS),
+            ("lugar_id", LUGARES),
+            ("objeto_id", OBJETOS),
+        )
+        candidatas = {
+            clave: [c["id"] for c in cartas if c["id"] not in excluidas]
+            for clave, cartas in categorias
+        }
+        if all(len(ids) == 1 for ids in candidatas.values()):
+            return {clave: ids[0] for clave, ids in candidatas.items()}
+        return None
+
+    def resolver_misterio(
+        self, jugador_id: str, sospechoso_id: str, lugar_id: str, objeto_id: str
+    ) -> bool:
+        """Valida una acusación ya formada y realiza una única transición."""
+        if self.estado != ESTADO_INICIADA:
+            raise ValueError("La partida no admite nuevas acusaciones.")
+        jugador = self.jugador_por_id(jugador_id)
+        en_turno = self.jugador_en_turno()
+        if jugador is None or en_turno is None or en_turno["id"] != jugador_id:
+            raise ValueError("Solo el jugador en turno puede resolver el misterio.")
+        if not jugador["activo_investigacion"]:
+            raise ValueError("Estas eliminado como investigador.")
+        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+            raise ValueError("Hay una refutacion pendiente.")
+        acusacion = {
+            "sospechoso_id": self._validar_carta_categoria(sospechoso_id, "sospechoso"),
+            "lugar_id": self._validar_carta_categoria(lugar_id, "lugar"),
+            "objeto_id": self._validar_carta_categoria(objeto_id, "objeto"),
+        }
+        correcta = all(
+            acusacion[f"{categoria}_id"] == self.misterio[categoria]["id"]
+            for categoria in ("sospechoso", "lugar", "objeto")
+        )
+        self.sospecha_pendiente = None
+        self.pnj_pensando_id = None
+        if correcta:
+            self.estado = ESTADO_TERMINADA
+            self.resultado_final = "resuelto"
+            self.ganador_id = jugador_id
+            self.ultima_jugada = {
+                "tipo": "acusacion",
+                "investigador_id": jugador_id,
+                "investigador_alias": jugador["alias"],
+                "resultado": "resuelto",
+            }
+            return True
+        jugador["activo_investigacion"] = False
+        self.ultima_jugada = {
+            "tipo": "acusacion",
+            "investigador_id": jugador_id,
+            "investigador_alias": jugador["alias"],
+            "resultado": "acusacion_incorrecta",
+        }
+        if not self.investigadores_activos():
+            self.estado = ESTADO_TERMINADA
+            self.resultado_final = "sin_resolver"
+            self.ganador_id = None
+            self.ultima_jugada = {
+                "tipo": "final",
+                "resultado": "sin_resolver",
+            }
+        else:
+            self.avanzar_turno()
+        return False
 
     def peso_carta_pnj(self, jugador_id: str, carta_id: str) -> int:
         jugador = self.jugador_por_id(jugador_id)
@@ -325,8 +431,12 @@ class Sala:
             raise ValueError("El turno actual no pertenece a un PNJ.")
         if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
             raise ValueError("La jugada anterior aun no esta resuelta.")
-        sospecha = self.elegir_sospecha_pnj(jugador["id"], rng=rng)
-        self.formular_sospecha(jugador["id"], **sospecha, rng=rng)
+        solucion = self.deducir_solucion_pnj(jugador["id"])
+        if solucion:
+            self.resolver_misterio(jugador["id"], **solucion)
+        else:
+            sospecha = self.elegir_sospecha_pnj(jugador["id"], rng=rng)
+            self.formular_sospecha(jugador["id"], **sospecha, rng=rng)
 
     def _resolver_refutacion(self, carta_id: str) -> None:
         pendiente = self.sospecha_pendiente
@@ -343,7 +453,39 @@ class Sala:
             "refutador_alias": self.jugador_por_id(pendiente["refutador_id"])["alias"],
             "carta_id": carta_id,  # solo se serializa para el investigador
         }
+        self.refutacion_deadline = None
         self.avanzar_turno()
+
+    def resolver_refutacion_eliminado_auto(self, rng=None) -> str | None:
+        """Resolución automática server-side por timeout (Microfase 5A).
+
+        Solo HUMANO + ELIMINADO + VARIAS coincidencias con plazo vencido.
+        La elección es random.choice(coincidencias), nunca la primera por
+        defecto, y sigue el mismo _resolver_refutacion autoritativo que
+        la elección manual (una sola resolución, un solo turno, un VISTA).
+        Devuelve la carta elegida o None si no procede.
+        """
+        if self.estado_jugada != JUGADA_ESPERANDO_REFUTADOR:
+            return None
+        pendiente = self.sospecha_pendiente
+        if pendiente is None:
+            return None
+        refutador = self.jugador_por_id(pendiente["refutador_id"])
+        if (
+            refutador is None
+            or refutador["tipo"] == TIPO_PNJ
+            or refutador["activo_investigacion"]
+            or len(pendiente["coincidencias"]) <= 1
+        ):
+            return None
+        if (
+            self.refutacion_deadline is None
+            or time.monotonic() < self.refutacion_deadline
+        ):
+            return None
+        elegida = (rng or random).choice(list(pendiente["coincidencias"]))
+        self._resolver_refutacion(elegida)
+        return elegida
 
     def formular_sospecha(
         self,
@@ -358,6 +500,8 @@ class Sala:
         en_turno = self.jugador_en_turno()
         if en_turno is None or en_turno["id"] != jugador_id:
             raise ValueError("Solo el jugador en turno puede formular una sospecha.")
+        if not en_turno["activo_investigacion"]:
+            raise ValueError("Estas eliminado como investigador.")
         if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
             raise ValueError("Ya hay una sospecha pendiente.")
         sospecha = {
@@ -376,6 +520,12 @@ class Sala:
                 "investigador_alias": en_turno["alias"],
                 "resultado": "sin_refutacion",
             }
+            investigador = self.jugador_por_id(jugador_id)
+            if (
+                investigador["tipo"] == TIPO_PNJ
+                and not set(sospecha.values()).intersection(self.mano_ids(jugador_id))
+            ):
+                self.soluciones_deducidas[jugador_id] = dict(sospecha)
             self.avanzar_turno()
             return
         refutador_id, coincidencias = hallazgo
@@ -395,6 +545,14 @@ class Sala:
             self._resolver_refutacion(elegida)
         else:
             self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
+            # Timeout SOLO para humano eliminado con varias opciones: el
+            # plazo vive en la sala y no se reinicia por reconexiones.
+            if not refutador["activo_investigacion"]:
+                self.refutacion_deadline = (
+                    time.monotonic() + TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS
+                )
+            else:
+                self.refutacion_deadline = None
 
     def mostrar_carta(self, jugador_id: str, carta_id: str) -> None:
         pendiente = self.sospecha_pendiente
@@ -492,6 +650,15 @@ class Sala:
         if fuente is None:
             return {"estado": self.estado_jugada}
         resultado = fuente.get("resultado", "pendiente")
+        if fuente.get("tipo") in {"acusacion", "final"}:
+            publico = {
+                "estado": self.estado_jugada,
+                "tipo": fuente["tipo"],
+                "resultado": resultado,
+            }
+            if fuente.get("investigador_alias"):
+                publico["investigador_alias"] = fuente["investigador_alias"]
+            return publico
         publico = {
             "estado": self.estado_jugada,
             "investigador_alias": fuente["investigador_alias"]
@@ -513,6 +680,13 @@ class Sala:
             privada["opciones_refutacion"] = [
                 dict(CARTA_POR_ID[cid]) for cid in pendiente["coincidencias"]
             ]
+            # Aviso server-side de plazo (solo humano eliminado con varias
+            # opciones): el cliente lo muestra, pero la autoridad es el
+            # servidor. Ninguna otra carta ni deadline viaja aquí.
+            if self.refutacion_deadline is not None:
+                privada["timeout_refutacion_seg"] = (
+                    TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS
+                )
         ultima = self.ultima_jugada
         if ultima and ultima.get("carta_id") and ultima["investigador_id"] == jugador_id:
             privada["carta_mostrada"] = dict(CARTA_POR_ID[ultima["carta_id"]])
@@ -532,6 +706,7 @@ class Sala:
                     "personaje_id": j["personaje_id"],
                     "personaje": self.nombre_personaje(j["personaje_id"]),
                     "tipo": j["tipo"],
+                    "activo": j["activo_investigacion"],
                 }
                 for j in self.jugadores
             ],
@@ -542,6 +717,7 @@ class Sala:
                         self.jugador_por_id(jid)["personaje_id"]
                     ),
                     "tipo": self.jugador_por_id(jid)["tipo"],
+                    "activo": self.jugador_por_id(jid)["activo_investigacion"],
                 }
                 for jid in self.orden_turnos
             ],
@@ -552,6 +728,22 @@ class Sala:
                 if self.pnj_pensando_id else None
             ),
             "jugada": self.jugada_publica(),
+            "resultado_final": self.resultado_final,
+            "ganador_alias": (
+                self.jugador_por_id(self.ganador_id)["alias"]
+                if self.ganador_id else None
+            ),
+            **(
+                {"solucion": {
+                    categoria: {
+                        "id": carta["id"],
+                        "nombre": carta["nombre"],
+                    }
+                    for categoria, carta in self.misterio.items()
+                }}
+                if self.estado == ESTADO_TERMINADA and self.misterio
+                else {}
+            ),
         }
 
     def estado_privado(self, jugador_id: str) -> dict:
@@ -572,12 +764,21 @@ class Sala:
             "mis_cartas": [dict(c) for c in self.manos.get(jugador_id, [])],
             "investigacion": self.hoja_investigacion(jugador_id),
             "es_mi_turno": bool(en_turno and en_turno["id"] == jugador_id),
+            "activo_investigacion": bool(
+                jugador and jugador["activo_investigacion"]
+            ),
             "jugadores": publico["jugadores"],
             "orden": publico["orden"],
             "turno_alias": publico["turno_alias"],
             "turno_tipo": publico["turno_tipo"],
             "pnj_pensando_alias": publico["pnj_pensando_alias"],
             "jugada": self.jugada_privada(jugador_id),
+            "resultado_final": publico["resultado_final"],
+            "ganador_alias": publico["ganador_alias"],
+            **(
+                {"solucion": publico["solucion"]}
+                if "solucion" in publico else {}
+            ),
         }
 
 
@@ -608,7 +809,7 @@ class GestorSalas:
         sala = self.obtener(codigo)
         if sala is None:
             raise LookupError("La sala no existe. Revisa el código.")
-        if sala.estado == ESTADO_INICIADA:
+        if sala.estado != ESTADO_ESPERANDO:
             raise ValueError("La partida ya comenzó. No se admiten más jugadores.")
         if len(sala.jugadores) >= MAX_JUGADORES:
             raise ValueError(

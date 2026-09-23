@@ -34,6 +34,18 @@ const opcionesRefutacion = document.getElementById("opciones-refutacion");
 const selectSospechoso = document.getElementById("sospecha-sospechoso");
 const selectLugar = document.getElementById("sospecha-lugar");
 const selectObjeto = document.getElementById("sospecha-objeto");
+const btnResolver = document.getElementById("btn-resolver");
+const modalResolver = document.getElementById("modal-resolver");
+const resolverSospechoso = document.getElementById("resolver-sospechoso");
+const resolverLugar = document.getElementById("resolver-lugar");
+const resolverObjeto = document.getElementById("resolver-objeto");
+const modalConfirmarResolver = document.getElementById("modal-confirmar-resolver");
+const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
+const confResolverSospechoso = document.getElementById("conf-resolver-sospechoso");
+const confResolverLugar = document.getElementById("conf-resolver-lugar");
+const confResolverObjeto = document.getElementById("conf-resolver-objeto");
+const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
+const finalPartida = document.getElementById("final-partida");
 
 if (!jugadorId) {
   window.location.href = "/";
@@ -133,9 +145,10 @@ function pintarSala(sala) {
     if (j.personaje) {
       texto += ` — ${j.personaje}`;
     }
-    if (sala.estado === "iniciada") {
+    if (sala.estado === "iniciada" || sala.estado === "terminada") {
       texto += ` · ${j.num_cartas} cartas`;
       texto += j.tipo === "pnj" ? " · PNJ" : " · HUMANO";
+      texto += j.activo ? " · ACTIVO" : " · ELIMINADO";
     }
     li.textContent = texto;
     if (j.es_anfitrion) {
@@ -147,7 +160,7 @@ function pintarSala(sala) {
     lista.appendChild(li);
   });
 
-  if (sala.estado === "iniciada") {
+  if (sala.estado === "iniciada" || sala.estado === "terminada") {
     estado.textContent = "";
     btnComenzar.style.display = "none";
     lobbyPersonajes.style.display = "none";
@@ -156,6 +169,7 @@ function pintarSala(sala) {
     pintarCartas(sala.mis_cartas);
     pintarHoja(sala.investigacion || []);
     pintarJugada(sala);
+    pintarFinal(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
@@ -180,13 +194,15 @@ function pintarTurno(sala) {
   ordenOl.innerHTML = "";
   sala.orden.forEach((entrada, i) => {
     const li = document.createElement("li");
-    li.textContent = `${entrada.alias} — ${entrada.personaje} · ${entrada.tipo === "pnj" ? "PNJ" : "HUMANO"}`;
+    li.textContent = `${entrada.alias} — ${entrada.personaje} · ${entrada.tipo === "pnj" ? "PNJ" : "HUMANO"} · ${entrada.activo ? "ACTIVO" : "ELIMINADO"}`;
     if (entrada.alias === sala.turno_alias) {
       li.classList.add("en-turno");
     }
     ordenOl.appendChild(li);
   });
-  if (sala.pnj_pensando_alias) {
+  if (sala.estado === "terminada") {
+    turnoP.textContent = "PARTIDA TERMINADA";
+  } else if (sala.pnj_pensando_alias) {
     turnoP.textContent = `${sala.pnj_pensando_alias} ESTÁ PENSANDO...`;
   } else if (sala.es_mi_turno) {
     turnoP.textContent = "ES TU TURNO";
@@ -208,8 +224,10 @@ function llenarSelect(select, cartas, categoria) {
 function pintarJugada(sala) {
   const jugada = sala.jugada || {};
   jugadaDiv.innerHTML = "";
-  const puedeSospechar = sala.es_mi_turno && jugada.estado === "esperando_sospecha";
+  const puedeSospechar = sala.estado === "iniciada" && sala.activo_investigacion &&
+    sala.es_mi_turno && jugada.estado === "esperando_sospecha";
   btnSospecha.hidden = !puedeSospechar;
+  btnResolver.hidden = !puedeSospechar;
   if (jugada.sospecha) {
     const titulo = document.createElement("strong");
     titulo.textContent = `${jugada.investigador_alias} HA FORMULADO UNA SOSPECHA`;
@@ -229,6 +247,12 @@ function pintarJugada(sala) {
     resultado.textContent = "ESPERANDO RESPUESTA...";
   } else if (jugada.resultado === "pendiente") {
     resultado.textContent = "RESOLVIENDO SOSPECHA...";
+  } else if (jugada.resultado === "acusacion_incorrecta") {
+    resultado.textContent = `${jugada.investigador_alias} HA INTENTADO RESOLVER EL MISTERIO. LA ACUSACIÓN ERA INCORRECTA. QUEDA ELIMINADO COMO INVESTIGADOR.`;
+  } else if (jugada.resultado === "resuelto") {
+    resultado.textContent = `${jugada.investigador_alias} HA RESUELTO EL MISTERIO.`;
+  } else if (jugada.resultado === "sin_resolver") {
+    resultado.textContent = "NO QUEDAN INVESTIGADORES ACTIVOS. EL MISTERIO QUEDA SIN RESOLVER.";
   }
   if (jugada.carta_mostrada) {
     resultado.textContent += ` ${jugada.refutador_alias} TE HA MOSTRADO: ${jugada.carta_mostrada.nombre}`;
@@ -248,6 +272,39 @@ function pintarJugada(sala) {
       ws.send(JSON.stringify({ accion: "mostrar_carta", carta_id: carta.id }));
     });
     opcionesRefutacion.appendChild(boton);
+  });
+  // Aviso server-side de plazo (humano eliminado): informativo, la
+  // autoridad es el servidor y resuelve aunque se ignore este aviso.
+  if (avisoTimeoutRefutacion) {
+    if (opciones.length > 0 && jugada.timeout_refutacion_seg) {
+      avisoTimeoutRefutacion.hidden = false;
+      avisoTimeoutRefutacion.textContent =
+        `Tienes unos ${jugada.timeout_refutacion_seg} segundos para elegir. ` +
+        "Si no respondes, el servidor mostrará una carta al azar.";
+    } else {
+      avisoTimeoutRefutacion.hidden = true;
+      avisoTimeoutRefutacion.textContent = "";
+    }
+  }
+}
+
+function pintarFinal(sala) {
+  finalPartida.hidden = sala.estado !== "terminada";
+  finalPartida.innerHTML = "";
+  if (sala.estado !== "terminada" || !sala.solucion) return;
+  const titulo = document.createElement("h2");
+  titulo.textContent = sala.resultado_final === "resuelto"
+    ? "🏆 MISTERIO RESUELTO" : "🔒 EL MISTERIO QUEDA SIN RESOLVER";
+  finalPartida.appendChild(titulo);
+  if (sala.ganador_alias) {
+    const ganador = document.createElement("p");
+    ganador.textContent = `Ganador: ${sala.ganador_alias}`;
+    finalPartida.appendChild(ganador);
+  }
+  ["sospechoso", "lugar", "objeto"].forEach((categoria) => {
+    const linea = document.createElement("p");
+    linea.textContent = `${TITULOS[categoria]}: ${sala.solucion[categoria].nombre}`;
+    finalPartida.appendChild(linea);
   });
 }
 
@@ -458,4 +515,58 @@ document.getElementById("btn-confirmar-sospecha").addEventListener("click", () =
     objeto_id: selectObjeto.value,
   }));
   modalSospecha.hidden = true;
+});
+
+btnResolver.addEventListener("click", () => {
+  const cartas = (ultimaSala && ultimaSala.investigacion) || [];
+  llenarSelect(resolverSospechoso, cartas, "sospechoso");
+  llenarSelect(resolverLugar, cartas, "lugar");
+  llenarSelect(resolverObjeto, cartas, "objeto");
+  modalResolver.hidden = false;
+});
+document.getElementById("btn-cancelar-resolver").addEventListener("click", () => {
+  modalResolver.hidden = true;
+});
+function nombreSeleccionado(select) {
+  if (!select || !select.value) {
+    return "";
+  }
+  const opciones = select.options || [];
+  const elegida = opciones[select.selectedIndex];
+  return elegida ? elegida.textContent : select.value;
+}
+
+document.getElementById("btn-confirmar-resolver").addEventListener("click", () => {
+  if (!resolverSospechoso.value || !resolverLugar.value || !resolverObjeto.value) {
+    error.textContent = "Selecciona sospechoso, lugar y objeto.";
+    return;
+  }
+  confResolverSospechoso.textContent = `Sospechoso: ${nombreSeleccionado(resolverSospechoso)}`;
+  confResolverLugar.textContent = `Lugar: ${nombreSeleccionado(resolverLugar)}`;
+  confResolverObjeto.textContent = `Objeto: ${nombreSeleccionado(resolverObjeto)}`;
+  modalResolver.hidden = true;
+  // Rearme para un único envío: CANCELAR no envía nada y volver a
+  // confirmar reactiva el botón.
+  btnEnviarResolver.disabled = false;
+  modalConfirmarResolver.hidden = false;
+});
+document.getElementById("btn-cancelar-confirmar-resolver").addEventListener("click", () => {
+  // CANCELAR no modifica ningún estado: conserva la selección previa.
+  modalConfirmarResolver.hidden = true;
+  modalResolver.hidden = false;
+});
+btnEnviarResolver.addEventListener("click", () => {
+  // Anti doble clic/doble envío: el servidor además solo acepta una
+  // acusación por transición válida.
+  if (btnEnviarResolver.disabled) {
+    return;
+  }
+  btnEnviarResolver.disabled = true;
+  ws.send(JSON.stringify({
+    accion: "resolver_misterio",
+    sospechoso_id: resolverSospechoso.value,
+    lugar_id: resolverLugar.value,
+    objeto_id: resolverObjeto.value,
+  }));
+  modalConfirmarResolver.hidden = true;
 });
