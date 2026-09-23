@@ -27,6 +27,31 @@ Los PNJ solo acusan cuando pueden deducir una combinación mediante su mano,
 cartas vistas o una sospecha propia no refutada. La solución permanece secreta
 hasta el final, incluido el caso en que todos los investigadores fallen.
 
+## Reglas de movimiento del tablero
+
+El tablero lógico tiene la Plaza de la Constitución como ubicación central y
+ocho ubicaciones exteriores formando un anillo. Cada exterior conecta con sus
+dos vecinos del anillo y directamente con la Plaza.
+
+- El movimiento normal comienza con una tirada de 1d6.
+- Cada tramo entre dos ubicaciones conectadas tiene cuatro casillas de
+  movimiento. Con cuatro puntos se alcanza la ubicación situada al otro
+  extremo.
+- Las tres primeras son posiciones intermedias; la cuarta representa el acceso
+  final a la ubicación y no crea una quinta acción invisible.
+- No hace falta una tirada exacta para entrar: los puntos sobrantes se pierden.
+- Entrar en cualquier ubicación termina inmediatamente el movimiento; no se
+  puede atravesar para salir por otro camino.
+- Al salir de una ubicación, la primera casilla ya consume un punto.
+- La Plaza es una única ubicación; sus baldosas dibujadas no son casillas.
+- Los pasadizos Parador ↔ Ntra. Sra. de la Torre y Ermita de Sopetrán ↔
+  Puente Parral sustituyen la tirada, llevan directamente al otro extremo y
+  terminan el movimiento.
+- Varias fichas pueden compartir casilla o ubicación.
+
+Este grafo es la autoridad para el tablero físico y para las futuras variantes
+online e híbrida. El modo rápido actual todavía no exige movimiento.
+
 Proyecto cultural de Circular FAB. Juego multijugador inspirado en lugares
 y personajes de Jarandilla de la Vera.
 
