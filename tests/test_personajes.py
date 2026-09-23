@@ -109,7 +109,7 @@ def test_sorteo_orden_y_turno_inicial():
     for jugador, pid in zip(jugadores, ["bruno", "vera", "lucia", "alvaro"]):
         sala.elegir_personaje(jugador["id"], pid)
     sala.iniciar(jugadores[0]["id"])
-    ids = [j["id"] for j in jugadores]
+    ids = [j["id"] for j in sala.jugadores]
     assert sorted(sala.orden_turnos) == sorted(ids)  # 10
     assert len(set(sala.orden_turnos)) == len(ids)  # 11
     assert sala.turno_actual == 0
@@ -167,12 +167,10 @@ def test_estado_publico_con_personajes_sin_secretos():
         sala.elegir_personaje(jugador["id"], pid)
     sala.iniciar(jugadores[0]["id"])
     publico = sala.estado_publico()
-    assert [j["personaje_id"] for j in publico["jugadores"]] == [
-        "bruno",
-        "vera",
-        "lucia",
-    ]
-    assert len(publico["orden"]) == 3  # 16
+    assert {j["personaje_id"] for j in publico["jugadores"]} == {
+        "bruno", "vera", "lucia", "alvaro", "mateo", "eulalia"
+    }
+    assert len(publico["orden"]) == 6  # 16
     texto = json.dumps(publico)
     assert "mis_cartas" not in texto and "manos" not in texto  # 16
     assert "misterio" not in texto

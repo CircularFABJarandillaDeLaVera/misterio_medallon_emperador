@@ -92,7 +92,7 @@ def test_solo_anfitrion_puede_iniciar_y_cambia_estado():
             mensaje = ws_paco.receive_json()
             assert mensaje["tipo"] == "estado_privado"
             assert mensaje["sala"]["estado"] == "iniciada"
-            assert len(mensaje["sala"]["mis_cartas"]) == 6  # 3 jugadores: 6/6/6
+            assert len(mensaje["sala"]["mis_cartas"]) == 3  # mesa fija: 3 por puesto
 
 
 def test_sincronizacion_ws_llega_a_todos():
@@ -106,7 +106,7 @@ def test_sincronizacion_ws_llega_a_todos():
         assert "Luis" in [j["alias"] for j in mensaje["sala"]["jugadores"]]
 
 
-def test_con_menos_de_3_no_se_puede_comenzar():
+def test_no_se_puede_comenzar_si_un_humano_no_eligio_personaje():
     datos = crear("Paco")
     cliente.post(f"/api/partidas/{datos['codigo']}/unirse", json={"alias": "Ana"})
     codigo = datos["codigo"]
@@ -115,7 +115,7 @@ def test_con_menos_de_3_no_se_puede_comenzar():
         ws_paco.send_json({"accion": "iniciar"})
         mensaje = ws_paco.receive_json()
         assert mensaje["tipo"] == "error"
-        assert "3 jugadores" in mensaje["detalle"]
+        assert "elegir un personaje" in mensaje["detalle"]
     assert gestor.obtener(codigo).estado == "esperando"
 
 

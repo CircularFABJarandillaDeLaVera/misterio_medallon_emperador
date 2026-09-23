@@ -74,7 +74,7 @@ def test_reparto_sin_misterio_ni_duplicados():
         sala.misterio["objeto"]["id"],
     }
     en_manos = []
-    for j in jugadores:
+    for j in sala.jugadores:
         mano = sala.manos[j["id"]]
         assert not (set(c["id"] for c in mano) & secreto)  # 3
         en_manos.extend(c["id"] for c in mano)
@@ -153,8 +153,8 @@ def test_privacidad_manos_y_misterio_por_websocket():
         {c["id"] for c in privado_luis["sala"]["mis_cartas"]},
     ]
     # 9a. Cada jugador ve cartas distintas y solo las suyas.
-    assert sum(len(m) for m in manos) == 18
-    assert len(manos[0] | manos[1] | manos[2]) == 18
+    assert sum(len(m) for m in manos) == 9
+    assert len(manos[0] | manos[1] | manos[2]) == 9
 
     # 9b-10. El misterio no aparece en ningún mensaje ni en estado público.
     # (Los campos públicos de personaje se excluyen: un jugador puede
@@ -204,9 +204,10 @@ def test_privacidad_manos_y_misterio_por_websocket():
             "alias",
             "es_anfitrion",
             "num_cartas",
-            "personaje_id",
-            "personaje",
-        }
+                "personaje_id",
+                "personaje",
+                "tipo",
+            }
     assert "misterio" not in json.dumps(publico)
 
 
@@ -229,7 +230,7 @@ def test_desconexion_y_reconexion_conservan_la_mano():
         ws.receive_json()
         ws.send_json({"accion": "iniciar"})
         mano_original = ws.receive_json()["sala"]["mis_cartas"]
-        assert len(mano_original) == 6
+        assert len(mano_original) == 3
     # 11. Tras cerrar la conexión, el jugador y su mano siguen en el servidor.
     sala_srv = gestor.obtener(codigo)
     assert sala_srv.jugador_por_id(sala["jugador_id"]) is not None

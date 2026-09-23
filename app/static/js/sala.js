@@ -1,4 +1,4 @@
-/* Sala: sincronización en tiempo real por WebSocket (Sprint 3 + Microfase 3B).
+/* Sala: sincronización en tiempo real por WebSocket (Microfase 4B).
    Cada conexión recibe solo su estado privado: nunca ve las
    cartas ni la hoja de investigación de otros jugadores,
    ni el misterio secreto. */
@@ -135,6 +135,7 @@ function pintarSala(sala) {
     }
     if (sala.estado === "iniciada") {
       texto += ` · ${j.num_cartas} cartas`;
+      texto += j.tipo === "pnj" ? " · PNJ" : " · HUMANO";
     }
     li.textContent = texto;
     if (j.es_anfitrion) {
@@ -164,9 +165,7 @@ function pintarSala(sala) {
     pintarPersonajes(sala);
     btnComenzar.disabled = !sala.es_anfitrion;
     const sinPersonaje = sala.jugadores.filter((j) => !j.personaje_id).length;
-    if (sala.jugadores.length < 3) {
-      estado.textContent = "Esperando jugadores… (mínimo 3, máximo 6)";
-    } else if (sinPersonaje > 0) {
+    if (sinPersonaje > 0) {
       estado.textContent =
         "Todos los jugadores deben elegir un personaje antes de comenzar.";
     } else if (!sala.es_anfitrion) {
@@ -181,13 +180,15 @@ function pintarTurno(sala) {
   ordenOl.innerHTML = "";
   sala.orden.forEach((entrada, i) => {
     const li = document.createElement("li");
-    li.textContent = `${entrada.alias} — ${entrada.personaje}`;
+    li.textContent = `${entrada.alias} — ${entrada.personaje} · ${entrada.tipo === "pnj" ? "PNJ" : "HUMANO"}`;
     if (entrada.alias === sala.turno_alias) {
       li.classList.add("en-turno");
     }
     ordenOl.appendChild(li);
   });
-  if (sala.es_mi_turno) {
+  if (sala.pnj_pensando_alias) {
+    turnoP.textContent = `${sala.pnj_pensando_alias} ESTÁ PENSANDO...`;
+  } else if (sala.es_mi_turno) {
     turnoP.textContent = "ES TU TURNO";
   } else {
     turnoP.textContent = `TURNO DE ${(sala.turno_alias || "").toUpperCase()}`;

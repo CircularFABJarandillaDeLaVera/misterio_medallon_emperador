@@ -34,14 +34,28 @@ ESTADO_INICIADA = "iniciada"
 JUGADA_ESPERANDO_SOSPECHA = "esperando_sospecha"
 JUGADA_ESPERANDO_REFUTADOR = "esperando_eleccion_refutador"
 
-MIN_JUGADORES = 3
+MIN_JUGADORES = 1
 MAX_JUGADORES = 6
+
+TIPO_HUMANO = "humano"
+TIPO_PNJ = "pnj"
+
+# Un solo algoritmo, parametrizado por el personaje. Los pesos son preferencias,
+# no conocimiento adicional: el PNJ nunca consulta el misterio.
+PERFILES_PNJ = {
+    "vera": {"desconocida": 50, "sospechada": 30, "conocida": 20},
+    "bruno": {"desconocida": 75, "sospechada": 15, "conocida": 10},
+    "lucia": {"desconocida": 65, "sospechada": 25, "conocida": 10},
+    "alvaro": {"desconocida": 60, "sospechada": 20, "conocida": 20},
+    "mateo": {"desconocida": 55, "sospechada": 30, "conocida": 15},
+    "eulalia": {"desconocida": 50, "sospechada": 40, "conocida": 10},
+}
 
 # Hoja de investigación privada (Microfase 3B). Terminología de OBJETOS.
 INV_SIN_INFORMACION = "sin_informacion"
 INV_DESCARTADA = "descartada"
 INV_LA_TENGO = "la_tengo"  # derivado de la mano; nunca se almacena ni se marca
-INV_VISTA = "vista"  # reservado para Sprint 4 (refutaciones); sin lógica aún
+INV_VISTA = "vista"  # se añade automáticamente al recibir una refutación
 ESTADOS_MANUALES = frozenset({INV_SIN_INFORMACION, INV_DESCARTADA})
 
 _ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin I, O, 0, 1
@@ -90,19 +104,21 @@ class Sala:
     def __init__(self, codigo: str):
         self.codigo = codigo
         self.estado = ESTADO_ESPERANDO
-        self.jugadores: list[dict] = []  # {id, alias, es_anfitrion, personaje_id}
+        self.jugadores: list[dict] = []  # humanos y PNJ comparten estructura
         self.misterio: dict | None = None  # SECRETO: nunca sale del servidor
         self.manos: dict[str, list[dict]] = {}  # jugador_id -> sus cartas
         self.orden_turnos: list[str] = []  # jugador_ids sorteados una sola vez
         self.turno_actual: int = 0
         # Hoja privada: solo descartes manuales + vistas automáticas
-        # (reservadas para Sprint 4). LA TENGO se deriva de la mano y
+        # por refutaciones. LA TENGO se deriva de la mano y
         # SIN INFORMACIÓN es la ausencia de marca. Nada de esto es público.
         self.descartes: dict[str, set[str]] = {}  # jugador_id -> carta_ids
         self.vistas: dict[str, set[str]] = {}  # jugador_id -> carta_ids (Sprint 4)
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente: dict | None = None
         self.ultima_jugada: dict | None = None
+        self.cartas_sospechadas: set[str] = set()  # memoria exclusivamente publica
+        self.pnj_pensando_id: str | None = None
 
     def jugador_por_id(self, jugador_id: str) -> dict | None:
         for j in self.jugadores:
@@ -114,12 +130,19 @@ class Sala:
         limpio = normalizar_alias(alias).lower()
         return any(j["alias"].lower() == limpio for j in self.jugadores)
 
-    def agregar_jugador(self, alias: str, es_anfitrion: bool = False) -> dict:
+    def agregar_jugador(
+        self,
+        alias: str,
+        es_anfitrion: bool = False,
+        tipo: str = TIPO_HUMANO,
+        personaje_id: str | None = None,
+    ) -> dict:
         jugador = {
-            "id": uuid.uuid4().hex[:12],
+            "id": f"pnj-{personaje_id}" if tipo == TIPO_PNJ else uuid.uuid4().hex[:12],
             "alias": normalizar_alias(alias),
             "es_anfitrion": es_anfitrion,
-            "personaje_id": None,
+            "personaje_id": personaje_id,
+            "tipo": tipo,
         }
         self.jugadores.append(jugador)
         self.descartes.setdefault(jugador["id"], set())
@@ -194,11 +217,23 @@ class Sala:
             return "Todos los jugadores deben elegir un personaje antes de comenzar."
         return None
 
+    def completar_con_pnj(self) -> None:
+        """Crea exactamente un PNJ por personaje que no eligio un humano."""
+        ocupados = {j["personaje_id"] for j in self.jugadores}
+        for personaje in SOSPECHOSOS:
+            if personaje["id"] not in ocupados:
+                self.agregar_jugador(
+                    personaje["nombre"],
+                    tipo=TIPO_PNJ,
+                    personaje_id=personaje["id"],
+                )
+
     def iniciar(self, jugador_id: str) -> None:
         """Valida, bloquea personajes, crea el misterio, reparte y sortea."""
         error = self.puede_iniciar(jugador_id)
         if error:
             raise ValueError(error)
+        self.completar_con_pnj()
         self.misterio = crear_misterio()
         apartadas = {
             self.misterio["sospechoso"]["id"],
@@ -216,6 +251,8 @@ class Sala:
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente = None
         self.ultima_jugada = None
+        self.cartas_sospechadas.clear()
+        self.pnj_pensando_id = None
         for j in self.jugadores:
             self.descartes.setdefault(j["id"], set())
             self.vistas.setdefault(j["id"], set())
@@ -251,6 +288,45 @@ class Sala:
             self.turno_actual = (self.turno_actual + 1) % len(self.orden_turnos)
         self.sospecha_pendiente = None
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.pnj_pensando_id = None
+
+    def peso_carta_pnj(self, jugador_id: str, carta_id: str) -> int:
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None or jugador["tipo"] != TIPO_PNJ:
+            raise ValueError("El jugador no es un PNJ.")
+        perfil = PERFILES_PNJ[jugador["personaje_id"]]
+        conocida = carta_id in self.mano_ids(jugador_id) or carta_id in self.vistas.get(
+            jugador_id, set()
+        )
+        peso = perfil["conocida" if conocida else "desconocida"]
+        if carta_id in self.cartas_sospechadas:
+            peso += perfil["sospechada"]
+        return peso
+
+    def elegir_sospecha_pnj(self, jugador_id: str, rng=None) -> dict:
+        """Seleccion ponderada usando solo mano, VISTA y memoria publica."""
+        rng = rng or random
+        elegidas = {}
+        for categoria, cartas in (
+            ("sospechoso_id", SOSPECHOSOS),
+            ("lugar_id", LUGARES),
+            ("objeto_id", OBJETOS),
+        ):
+            elegidas[categoria] = rng.choices(
+                cartas,
+                weights=[self.peso_carta_pnj(jugador_id, c["id"]) for c in cartas],
+                k=1,
+            )[0]["id"]
+        return elegidas
+
+    def ejecutar_turno_pnj(self, rng=None) -> None:
+        jugador = self.jugador_en_turno()
+        if jugador is None or jugador["tipo"] != TIPO_PNJ:
+            raise ValueError("El turno actual no pertenece a un PNJ.")
+        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
+            raise ValueError("La jugada anterior aun no esta resuelta.")
+        sospecha = self.elegir_sospecha_pnj(jugador["id"], rng=rng)
+        self.formular_sospecha(jugador["id"], **sospecha, rng=rng)
 
     def _resolver_refutacion(self, carta_id: str) -> None:
         pendiente = self.sospecha_pendiente
@@ -270,7 +346,12 @@ class Sala:
         self.avanzar_turno()
 
     def formular_sospecha(
-        self, jugador_id: str, sospechoso_id: str, lugar_id: str, objeto_id: str
+        self,
+        jugador_id: str,
+        sospechoso_id: str,
+        lugar_id: str,
+        objeto_id: str,
+        rng=None,
     ) -> None:
         if self.estado != ESTADO_INICIADA:
             raise ValueError("La partida no esta iniciada.")
@@ -284,6 +365,8 @@ class Sala:
             "lugar_id": self._validar_carta_categoria(lugar_id, "lugar"),
             "objeto_id": self._validar_carta_categoria(objeto_id, "objeto"),
         }
+        self.cartas_sospechadas.update(sospecha.values())
+        self.pnj_pensando_id = None
         self.ultima_jugada = None
         hallazgo = self.buscar_refutador(jugador_id, set(sospecha.values()))
         if hallazgo is None:
@@ -302,8 +385,14 @@ class Sala:
             "sospecha": sospecha,
             "coincidencias": coincidencias,
         }
-        if len(coincidencias) == 1:
-            self._resolver_refutacion(coincidencias[0])
+        refutador = self.jugador_por_id(refutador_id)
+        if len(coincidencias) == 1 or refutador["tipo"] == TIPO_PNJ:
+            elegida = (
+                coincidencias[0]
+                if len(coincidencias) == 1
+                else (rng or random).choice(coincidencias)
+            )
+            self._resolver_refutacion(elegida)
         else:
             self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
 
@@ -442,6 +531,7 @@ class Sala:
                     "num_cartas": self.num_cartas(j["id"]),
                     "personaje_id": j["personaje_id"],
                     "personaje": self.nombre_personaje(j["personaje_id"]),
+                    "tipo": j["tipo"],
                 }
                 for j in self.jugadores
             ],
@@ -451,10 +541,16 @@ class Sala:
                     "personaje": self.nombre_personaje(
                         self.jugador_por_id(jid)["personaje_id"]
                     ),
+                    "tipo": self.jugador_por_id(jid)["tipo"],
                 }
                 for jid in self.orden_turnos
             ],
             "turno_alias": en_turno["alias"] if en_turno else None,
+            "turno_tipo": en_turno["tipo"] if en_turno else None,
+            "pnj_pensando_alias": (
+                self.jugador_por_id(self.pnj_pensando_id)["alias"]
+                if self.pnj_pensando_id else None
+            ),
             "jugada": self.jugada_publica(),
         }
 
@@ -479,6 +575,8 @@ class Sala:
             "jugadores": publico["jugadores"],
             "orden": publico["orden"],
             "turno_alias": publico["turno_alias"],
+            "turno_tipo": publico["turno_tipo"],
+            "pnj_pensando_alias": publico["pnj_pensando_alias"],
             "jugada": self.jugada_privada(jugador_id),
         }
 

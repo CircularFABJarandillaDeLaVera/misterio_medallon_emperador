@@ -1,8 +1,7 @@
-"""Servidor FastAPI del juego multijugador (Sprints 1, 2, 3 + Microfase 3B).
+"""Servidor FastAPI multijugador con mesa fija y turnos humanos/PNJ.
 
-Microfase 3B: hoja de investigación privada por jugador. Cada conexión
-WebSocket recibe únicamente su estado privado (cartas + su hoja).
-El misterio nunca sale del servidor.
+Cada conexión WebSocket humana recibe únicamente su estado privado. Los PNJ
+no tienen conexiones simuladas y el misterio nunca sale del servidor.
 """
 from __future__ import annotations
 
@@ -15,7 +14,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.datos.jarandilla import SOSPECHOSOS
-from app.motor.sala import ESTADO_ESPERANDO, GestorSalas
+from app.motor.sala import (
+    ESTADO_ESPERANDO,
+    JUGADA_ESPERANDO_SOSPECHA,
+    TIPO_PNJ,
+    GestorSalas,
+)
 
 app = FastAPI(title="Cluedo Jarandilla — El misterio del medallón imperial")
 
@@ -26,6 +30,68 @@ gestor = GestorSalas()
 # codigo sala -> jugador_id -> websockets abiertos de ese jugador
 conexiones: dict[str, dict[str, list[WebSocket]]] = {}
 cerrojos: dict[str, asyncio.Lock] = {}
+tareas_pnj: dict[str, asyncio.Task] = {}
+PAUSA_TURNO_PNJ_SEGUNDOS = 3.0
+PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS = 5.0
+
+
+def pausa_antes_de_turno_pnj(sala) -> float:
+    """Ritmo contextual: depende del INVESTIGADOR de la ultima jugada.
+
+    Jugada humana -> siguiente PNJ = ~5 s (tiempo de lectura del
+    refutador y de la carta privada). Jugada PNJ (o sin jugada previa)
+    -> siguiente PNJ = ~3 s. Nunca bloquea: solo indica la duracion
+    del asyncio.sleep exterior al cerrojo.
+    """
+    ultima = getattr(sala, "ultima_jugada", None)
+    if ultima:
+        investigador = sala.jugador_por_id(ultima.get("investigador_id", ""))
+        if investigador is not None and investigador.get("tipo") != TIPO_PNJ:
+            return PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS
+    return PAUSA_TURNO_PNJ_SEGUNDOS
+
+
+async def _cadena_turnos_pnj(codigo: str) -> None:
+    """Unica autoridad automatica por sala; nunca espera sosteniendo el lock."""
+    tarea_actual = asyncio.current_task()
+    try:
+        while True:
+            sala = gestor.obtener(codigo)
+            if sala is None:
+                return
+            async with cerrojos.setdefault(codigo, asyncio.Lock()):
+                jugador = sala.jugador_en_turno()
+                if (
+                    jugador is None
+                    or jugador["tipo"] != TIPO_PNJ
+                    or sala.estado_jugada != JUGADA_ESPERANDO_SOSPECHA
+                ):
+                    return
+                jugador_id = jugador["id"]
+                sala.pnj_pensando_id = jugador_id
+                pausa = pausa_antes_de_turno_pnj(sala)
+            # El resultado anterior sigue en ultima_jugada durante toda la
+            # pausa. No sostenemos el cerrojo mientras los humanos lo leen.
+            await asyncio.sleep(pausa)
+            async with cerrojos[codigo]:
+                jugador = sala.jugador_en_turno()
+                if (
+                    jugador is None
+                    or jugador["id"] != jugador_id
+                    or sala.estado_jugada != JUGADA_ESPERANDO_SOSPECHA
+                ):
+                    continue
+                sala.ejecutar_turno_pnj()
+            await difundir(codigo)
+    finally:
+        if tareas_pnj.get(codigo) is tarea_actual:
+            tareas_pnj.pop(codigo, None)
+
+
+def programar_turno_pnj(codigo: str) -> None:
+    existente = tareas_pnj.get(codigo)
+    if existente is None or existente.done():
+        tareas_pnj[codigo] = asyncio.create_task(_cadena_turnos_pnj(codigo))
 
 
 class EntradaAlias(BaseModel):
@@ -158,6 +224,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     # Reconexión: el jugador conserva su id, su mano y su rol.
     conexiones.setdefault(sala.codigo, {}).setdefault(jugador_id, []).append(ws)
     await _enviar_privado(sala, jugador_id, ws)
+    programar_turno_pnj(sala.codigo)
     try:
         while True:
             datos = await ws.receive_json()
@@ -170,6 +237,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
             elif accion == "elegir_personaje":
                 try:
                     sala.elegir_personaje(jugador_id, datos.get("personaje_id", ""))
@@ -177,6 +245,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
             elif accion == "formular_sospecha":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -190,6 +259,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
             elif accion == "mostrar_carta":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -198,6 +268,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
             elif accion == "marcar_investigacion":
                 try:
                     sala.marcar_investigacion(
@@ -224,6 +295,9 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 gestor.salas.pop(sala.codigo, None)
                 conexiones.pop(sala.codigo, None)
                 cerrojos.pop(sala.codigo, None)
+                tarea = tareas_pnj.pop(sala.codigo, None)
+                if tarea:
+                    tarea.cancel()
             else:
                 await difundir(sala.codigo)
         # En partida iniciada el jugador y su mano se conservan

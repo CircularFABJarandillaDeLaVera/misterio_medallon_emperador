@@ -64,7 +64,7 @@ def test_cartas_propias_como_la_tengo():
         for e in sala.hoja_investigacion(jugadores[0]["id"])
     }
     mias = {c["id"] for c in sala.manos[jugadores[0]["id"]]}
-    assert len(mias) == 6
+    assert len(mias) == 3
     for cid in mias:
         assert hoja[cid] == "la_tengo"
 

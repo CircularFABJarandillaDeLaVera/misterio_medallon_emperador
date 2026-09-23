@@ -9,6 +9,15 @@ refutación pendiente se conserva al reconectar.
 
 Todavía no existen la acusación final ni el tablero o movimiento.
 
+## Microfase 4B
+
+La mesa siempre se completa con los seis personajes. Puede haber de uno a
+seis humanos y los puestos libres pasan a ser PNJ con perfiles de selección
+ponderada. Todos comparten el mismo orden, reparto de tres cartas, sospechas,
+refutaciones y conocimiento privado. Los turnos PNJ se ejecutan de forma
+asíncrona con una pausa narrativa de aproximadamente tres segundos, durante
+la cual permanece visible el resultado de la jugada anterior.
+
 Proyecto cultural de Circular FAB. Juego multijugador inspirado en lugares
 y personajes de Jarandilla de la Vera.
 
@@ -17,10 +26,11 @@ y personajes de Jarandilla de la Vera.
 1. Abrir la aplicación.
 2. Crear una nueva partida (genera un código tipo `JARA-XXXX`).
 3. Desde otro dispositivo, introducir código + alias y unirse.
-4. Cada jugador elige su personaje en el lobby (3 a 6 jugadores).
+4. Cada humano elige su personaje en el lobby (1 a 6 humanos).
 5. Cuando todos tienen personaje, el anfitrión pulsa "Comenzar partida".
-6. El servidor crea el misterio en secreto, reparte las 18 cartas
-   restantes, sortea el orden de turnos y cada jugador ve únicamente
+6. El servidor completa los puestos libres con PNJ, crea el misterio en
+   secreto, reparte las 18 cartas entre los seis participantes, sortea el
+   orden de turnos y cada humano ve únicamente
    sus cartas ("EL MISTERIO COMIENZA") junto a su hoja de
    investigación privada ("🔎 HOJA DE INVESTIGACIÓN").
 
@@ -33,8 +43,8 @@ por WebSocket. Estado en memoria; el servidor es la fuente de verdad.
 
 Al comenzar, el servidor crea en secreto el misterio (1 sospechoso +
 1 lugar + 1 objeto), baraja las 18 cartas restantes y las reparte de
-forma equilibrada (3 jug.: 6/6/6; 4 jug.: 5/5/4/4; 5 jug.: 4/4/4/3/3;
-6 jug.: 3/3/3/3/3/3).
+forma equilibrada. Desde la Microfase 4B siempre hay seis participantes,
+por lo que cada uno recibe exactamente tres cartas.
 
 - Cada jugador ve únicamente sus propias cartas, agrupadas en
   SOSPECHOSOS / LUGARES / OBJETOS.
@@ -64,8 +74,8 @@ forma equilibrada (3 jug.: 6/6/6; 4 jug.: 5/5/4/4; 5 jug.: 4/4/4/3/3;
 - Sus cartas aparecen automarcadas como LA TENGO (derivado de la mano,
   no almacenable ni modificable); el resto alterna entre
   SIN INFORMACIÓN y DESCARTADA con un toque.
-- El estado VISTA está reservado para Sprint 4 (sin lógica aún) y no
-  puede marcarse manualmente.
+- El estado VISTA se actualiza automáticamente al recibir una carta en una
+  refutación y no puede marcarse manualmente.
 - La hoja vive en memoria del servidor y sobrevive a recarga y
   reconexión (`jugador_id`); nunca viaja en `estado_publico()` ni a
   otros jugadores, y no sabe nada del misterio.
