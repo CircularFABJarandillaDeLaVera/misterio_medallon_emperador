@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.datos.jarandilla import SOSPECHOSOS
+from app.datos.recursos import RECURSOS_VISUALES, RECURSO_TABLERO
 from app.motor.sala import (
     ESTADO_ESPERANDO,
     ESTADO_TERMINADA,
@@ -316,6 +317,15 @@ async def unirse_partida(codigo: str, entrada: EntradaUnirse):
 def listar_personajes():
     """Los 6 sospechosos seleccionables (dato público, no secreto)."""
     return {"personajes": SOSPECHOSOS}
+
+
+@app.get("/api/recursos")
+def listar_recursos_visuales():
+    """Manifiesto público de imágenes; solo contiene IDs y rutas estáticas."""
+    return {
+        "recursos": RECURSOS_VISUALES,
+        "tablero": RECURSO_TABLERO,
+    }
 
 
 @app.get("/api/partidas/{codigo}")
