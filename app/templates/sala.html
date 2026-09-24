@@ -4,20 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=7a4" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8a5" />
 </head>
 <body>
   <main class="contenedor">
     <section class="tarjeta">
-      <h1>CLUEDO JARANDILLA</h1>
-      <p class="subtitulo">El misterio del medallón imperial</p>
+      <header class="cabecera-juego" id="cabecera-juego">
+        <div class="cabecera-fila">
+          <div class="cabecera-identidad">
+            <h1>CLUEDO JARANDILLA</h1>
+            <span id="modo-partida" class="modo-etiqueta"></span>
+          </div>
+          <p class="turno" id="turno"></p>
+          <p class="estado resumen-sala" id="resumen-sala" hidden></p>
+        </div>
+        <p class="subtitulo">El misterio del medallón imperial</p>
+      </header>
 
-      <p>Código de sala</p>
-      <p class="codigo-sala" id="codigo">{{ codigo }}</p>
-      <p id="modo-partida" class="estado"></p>
+      <div id="bloque-codigo">
+        <p>Código de sala</p>
+        <p class="codigo-sala" id="codigo">{{ codigo }}</p>
+        <button id="btn-copiar-codigo" type="button" class="secundario discreto">COPIAR CÓDIGO</button>
+      </div>
 
-      <p><strong>Jugadores conectados:</strong></p>
-      <ul class="lista-jugadores" id="jugadores"></ul>
+      <div id="bloque-jugadores">
+        <p><strong>Jugadores conectados:</strong></p>
+        <ul class="lista-jugadores" id="jugadores"></ul>
+      </div>
 
       <div id="lobby-personajes">
         <p><strong>ELIGE TU PERSONAJE</strong></p>
@@ -30,31 +43,37 @@
       <p id="error" class="error"></p>
 
       <div id="partida" hidden>
-        <h2>EL MISTERIO COMIENZA</h2>
-        <p class="turno" id="turno"></p>
-        <section id="tablero-visual" class="tablero-visual" aria-label="Tablero de Jarandilla" hidden>
-          <div id="tablero-canvas-contenedor" class="tablero-canvas-contenedor" hidden>
-            <canvas id="tablero-canvas" aria-label="Representación visual del tablero de Jarandilla"></canvas>
-            <div id="tablero-canvas-accesible" class="solo-lectores" aria-label="Acciones accesibles del tablero"></div>
-          </div>
-          <p id="tablero-ayuda" class="tablero-ayuda">Las posiciones resaltadas son destinos permitidos por el servidor.</p>
-        </section>
-        <div id="movimiento" class="grupo-cartas" hidden>
-          <p id="posicion-actual"></p>
-          <p id="resultado-dado"></p>
-          <button id="btn-tirar" type="button" hidden>🎲 TIRAR DADO</button>
-          <button id="btn-pasadizo" type="button" hidden>🌀 USAR PASADIZO</button>
-          <div id="destinos-movimiento"></div>
+        <h2 hidden>EL MISTERIO COMIENZA</h2>
+        <div id="zona-juego">
+          <section id="tablero-visual" class="tablero-visual" aria-label="Tablero de Jarandilla" hidden>
+            <div id="tablero-canvas-contenedor" class="tablero-canvas-contenedor" hidden>
+              <canvas id="tablero-canvas" aria-label="Representación visual del tablero de Jarandilla"></canvas>
+              <div id="tablero-canvas-accesible" class="solo-lectores" aria-label="Acciones accesibles del tablero"></div>
+            </div>
+            <p id="tablero-ayuda" class="tablero-ayuda">Las posiciones resaltadas son destinos permitidos por el servidor.</p>
+          </section>
+          <aside id="panel-contextual" class="panel-contextual" aria-label="Panel contextual">
+            <div id="movimiento" class="grupo-cartas" hidden>
+              <p id="posicion-actual"></p>
+              <p id="resultado-dado"></p>
+              <button id="btn-tirar" type="button" hidden>🎲 TIRAR DADO</button>
+              <button id="btn-pasadizo" type="button" hidden>🌀 USAR PASADIZO</button>
+              <div id="destinos-movimiento"></div>
+            </div>
+            <div id="jugada" class="grupo-cartas"></div>
+            <div id="vista-contextual" class="grupo-cartas" hidden></div>
+            <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
+            <div id="final-partida" class="grupo-cartas" hidden></div>
+            <div class="accesos" id="barra-herramientas">
+              <button id="btn-ver-cartas" type="button" class="secundario">🃏 MIS CARTAS</button>
+              <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
+              <button id="btn-resolver" type="button" hidden>🏆 RESOLVER EL MISTERIO</button>
+            </div>
+          </aside>
         </div>
-        <div id="jugada" class="grupo-cartas"></div>
-        <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
-        <button id="btn-resolver" type="button" hidden>🏆 RESOLVER EL MISTERIO</button>
-        <div id="final-partida" class="grupo-cartas" hidden></div>
-        <p><strong>ORDEN DE JUEGO</strong></p>
-        <ol id="orden"></ol>
-        <div class="accesos">
-          <button id="btn-ver-cartas" type="button" class="secundario">🃏 MIS CARTAS</button>
-          <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
+        <div id="bloque-orden">
+          <p><strong>ORDEN DE JUEGO</strong></p>
+          <ol id="orden"></ol>
         </div>
         <p class="estado" id="total"></p>
       </div>

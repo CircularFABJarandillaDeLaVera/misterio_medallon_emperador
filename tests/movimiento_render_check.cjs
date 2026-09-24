@@ -67,8 +67,9 @@ const documentStub = {
 registro.codigo = makeElemento("p");
 registro.codigo.textContent = "JARA-TEST";
 
+const enviados = [];
 class WebSocketFalso {
-  send() {}
+  send(mensaje) { enviados.push(JSON.parse(mensaje)); }
 }
 
 const sandbox = {
@@ -135,19 +136,33 @@ ok($("destinos-movimiento").children.length === 2, "tras tirar se renderizan los
 
 vm.runInContext(`ultimaSala = {
   modo: "tablero",
+  estado: "iniciada",
+  turno_alias: "Yo",
+  jugadores: [],
   posicion: { id: "parador", nombre: "Parador" },
+  movimiento: { puede_sospechar: true },
   investigacion: [
     { id: "vera", nombre: "Vera", categoria: "sospechoso" },
     { id: "parador", nombre: "Parador", categoria: "lugar" },
     { id: "libro-hueco", nombre: "Libro hueco", categoria: "objeto" }
   ]
 }`, sandbox);
-$("btn-sospecha").click();
-ok($("modal-sospecha").hidden === false, "tras entrar, FORMULAR SOSPECHA abre el flujo existente");
+sandbox.verSospecha();
+const selPanel = [];
+(function recoge(nodo) {
+  if (nodo.tag === "select") selPanel.push(nodo);
+  nodo.children.forEach(recoge);
+})($("vista-contextual"));
+ok(selPanel.length === 2, "en tablero la sospecha del panel no vuelve a pedir ubicación");
+selPanel[0].value = "vera";
+selPanel[1].value = "libro-hueco";
+enviados.length = 0;
+$("vista-contextual").children
+  .find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
 ok(
-  $("sospecha-lugar").parentElement.hidden === true &&
-    $("sospecha-lugar").value === "parador",
-  "en tablero el selector de lugar está oculto y fijado a la posición"
+  enviados.length === 1 && enviados[0].accion === "formular_sospecha" &&
+    enviados[0].lugar_id === "parador",
+  "confirmar usa la posición de entrada como lugar"
 );
 
 sandbox.pintarJugada({

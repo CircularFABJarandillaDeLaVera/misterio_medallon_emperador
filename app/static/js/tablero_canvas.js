@@ -24,6 +24,7 @@
       this.imagenes = new Map();
       this.peonesTintados = new Map();
       this.areas = [];
+      this.areasPeones = [];
       this.metricas = {};
       this._alPulsar = (evento) => this._pulsar(evento);
       canvas.addEventListener("pointerup", this._alPulsar);
@@ -95,6 +96,7 @@
       this.ctx.fillStyle = "#171426";
       this.ctx.fillRect(0, 0, 100, 100);
       this.areas = [];
+      this.areasPeones = [];
     }
 
     dibujar() {
@@ -139,6 +141,7 @@
       });
 
       this._dibujarPeones(nodos);
+      this._vigilarPulso(this._hayPeonTurno);
       this.metricas = {
         dpr: this.dpr,
         ubicaciones: this.descriptor.nodos.filter((n) => n.tipo === "ubicacion").length,
@@ -152,7 +155,54 @@
         conteoPeones: this.conteoPeones || {},
         diametroCasilla: RADIO_CASILLA * 2,
         tamanoPeonCasilla: TAMANO_PEON_CASILLA,
+        peonActivo: this._aliasTurno(),
+        escalaTurno: 1.2,
+        animacion: this._animando ? "pulso" : "estatica",
       };
+    }
+
+    _aliasTurno() {
+      return ((this.estado || {}).turno_alias) || null;
+    }
+
+    _puedeAnimar() {
+      // Pulso sutil salvo reduced-motion o navegador sin rAF.
+      try {
+        if (typeof global.requestAnimationFrame !== "function") return false;
+        const consulta = global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)");
+        return !(consulta && consulta.matches);
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    _escalaTurno() {
+      if (!this._animando) return 1.2;
+      const fase = (this._fasePulso || 0) / 600;
+      return 1.2 * (1 + 0.04 * Math.sin(fase));
+    }
+
+    _vigilarPulso(necesario) {
+      this._pulsoNecesario = Boolean(necesario);
+      if (!this._pulsoNecesario || !this._puedeAnimar()) {
+        this._animando = false;
+        if (this._raf) {
+          try {
+            if (global.cancelAnimationFrame) global.cancelAnimationFrame(this._raf);
+          } catch (_error) {}
+          this._raf = 0;
+        }
+        return;
+      }
+      if (!this._raf) {
+        const paso = (instante) => {
+          this._raf = 0;
+          this._fasePulso = instante || 0;
+          this.dibujar();
+        };
+        this._animando = true;
+        this._raf = global.requestAnimationFrame(paso);
+      }
     }
 
     _dibujarUbicacion(nodo, radio, legal) {
@@ -224,7 +274,7 @@
       ctx.save();
       ctx.globalAlpha = eliminado ? 0.38 : 1;
       ctx.shadowColor = turno ? "#fff0a3" : "#f4efe3";
-      ctx.shadowBlur = turno ? 2.4 : 1.15;
+      ctx.shadowBlur = turno ? 3.2 : 1.15;
       const tintado = this._peonTintado(color);
       if (tintado) {
         ctx.drawImage(tintado, x - tamano * 0.4, y - tamano * 0.5, tamano * 0.8, tamano);
@@ -270,6 +320,8 @@
       const grupos = new Map();
       this.distribucionPeones = [];
       this.representacionesPeones = [];
+      this._hayPeonTurno = false;
+      const turnoAlias = this._aliasTurno();
       let solicitados = 0;
       let svgDibujados = 0;
       let fallbacksDibujados = 0;
@@ -281,18 +333,25 @@
       grupos.forEach((jugadores, nodoId) => {
         const nodo = nodos.get(nodoId);
         const geometria = this._geometriaPeones(nodo, jugadores.length);
-        jugadores.forEach((j, i) => {
-          const offset = geometria.offsets[i];
+        // El peón en turno se dibuja el último: queda por encima.
+        const ordenados = [...jugadores].sort((a, b) =>
+          ((a.alias === turnoAlias) ? 1 : 0) - ((b.alias === turnoAlias) ? 1 : 0));
+        ordenados.forEach((j, i) => {
+          const offset = geometria.offsets[jugadores.indexOf(j)];
+          const esTurno = j.alias === turnoAlias;
+          if (esTurno) this._hayPeonTurno = true;
+          const tamano = geometria.tamano * (esTurno ? this._escalaTurno() : 1);
           const color = this.descriptor.colores_personajes[j.personaje_id] || "#888";
           const x = nodo.x + offset[0];
           const y = nodo.y + offset[1];
           this.distribucionPeones.push({ nodoId, alias: j.alias, x, y, offsetX: offset[0], offsetY: offset[1], color, tamano: geometria.tamano, radio: geometria.radio });
+          this.areasPeones.push({ tipo: "peon", personaje_id: j.personaje_id, alias: j.alias, x, y, radio: tamano * 0.55 });
           solicitados += 1;
           const clave = String(color).trim().toLowerCase();
           const recurso = this.imagenes.get(this.descriptor.peon);
           const resultado = this._dibujarPeon(
             x, y, color,
-            j.alias === (this.estado || {}).turno_alias, !j.activo, geometria.tamano
+            esTurno, !j.activo, tamano
           );
           if (resultado === "svg") svgDibujados += 1;
           else fallbacksDibujados += 1;
@@ -302,6 +361,8 @@
             tipo: j.tipo,
             posicion: j.posicion.id,
             x, y, color,
+            esTurno,
+            encima: esTurno,
             peonCacheKey: clave,
             estadoSvgTintado: this.peonesTintados.has(clave) ? "listo" : (recurso || {}).estado || "sin_recurso",
             fallbackDisponible: true,
@@ -328,13 +389,23 @@
 
     _areaEn(evento) {
       const p = this._coordenadas(evento);
+      // El peón tiene prioridad sobre la ubicación que pisa.
+      const peon = [...this.areasPeones].reverse().find((a) =>
+        Math.hypot(p.x - a.x, p.y - a.y) <= a.radio);
+      if (peon) return peon;
       return [...this.areas].reverse().find((a) => Math.hypot(p.x - a.x, p.y - a.y) <= a.radio);
     }
 
     _pulsar(evento) {
       const area = this._areaEn(evento);
       if (!area) return;
-      if (area.tipo === "ubicacion") {
+      if (area.tipo === "peon") {
+        if (this.acciones.personaje) {
+          this.acciones.personaje(
+            { personaje_id: area.personaje_id, alias: area.alias }, this.canvas
+          );
+        }
+      } else if (area.tipo === "ubicacion") {
         if (this.acciones.consultar) this.acciones.consultar(area.nodo, this.canvas);
       } else if (area.legal && this.acciones.mover) {
         this.acciones.mover(area.nodo.id, this.canvas);
@@ -343,7 +414,7 @@
 
     _cursor(evento) {
       const area = this._areaEn(evento);
-      this.canvas.style.cursor = area && (area.tipo === "ubicacion" || area.legal) ? "pointer" : "default";
+      this.canvas.style.cursor = area && (area.tipo === "peon" || area.tipo === "ubicacion" || area.legal) ? "pointer" : "default";
     }
   }
 

@@ -193,7 +193,7 @@ vm.createContext(sandbox);
   const accesibles = registro["tablero-canvas-accesible"].children;
   const botonesInfo = accesibles.filter((n) => n.tag === "button" && n.textContent.startsWith("Ver carta de "));
   ok(botonesInfo.length === 9, "la capa HTML mantiene las 9 ubicaciones consultables");
-  registro["tablero-canvas"].emitir(50, 8);
+  registro["tablero-canvas"].emitir(50, 13);
   ok(registro["modal-ubicacion"].hidden === false, "hit test Canvas abre el modal HTML");
   ok(registro["imagen-ubicacion"].src === "/static/img/lugares/parador.jpeg", "el modal usa la tarjeta completa, no imagen_tablero");
   ok(!String(registro["imagen-ubicacion"].src).includes("tablero_"), "el modal jamás usa tablero_*.png");
@@ -201,7 +201,8 @@ vm.createContext(sandbox);
   ok(imagenesCanvas.has("/static/img/lugares/tablero_parador.png"), "el medallón Canvas deriva imagen_tablero del ID");
   ok(!imagenesCanvas.has("/static/img/lugares/parador.jpeg"), "el medallón Canvas no carga la tarjeta");
   // Iglesia: Canvas dibuja su PNG pero el modal carga su JPEG.
-  registro["tablero-canvas"].emitir(79, 20);
+  // (clic fuera del peón central: el peón tiene prioridad de hit testing)
+  registro["tablero-canvas"].emitir(79, 25);
   ok(registro["imagen-ubicacion"].src === "/static/img/lugares/iglesia-san-agustin.jpeg", "iglesia: el modal carga su tarjeta JPEG");
   ok(!String(registro["imagen-ubicacion"].src).includes("tablero_"), "iglesia: el modal no usa tablero_*.png");
   ok(imagenesCanvas.has("/static/img/lugares/tablero_iglesia_san_agustin.png"), "iglesia: el medallón dibuja su PNG");

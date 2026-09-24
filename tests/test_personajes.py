@@ -157,7 +157,7 @@ def test_reconexion_conserva_orden_turno_y_personaje():
         assert [e["alias"] for e in rec["orden"]] == orden  # 13
         assert rec["turno_alias"] == turno  # 14
         assert rec["personaje_id"] == "vera"  # 15
-        assert rec["personaje"] == "Vera, la fotógrafa"
+        assert rec["personaje"] == "Vera, la cronista"
 
 
 # 16-17. estado_publico() con personajes y orden, sin manos ni misterio.

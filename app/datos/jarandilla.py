@@ -12,7 +12,7 @@ CATEGORIA_LUGAR = "lugar"
 CATEGORIA_OBJETO = "objeto"
 
 SOSPECHOSOS: list[dict] = [
-    {"id": "vera", "nombre": "Vera, la fotógrafa", "categoria": CATEGORIA_SOSPECHOSO,
+    {"id": "vera", "nombre": "Vera, la cronista", "categoria": CATEGORIA_SOSPECHOSO,
      "color": "morado", "simbolo": "cámara"},
     {"id": "bruno", "nombre": "Bruno, el cantero", "categoria": CATEGORIA_SOSPECHOSO,
      "color": "gris antracita", "simbolo": "maza y cincel"},

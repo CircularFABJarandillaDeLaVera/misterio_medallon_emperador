@@ -19,60 +19,167 @@ body {
   background: radial-gradient(circle at 50% 0%, #2a2347 0%, var(--fondo) 60%);
   display: flex;
   justify-content: center;
-  padding: 16px;
+  align-items: flex-start;
+  padding: 6px 12px;
 }
 
 .contenedor {
   width: 100%;
-  max-width: 460px;
-  margin: auto;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
-body.modo-tablero-activo .contenedor {
-  max-width: 1080px;
+body.en-partida .contenedor {
+  max-width: 960px;
 }
 
 .tarjeta {
   background: var(--fondo-tarjeta);
   border: 1px solid var(--dorado);
   border-radius: 12px;
-  padding: 24px 20px;
-  box-shadow: 0 0 40px rgba(201, 162, 39, 0.15);
+  padding: 16px 20px;
+  box-shadow: 0 0 35px rgba(201, 162, 39, 0.15);
   text-align: center;
 }
 
-h1 {
-  margin: 0;
-  font-size: 1.9rem;
-  letter-spacing: 3px;
-  color: var(--dorado-claro);
+body.en-partida .tarjeta {
+  padding: 8px 12px 10px;
 }
 
-.subtitulo {
-  margin: 6px 0 20px;
+/* Cabecera general y de partida (Microfase 8A.6: Barra de Estado Compacta ~28-32px) */
+.cabecera-juego {
+  margin-bottom: 8px;
+}
+
+body:not(.en-partida) .cabecera-fila {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+body:not(.en-partida) .cabecera-identidad {
+  display: block;
+  text-align: center;
+}
+
+body:not(.en-partida) h1 {
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+  margin: 0;
+}
+
+body:not(.en-partida) .subtitulo {
+  margin: 2px 0 10px;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--texto-tenue);
+}
+
+body:not(.en-partida) #modo-partida {
+  margin: 2px 0 6px;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+body:not(.en-partida) .turno,
+body:not(.en-partida) .resumen-sala {
+  display: none;
+}
+
+/* En partida: cabecera en UNA SOLA FILA compacta (28-32px) y separación de 8px */
+body.en-partida .cabecera-juego {
+  margin-bottom: 8px;
+}
+
+body.en-partida .subtitulo {
+  display: none;
+}
+
+body.en-partida #estado {
+  display: none;
+}
+
+body.en-partida .cabecera-fila {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  background: #262140;
+  border-radius: 6px;
+  border: 1px solid #4a4266;
+  min-height: 28px;
+  line-height: 1.2;
+}
+
+body.en-partida .cabecera-identidad {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+body.en-partida .cabecera-identidad h1 {
+  font-size: 0.98rem;
+  letter-spacing: 1.2px;
+  margin: 0;
+  color: var(--dorado-claro);
+  display: inline;
+}
+
+body.en-partida #modo-partida {
+  font-size: 0.72rem;
+  color: var(--texto-tenue);
+  margin: 0;
+  display: inline;
+}
+
+body.en-partida #modo-partida::before {
+  content: " · ";
+  color: var(--dorado);
+}
+
+body.en-partida .turno {
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: var(--dorado-claro);
+  margin: 0;
+  white-space: nowrap;
+}
+
+body.en-partida .resumen-sala {
+  text-align: right;
+  font-size: 0.78rem;
   font-style: italic;
   color: var(--texto-tenue);
+  margin: 0;
+  white-space: nowrap;
 }
 
 .separador {
   color: var(--dorado);
   letter-spacing: 6px;
-  margin: 12px 0;
+  margin: 10px 0;
 }
 
 label {
   display: block;
   text-align: left;
-  margin: 12px 0 4px;
-  font-size: 0.9rem;
+  margin: 10px 0 4px;
+  font-size: 0.85rem;
   color: var(--texto-tenue);
 }
 
 input {
   width: 100%;
-  padding: 12px;
-  font-size: 1.05rem;
-  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border-radius: 6px;
   border: 1px solid #4a4266;
   background: #12101c;
   color: var(--texto);
@@ -85,16 +192,17 @@ input:focus {
 
 button {
   width: 100%;
-  margin-top: 14px;
-  padding: 14px;
-  font-size: 1.05rem;
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
   font-weight: bold;
   letter-spacing: 1px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   background: var(--dorado);
   color: #1d1930;
+  min-height: 44px;
 }
 
 button:active { transform: scale(0.98); }
@@ -106,104 +214,127 @@ button.secundario {
   border: 1px solid var(--dorado);
 }
 
+button.discreto {
+  width: auto;
+  margin-top: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  min-height: 28px;
+}
+
 .error {
-  min-height: 1.4em;
-  margin: 10px 0 0;
+  min-height: 1.2em;
+  margin: 6px 0 0;
   color: var(--error);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+}
+
+.error:empty {
+  display: none;
+  min-height: 0;
+  margin: 0;
 }
 
 .codigo-sala {
-  font-size: 2rem;
-  letter-spacing: 4px;
+  font-size: 1.6rem;
+  letter-spacing: 3px;
   color: var(--dorado-claro);
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 .lista-jugadores {
   list-style: none;
   padding: 0;
-  margin: 12px 0;
+  margin: 8px 0;
   text-align: left;
 }
 
 .lista-jugadores li {
-  padding: 10px 12px;
-  margin: 6px 0;
-  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
   background: #262140;
   border: 1px solid #4a4266;
+  font-size: 0.85rem;
 }
 
 .etiqueta-anfitrion {
   float: right;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: var(--dorado-claro);
   border: 1px solid var(--dorado);
-  border-radius: 20px;
-  padding: 2px 10px;
+  border-radius: 16px;
+  padding: 1px 6px;
 }
 
 .estado {
   font-style: italic;
   color: var(--texto-tenue);
+  font-size: 0.85rem;
 }
 
 .misterio {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   color: var(--dorado-claro);
-  margin-top: 16px;
+  margin-top: 10px;
+}
+
+#partida {
+  width: 100%;
 }
 
 #partida h2 {
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   color: var(--dorado-claro);
-  font-size: 1.3rem;
+  font-size: 1.1rem;
+  margin: 4px 0;
 }
 
 .grupo-cartas {
   text-align: left;
-  margin: 10px 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
   background: #262140;
   border: 1px solid #4a4266;
 }
 
 .grupo-cartas h3 {
-  margin: 0 0 6px;
-  font-size: 0.85rem;
-  letter-spacing: 2px;
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
   color: var(--dorado-claro);
 }
 
 .grupo-cartas ul {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 18px;
 }
 
 .grupo-cartas li {
-  padding: 3px 0;
+  padding: 2px 0;
+  font-size: 0.85rem;
 }
 
 #personajes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 10px 0;
+  gap: 6px;
+  margin: 8px 0;
 }
 
 .personaje {
   margin-top: 0;
-  padding: 10px 8px;
-  font-size: 0.85rem;
+  padding: 8px 6px;
+  font-size: 0.82rem;
   font-weight: normal;
   background: #262140;
   color: var(--texto);
   border: 1px solid #4a4266;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-height: 44px;
 }
 
 .personaje strong {
@@ -211,7 +342,7 @@ button.secundario {
 }
 
 .personaje span {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--texto-tenue);
 }
 
@@ -223,16 +354,10 @@ button.secundario {
   opacity: 0.45;
 }
 
-.turno {
-  font-size: 1.2rem;
-  font-weight: bold;
-  letter-spacing: 1px;
-  color: var(--dorado-claro);
-}
-
 #orden {
   text-align: left;
-  padding-left: 24px;
+  padding-left: 20px;
+  margin: 6px 0;
 }
 
 #orden li.en-turno {
@@ -240,19 +365,32 @@ button.secundario {
   color: var(--dorado-claro);
 }
 
+/* Zona de juego: Tablero + Panel Contextual */
+#zona-juego {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+#zona-juego > * {
+  min-width: 0;
+}
+
 .tablero-visual {
-  margin: 16px auto;
-  width: min(100%, 920px);
+  margin: 0 auto;
+  width: 100%;
+  max-width: 420px;
 }
 
 .tablero-canvas-contenedor {
   width: 100%;
   aspect-ratio: 1;
   border: 2px solid #806a32;
-  border-radius: 18px;
+  border-radius: 12px;
   overflow: hidden;
   background: #171426;
-  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.55), 0 12px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
 #tablero-canvas {
@@ -275,43 +413,118 @@ button.secundario {
 }
 
 .tablero-ayuda {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--texto-tenue);
-  font-size: 0.82rem;
+  font-size: 0.75rem;
 }
 
-.modal-carta-ubicacion {
-  width: min(92vw, 760px);
-  max-width: 760px;
+/* Panel Contextual Derecho (con herramientas integradas) */
+.panel-contextual {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  text-align: left;
+  height: 100%;
 }
 
-.modal-carta-ubicacion > img {
+.panel-contextual .grupo-cartas {
+  margin: 0;
+}
+
+.panel-contextual p {
+  margin: 2px 0;
+  font-size: 0.84rem;
+}
+
+#vista-contextual[hidden] {
+  display: none;
+}
+
+#vista-contextual h3 {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  color: var(--dorado-claro);
+}
+
+#vista-contextual img.tarjeta-contextual {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: calc(100vh - 130px);
+  max-height: 150px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 6px;
+  margin: 4px 0;
 }
 
-@media (max-width: 620px) {
-  body { padding: 6px; }
-  .tarjeta { padding: 18px 8px; }
-  .tablero-canvas-contenedor { border-radius: 10px; }
-}
-
-.accesos {
+#vista-contextual .ocupantes {
   display: flex;
-  gap: 8px;
-  margin: 12px 0 4px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
 }
 
-.accesos button {
+#vista-contextual .ocupantes button {
+  width: auto;
+  flex: 1 1 auto;
   margin-top: 0;
-  padding: 12px 8px;
-  font-size: 0.9rem;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  min-height: 32px;
 }
 
+#vista-contextual label {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 0.78rem;
+  color: var(--dorado-claro);
+}
+
+#vista-contextual select {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 0.86rem;
+  color: var(--texto);
+  background: #262140;
+  border: 1px solid #4a4266;
+  border-radius: 4px;
+  min-height: 34px;
+}
+
+.panel-contextual button {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* Herramientas integradas en el panel derecho (apiladas verticalmente) */
+.panel-contextual .accesos {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid #3d3558;
+}
+
+.panel-contextual .accesos button {
+  width: 100%;
+  margin-top: 0;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
+  min-height: 40px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+#barra-herramientas {
+  opacity: 0.95;
+}
+
+/* Modales */
 .modal {
   position: fixed;
   inset: 0;
@@ -330,25 +543,25 @@ button.secundario {
 
 .modal-caja {
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
   background: var(--fondo-tarjeta);
   border: 1px solid var(--dorado);
-  border-radius: 12px;
-  padding: 20px 16px;
-  box-shadow: 0 0 40px rgba(201, 162, 39, 0.25);
+  border-radius: 10px;
+  padding: 16px 14px;
+  box-shadow: 0 0 35px rgba(201, 162, 39, 0.25);
   text-align: center;
 }
 
 .modal-caja h2 {
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   color: var(--dorado-claro);
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   margin: 0 0 6px;
 }
 
 .modal-caja label {
   display: block;
-  margin: 14px 0;
+  margin: 10px 0 4px;
   text-align: left;
   color: var(--dorado-claro);
   font-weight: bold;
@@ -357,12 +570,26 @@ button.secundario {
 .modal-caja select {
   display: block;
   width: 100%;
-  margin-top: 6px;
-  padding: 10px;
+  margin-top: 4px;
+  padding: 8px 10px;
   color: var(--texto);
   background: #262140;
   border: 1px solid #4a4266;
   border-radius: 6px;
+}
+
+.modal-carta-ubicacion {
+  width: min(92vw, 680px);
+  max-width: 680px;
+}
+
+.modal-carta-ubicacion > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100vh - 130px);
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 #jugada:empty {
@@ -370,10 +597,10 @@ button.secundario {
 }
 
 .nota-privada {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-style: italic;
   color: var(--texto-tenue);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
 #hoja,
@@ -384,13 +611,13 @@ button.secundario {
 .hoja-cabecera {
   width: 100%;
   margin-top: 0;
-  padding: 10px 12px;
-  font-size: 0.85rem;
-  letter-spacing: 2px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: transparent;
   color: var(--dorado-claro);
   border: none;
@@ -398,7 +625,7 @@ button.secundario {
 }
 
 .hoja-flecha {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--dorado);
 }
 
@@ -408,18 +635,18 @@ button.secundario {
 
 .hoja-fila {
   width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
+  margin-top: 4px;
+  padding: 8px 10px;
   font-weight: normal;
   letter-spacing: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #262140;
   color: var(--texto);
   border: 1px solid #4a4266;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .hoja-nombre {
@@ -428,11 +655,11 @@ button.secundario {
 
 .hoja-estado {
   flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: bold;
   letter-spacing: 1px;
-  border-radius: 20px;
-  padding: 3px 10px;
+  border-radius: 16px;
+  padding: 2px 8px;
   border: 1px solid #4a4266;
   color: var(--texto-tenue);
 }
@@ -465,4 +692,28 @@ button.secundario {
   color: #1d1930;
   background: var(--dorado-claro);
   border-color: var(--dorado-claro);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Layout Desktop (min-width: 900px) */
+@media (min-width: 900px) {
+  #zona-juego {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, 320px);
+    gap: 16px;
+    align-items: stretch;
+    margin: 0;
+  }
+}
+
+/* Soporte de accesibilidad: reducción de movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  button:active { transform: none; }
 }
