@@ -15,7 +15,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.datos.jarandilla import SOSPECHOSOS
-from app.datos.recursos import RECURSOS_VISUALES, RECURSO_TABLERO
+from app.datos.recursos import (
+    COLORES_PERSONAJES,
+    RECURSOS_VISUALES,
+    RECURSO_PEON,
+    RECURSO_TABLERO,
+)
+from app.datos.tablero_visual import TABLERO_VISUAL
 from app.motor.sala import (
     ESTADO_ESPERANDO,
     ESTADO_TERMINADA,
@@ -325,7 +331,15 @@ def listar_recursos_visuales():
     return {
         "recursos": RECURSOS_VISUALES,
         "tablero": RECURSO_TABLERO,
+        "peon": RECURSO_PEON,
+        "colores_personajes": COLORES_PERSONAJES,
     }
+
+
+@app.get("/api/tablero")
+def obtener_tablero_visual():
+    """Geometría pública de presentación derivada del motor lógico."""
+    return {"tablero": TABLERO_VISUAL}
 
 
 @app.get("/api/partidas/{codigo}")

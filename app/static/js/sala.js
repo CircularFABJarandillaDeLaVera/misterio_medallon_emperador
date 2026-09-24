@@ -50,10 +50,23 @@ const modoPartida = document.getElementById("modo-partida");
 const movimientoDiv = document.getElementById("movimiento");
 const posicionActual = document.getElementById("posicion-actual");
 const resultadoDado = document.getElementById("resultado-dado");
-const btnSospechaAqui = document.getElementById("btn-sospecha-aqui");
 const btnTirar = document.getElementById("btn-tirar");
 const btnPasadizo = document.getElementById("btn-pasadizo");
 const destinosMovimiento = document.getElementById("destinos-movimiento");
+const tableroVisual = document.getElementById("tablero-visual");
+const tableroAyuda = document.getElementById("tablero-ayuda");
+const tableroCanvasContenedor = document.getElementById("tablero-canvas-contenedor");
+const tableroCanvas = document.getElementById("tablero-canvas");
+const tableroCanvasAccesible = document.getElementById("tablero-canvas-accesible");
+const modalUbicacion = document.getElementById("modal-ubicacion");
+const modalUbicacionCaja = document.getElementById("modal-ubicacion-caja");
+const imagenUbicacion = document.getElementById("imagen-ubicacion");
+const btnCerrarUbicacion = document.getElementById("btn-cerrar-ubicacion");
+const btnMoverUbicacionCanvas = document.getElementById("btn-mover-ubicacion-canvas");
+let focoAntesDeUbicacion = null;
+let destinoUbicacionModal = null;
+let rendererCanvas = null;
+let canvasFallido = false;
 
 if (!jugadorId) {
   window.location.href = "/";
@@ -70,6 +83,30 @@ fetch("/api/personajes")
   });
 
 let ultimaSala = null;
+let TABLERO_VISUAL = null;
+
+const cargaTableroVisual = fetch("/api/tablero")
+  .then((r) => {
+    if (!r.ok) throw new Error(`GET /api/tablero: HTTP ${r.status}`);
+    return r.json();
+  })
+  .then((datos) => {
+    TABLERO_VISUAL = datos.tablero;
+    if (ultimaSala) {
+      pintarTablero(ultimaSala);
+    }
+  });
+if (cargaTableroVisual && typeof cargaTableroVisual.catch === "function") {
+  cargaTableroVisual.catch((fallo) => {
+    console.error("No se pudo cargar el tablero visual.", fallo);
+    if (ultimaSala && ultimaSala.modo === "tablero") {
+      tableroVisual.hidden = false;
+      tableroAyuda.textContent =
+        "No se pudo cargar el tablero visual. Recarga la página para reintentarlo.";
+      tableroAyuda.classList.add("error");
+    }
+  });
+}
 
 const protocolo = window.location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(
@@ -179,10 +216,13 @@ function pintarSala(sala) {
     pintarHoja(sala.investigacion || []);
     pintarJugada(sala);
     pintarMovimiento(sala);
+    pintarTablero(sala);
     pintarFinal(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
+    document.body.classList.remove("modo-tablero-activo");
+    tableroVisual.hidden = true;
     partida.hidden = true;
     btnComenzar.style.display = "";
     lobbyPersonajes.style.display = "";
@@ -198,6 +238,122 @@ function pintarSala(sala) {
       estado.textContent = "Todo listo. ¡Puedes comenzar!";
     }
   }
+}
+
+function enviarDestinoTablero(destinoId, boton) {
+  if (boton.disabled || !ultimaSala) return;
+  const autorizados = new Set(
+    ((ultimaSala.movimiento && ultimaSala.movimiento.destinos) || [])
+      .map((destino) => destino.id)
+  );
+  if (!autorizados.has(destinoId)) return;
+  boton.disabled = true;
+  ws.send(JSON.stringify({ accion: "mover", destino_id: destinoId }));
+}
+
+function abrirCartaUbicacion(nodo, activador) {
+  focoAntesDeUbicacion = activador || null;
+  imagenUbicacion.src = nodo.imagen;
+  imagenUbicacion.alt = nodo.nombre;
+  modalUbicacionCaja.setAttribute("aria-label", `Carta de ${nodo.nombre}`);
+  const destinos = new Set(
+    (((ultimaSala || {}).movimiento || {}).destinos || []).map((d) => d.id)
+  );
+  destinoUbicacionModal = destinos.has(nodo.id) ? nodo.id : null;
+  btnMoverUbicacionCanvas.hidden = !destinoUbicacionModal;
+  btnMoverUbicacionCanvas.disabled = false;
+  if (destinoUbicacionModal) {
+    btnMoverUbicacionCanvas.setAttribute("aria-label", `Mover a ${nodo.nombre}`);
+  }
+  modalUbicacion.hidden = false;
+  if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
+}
+
+function cerrarCartaUbicacion() {
+  modalUbicacion.hidden = true;
+  imagenUbicacion.src = "";
+  destinoUbicacionModal = null;
+  btnMoverUbicacionCanvas.hidden = true;
+  if (focoAntesDeUbicacion && focoAntesDeUbicacion.focus) {
+    focoAntesDeUbicacion.focus();
+  }
+  focoAntesDeUbicacion = null;
+}
+
+function pintarCapaAccesibleCanvas(sala) {
+  tableroCanvasAccesible.innerHTML = "";
+  const estadoTurno = document.createElement("p");
+  estadoTurno.textContent = sala.es_mi_turno
+    ? "Es tu turno" : `Turno de ${sala.turno_alias || "—"}`;
+  tableroCanvasAccesible.appendChild(estadoTurno);
+  const destinos = new Set(((sala.movimiento || {}).destinos || []).map((d) => d.id));
+  TABLERO_VISUAL.nodos.forEach((nodo) => {
+    if (nodo.tipo === "ubicacion") {
+      const consultar = document.createElement("button");
+      consultar.type = "button";
+      consultar.textContent = `Ver carta de ${nodo.nombre}`;
+      consultar.addEventListener("click", () => abrirCartaUbicacion(nodo, consultar));
+      tableroCanvasAccesible.appendChild(consultar);
+      if (destinos.has(nodo.id)) {
+        const mover = document.createElement("button");
+        mover.type = "button";
+        mover.textContent = `Mover a ${nodo.nombre}`;
+        mover.addEventListener("click", () => enviarDestinoTablero(nodo.id, mover));
+        tableroCanvasAccesible.appendChild(mover);
+      }
+    } else if (destinos.has(nodo.id)) {
+      const mover = document.createElement("button");
+      mover.type = "button";
+      mover.textContent = `Mover a ${nodo.nombre}`;
+      mover.addEventListener("click", () => enviarDestinoTablero(nodo.id, mover));
+      tableroCanvasAccesible.appendChild(mover);
+    }
+  });
+}
+
+function pintarTablero(sala) {
+  const esTablero = sala.modo === "tablero";
+  document.body.classList.toggle("modo-tablero-activo", esTablero);
+  tableroVisual.hidden = !esTablero;
+  if (!esTablero || !TABLERO_VISUAL) return;
+  tableroAyuda.classList.remove("error");
+  tableroAyuda.textContent =
+    "Las posiciones resaltadas son destinos permitidos por el servidor.";
+  tableroCanvasContenedor.hidden = false;
+  pintarCapaAccesibleCanvas(sala);
+  if (canvasFallido) return;
+  try {
+    if (!window.TableroCanvas || !tableroCanvas || !tableroCanvas.getContext) {
+      throw new Error("Canvas 2D no está disponible");
+    }
+    if (!rendererCanvas) {
+      rendererCanvas = new window.TableroCanvas(tableroCanvas, TABLERO_VISUAL, {
+        consultar: abrirCartaUbicacion,
+        mover: enviarDestinoTablero,
+      });
+    }
+    rendererCanvas.actualizar(sala, TABLERO_VISUAL);
+  } catch (fallo) {
+    canvasFallido = true;
+    console.error("No se pudo inicializar el tablero Canvas.", fallo);
+    tableroAyuda.classList.add("error");
+    tableroAyuda.textContent =
+      "No se pudo mostrar el tablero. Recarga la página para reintentarlo.";
+  }
+}
+
+btnCerrarUbicacion.addEventListener("click", cerrarCartaUbicacion);
+btnMoverUbicacionCanvas.addEventListener("click", () => {
+  if (!destinoUbicacionModal) return;
+  enviarDestinoTablero(destinoUbicacionModal, btnMoverUbicacionCanvas);
+});
+modalUbicacion.addEventListener("click", (evento) => {
+  if (evento.target === modalUbicacion) cerrarCartaUbicacion();
+});
+if (document.addEventListener) {
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && !modalUbicacion.hidden) cerrarCartaUbicacion();
+  });
 }
 
 function pintarTurno(sala) {
@@ -325,15 +481,10 @@ function pintarMovimiento(sala) {
   resultadoDado.textContent = movimiento.tirada ? `HAS SACADO: ${movimiento.tirada}` : "";
   btnTirar.disabled = false;
   btnPasadizo.disabled = false;
-  btnSospechaAqui.hidden = !movimiento.puede_sospechar_aqui;
   btnTirar.hidden = !movimiento.puede_tirar;
   btnPasadizo.hidden = !movimiento.pasadizo;
   if (movimiento.pasadizo) {
     btnPasadizo.textContent = `🌀 USAR PASADIZO A ${movimiento.pasadizo.nombre}`;
-  }
-  if (movimiento.puede_sospechar_aqui && movimiento.ubicacion_actual) {
-    btnSospechaAqui.textContent =
-      `🔎 FORMULAR SOSPECHA EN ${movimiento.ubicacion_actual.nombre.toUpperCase()}`;
   }
   destinosMovimiento.innerHTML = "";
   (movimiento.destinos || []).forEach((destino) => {
@@ -568,8 +719,6 @@ function abrirSospecha() {
 }
 
 btnSospecha.addEventListener("click", abrirSospecha);
-btnSospechaAqui.addEventListener("click", abrirSospecha);
-
 btnTirar.addEventListener("click", () => {
   btnTirar.disabled = true;
   ws.send(JSON.stringify({ accion: "tirar_dado" }));

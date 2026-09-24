@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 
 from app.datos.jarandilla import CARTAS
 from app.datos.recursos import (
+    COLORES_PERSONAJES,
     PERSONAJES_CON_NOMBRE,
     RECURSOS_VISUALES,
+    RECURSO_PEON,
     RECURSO_TABLERO,
     recurso_visual,
 )
@@ -97,4 +99,19 @@ def test_api_publica_el_mismo_manifiesto_sin_datos_de_juego_privados():
     datos = respuesta.json()
     assert datos["recursos"] == RECURSOS_VISUALES
     assert datos["tablero"] == RECURSO_TABLERO
+    assert datos["peon"] == RECURSO_PEON
+    assert datos["colores_personajes"] == COLORES_PERSONAJES
     assert "misterio" not in repr(datos).lower()
+
+
+def test_peon_svg_canonico_runtime_es_copia_unica_recoloreable():
+    original = RAIZ / "recursos" / "personajes" / "peon.svg"
+    runtime = ruta_runtime(RECURSO_PEON)
+    assert original.is_file() and runtime.is_file()
+    assert original.read_bytes() == runtime.read_bytes()
+    contenido = runtime.read_text(encoding="utf-8")
+    assert contenido.count("<svg") == 1
+    assert "currentColor" in contenido
+    assert set(COLORES_PERSONAJES) == {
+        "vera", "bruno", "lucia", "alvaro", "mateo", "eulalia"
+    }

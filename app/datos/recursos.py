@@ -9,6 +9,15 @@ from __future__ import annotations
 from app.datos.jarandilla import LUGARES, OBJETOS, SOSPECHOSOS
 
 URL_IMG = "/static/img"
+RECURSO_PEON = f"{URL_IMG}/personajes/peon.svg"
+COLORES_PERSONAJES = {
+    "vera": "#6f42a5",
+    "bruno": "#3f4448",
+    "lucia": "#285943",
+    "alvaro": "#176b73",
+    "mateo": "#c49324",
+    "eulalia": "#b33a2f",
+}
 PERSONAJES_CON_NOMBRE = frozenset(
     {"alvaro", "bruno", "eulalia", "lucia", "mateo", "vera"}
 )

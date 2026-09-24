@@ -98,32 +98,28 @@ def test_tablero_asigna_seis_posiciones_por_personaje_humano_o_pnj(monkeypatch):
     assert sala.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO
 
 
-def test_inicio_turno_en_ubicacion_ofrece_sospecha_dado_y_pasadizo():
+def test_inicio_turno_en_ubicacion_no_ofrece_sospecha_pero_si_dado_y_pasadizo():
     sala, a, _, _ = sala_tablero_controlada()
     assert TABLERO.es_ubicacion(sala.posiciones.obtener(a["id"]))
     movimiento = sala.estado_privado(a["id"])["movimiento"]
-    assert movimiento["puede_sospechar_aqui"]
-    assert movimiento["ubicacion_actual"]["id"] == "parador"
+    assert not movimiento.get("puede_sospechar_aqui", False)
+    assert not movimiento["puede_sospechar"]
     assert movimiento["puede_tirar"]
     assert movimiento["pasadizo"]["id"] == "nuestra-senora-torre"
 
 
-def test_sospechar_sin_mover_fija_lugar_y_consume_alternativas():
-    sala, a, b, _ = sala_tablero_controlada()
-    sala.formular_sospecha(a["id"], "vera", "parador", "libro-hueco")
-    assert sala.ultima_jugada["sospecha"]["lugar_id"] == "parador"
-    assert sala.jugador_en_turno()["id"] == b["id"]
-    with pytest.raises(ValueError):
-        sala.tirar_dado_tablero(a["id"], DadoFijo(2))
-    with pytest.raises(ValueError):
-        sala.usar_pasadizo(a["id"])
-    with pytest.raises(ValueError):
-        sala.formular_sospecha(a["id"], "bruno", "parador", "candil")
+def test_peticion_falsificada_de_sospecha_inicial_es_rechazada_por_backend():
+    sala, a, _, _ = sala_tablero_controlada()
+    with pytest.raises(ValueError, match="sospecha pendiente"):
+        sala.formular_sospecha(a["id"], "vera", "parador", "libro-hueco")
+    movimiento = sala.estado_privado(a["id"])["movimiento"]
+    assert movimiento["puede_tirar"]
+    assert movimiento["pasadizo"]["id"] == "nuestra-senora-torre"
 
 
-def test_sospecha_sin_mover_rechaza_lugar_falso_eliminado_y_fuera_turno():
+def test_sospecha_inicial_rechaza_lugar_falso_eliminado_y_fuera_turno():
     sala, a, b, _ = sala_tablero_controlada()
-    with pytest.raises(ValueError, match="ubicación actual"):
+    with pytest.raises(ValueError, match="sospecha pendiente"):
         sala.formular_sospecha(a["id"], "vera", "picota", "libro-hueco")
     assert sala.estado_privado(a["id"])["movimiento"]["puede_tirar"]
     with pytest.raises(ValueError, match="turno"):
@@ -144,10 +140,13 @@ def test_tirar_elimina_sospecha_en_origen_y_reconexion_no_la_restaura():
         sala.formular_sospecha(a["id"], "vera", "parador", "libro-hueco")
 
 
-def test_refutacion_sin_mover_reconecta_sin_acciones_y_avanza_una_vez():
+def test_refutacion_tras_entrar_reconecta_sin_acciones_y_avanza_una_vez():
     sala, a, b, _ = sala_tablero_controlada()
     sala.manos[b["id"]] = [CARTA_POR_ID["vera"], CARTA_POR_ID["libro-hueco"]]
-    sala.formular_sospecha(a["id"], "vera", "parador", "libro-hueco")
+    sala.tirar_dado_tablero(a["id"], DadoFijo(4))
+    destino = next(d for d in sala.rutas_pendientes if TABLERO.es_ubicacion(d))
+    sala.mover(a["id"], destino)
+    sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
     movimiento = sala.estado_privado(a["id"])["movimiento"]
     assert movimiento["fase"] == "esperando_eleccion_refutador"
     assert not movimiento.get("puede_tirar", False)
@@ -159,6 +158,22 @@ def test_refutacion_sin_mover_reconecta_sin_acciones_y_avanza_una_vez():
         sala.usar_pasadizo(a["id"])
     sala.mostrar_carta(b["id"], "vera")
     assert sala.jugador_en_turno()["id"] == b["id"]
+
+
+def test_nuevo_turno_en_misma_ubicacion_no_regala_otra_sospecha():
+    sala, a, _, _ = sala_tablero_controlada()
+    sala.manos = {j["id"]: [] for j in sala.jugadores}
+    sala.usar_pasadizo(a["id"])
+    destino = sala.posiciones.obtener(a["id"])
+    sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
+    while sala.jugador_en_turno()["id"] != a["id"]:
+        sala.avanzar_turno()
+    assert sala.posiciones.obtener(a["id"]) == destino
+    movimiento = sala.estado_privado(a["id"])["movimiento"]
+    assert movimiento["puede_tirar"]
+    assert not movimiento.get("puede_sospechar_aqui", False)
+    with pytest.raises(ValueError, match="sospecha pendiente"):
+        sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
 
 
 def test_solo_humano_actual_activo_tira_una_vez_y_dado_es_server_side():
@@ -262,7 +277,7 @@ def test_pnj_tablero_se_detiene_y_rapido_no():
     sala, _, _, pnj = sala_tablero_controlada()
     sala.turno_actual = 2
     sala.manos = {j["id"]: [] for j in sala.jugadores}
-    sala.ejecutar_turno_pnj(RngTablero("sospechar"))
+    sala.ejecutar_turno_pnj(RngTablero("pasadizo"))
     assert sala.jugador_en_turno()["id"] != pnj["id"]
 
 

@@ -1,0 +1,21 @@
+<svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cabeza -->
+  <circle cx="32" cy="17" r="12" fill="currentColor" stroke="#f4e6b8" stroke-width="3"></circle>
+
+  <!-- Cuerpo -->
+  <path d="
+    M22 29
+    C22 29 18 43 17 49
+    C16 55 21 58 21 58
+    L15 68
+    C13 72 16 76 21 76
+    H43
+    C48 76 51 72 49 68
+    L43 58
+    C43 58 48 55 47 49
+    C46 43 42 29 42 29
+    Z" fill="currentColor" stroke="#f4e6b8" stroke-width="3" stroke-linejoin="round"></path>
+
+  <!-- Base -->
+  <ellipse cx="32" cy="72" rx="19" ry="5" fill="currentColor" stroke="#f4e6b8" stroke-width="3"></ellipse>
+</svg>

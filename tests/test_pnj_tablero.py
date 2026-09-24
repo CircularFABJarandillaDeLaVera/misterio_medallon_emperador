@@ -60,14 +60,14 @@ def sala_pnj_tablero(posicion="parador", con_segundo_pnj=False):
     return sala, pnj, humano, jugadores[2:]
 
 
-def test_pnj_ubicacion_decide_sospechar_sin_mover_con_pesos_y_lugar_fijo():
+def test_pnj_ubicacion_inicial_no_sospecha_sin_mover():
     sala, pnj, humano, _ = sala_pnj_tablero()
-    rng = RngPNJ("sospechar")
+    rng = RngPNJ("tirar", dado=1)
     sala.ejecutar_turno_pnj(rng)
-    assert rng.pesos_accion == (("tirar", "sospechar", "pasadizo"), (60, 25, 15))
-    assert sala.posiciones.obtener(pnj["id"]) == "parador"
-    assert sala.ultima_jugada["sospecha"]["lugar_id"] == "parador"
-    assert sala.ultima_jugada["movimiento_pnj"]["accion"] == "sospecha_aqui"
+    assert rng.pesos_accion == (("tirar", "pasadizo"), (60, 15))
+    assert sala.posiciones.obtener(pnj["id"]) != "parador"
+    assert sala.ultima_jugada["tipo"] == "movimiento"
+    assert "sospecha" not in sala.ultima_jugada
     assert sala.jugador_en_turno()["id"] == humano["id"]
 
 
@@ -79,12 +79,12 @@ def test_pnj_puede_usar_pasadizo_y_sospecha_en_destino():
     assert sala.ultima_jugada["movimiento_pnj"]["accion"] == "pasadizo"
 
 
-def test_pnj_desde_ubicacion_sin_pasadizo_puede_tirar_y_usa_pesos_70_30():
+def test_pnj_desde_ubicacion_sin_pasadizo_tira_obligatoriamente():
     sala, pnj, _, _ = sala_pnj_tablero("iglesia-san-agustin")
     rng = RngPNJ("tirar", dado=4)
     legales = TABLERO.destinos_alcanzables("iglesia-san-agustin", 4)
     sala.ejecutar_turno_pnj(rng)
-    assert rng.pesos_accion == (("tirar", "sospechar"), (70, 30))
+    assert rng.pesos_accion is None
     assert sala.posiciones.obtener(pnj["id"]) in legales
     assert TABLERO.es_ubicacion(sala.posiciones.obtener(pnj["id"]))
     assert sala.ultima_jugada["movimiento_pnj"]["tirada"] == 4
@@ -134,7 +134,7 @@ def test_pnj_tablero_refutacion_pnj_automatica_y_humana_detiene_turno():
     segundo = otros[0]
     sala.orden_turnos = [pnj["id"], segundo["id"], humano["id"]]
     sala.manos[segundo["id"]] = [CARTA_POR_ID["vera"]]
-    sala.ejecutar_turno_pnj(RngPNJ("sospechar"))
+    sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
     assert "vera" in sala.vistas[pnj["id"]]
     assert sala.jugador_en_turno()["id"] == segundo["id"]
 
@@ -143,7 +143,7 @@ def test_pnj_tablero_refutacion_pnj_automatica_y_humana_detiene_turno():
         CARTA_POR_ID["vera"],
         CARTA_POR_ID["baul-imperial"],
     ]
-    sala.ejecutar_turno_pnj(RngPNJ("sospechar"))
+    sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
     assert sala.estado_jugada == JUGADA_ESPERANDO_REFUTADOR
     assert sala.jugador_en_turno()["id"] == pnj["id"]
     assert sala.refutacion_deadline is None
@@ -156,7 +156,7 @@ def test_pnj_tablero_humano_eliminado_multimatch_crea_timeout():
         CARTA_POR_ID["vera"],
         CARTA_POR_ID["baul-imperial"],
     ]
-    sala.ejecutar_turno_pnj(RngPNJ("sospechar"))
+    sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
     assert sala.estado_jugada == JUGADA_ESPERANDO_REFUTADOR
     assert sala.refutacion_deadline is not None
     assert main._necesita_timeout_refutacion(sala)
@@ -259,7 +259,7 @@ def test_programar_dos_veces_en_tablero_no_duplica_tarea_ni_accion(monkeypatch):
         def contar(*args, **kwargs):
             nonlocal llamadas
             llamadas += 1
-            return original(RngPNJ("sospechar"))
+            return original(RngPNJ("pasadizo"))
 
         monkeypatch.setattr(sala, "ejecutar_turno_pnj", contar)
         try:

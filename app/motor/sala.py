@@ -571,25 +571,12 @@ class Sala:
         jugador_id = jugador["id"]
         posicion_origen = self.posiciones.obtener(jugador_id)
         pasadizos = TABLERO.destinos_pasadizo(posicion_origen)
-        if TABLERO.es_ubicacion(posicion_origen):
-            acciones = ["tirar", "sospechar"]
-            pesos = [70, 30]
-            if pasadizos:
-                acciones = ["tirar", "sospechar", "pasadizo"]
-                pesos = [60, 25, 15]
-            accion = rng.choices(acciones, weights=pesos, k=1)[0]
-        else:
-            accion = "tirar"
+        accion = (
+            rng.choices(["tirar", "pasadizo"], weights=[60, 15], k=1)[0]
+            if pasadizos else "tirar"
+        )
 
         origen = self.describir_posicion(posicion_origen)["nombre"]
-        if accion == "sospechar":
-            self._formular_sospecha_pnj_tablero(
-                jugador_id,
-                posicion_origen,
-                {"accion": "sospecha_aqui", "origen": origen},
-                rng,
-            )
-            return
         if accion == "pasadizo":
             destino_id = self._usar_pasadizo(jugador_id)
             destino = self.describir_posicion(destino_id)["nombre"]
@@ -716,11 +703,7 @@ class Sala:
             raise ValueError("Solo el jugador en turno puede formular una sospecha.")
         if not en_turno["activo_investigacion"]:
             raise ValueError("Estas eliminado como investigador.")
-        sospecha_sin_mover = (
-            self.modo == MODO_TABLERO
-            and self.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO
-        )
-        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA and not sospecha_sin_mover:
+        if self.estado_jugada != JUGADA_ESPERANDO_SOSPECHA:
             raise ValueError("Ya hay una sospecha pendiente.")
         sospecha = {
             "sospechoso_id": self._validar_carta_categoria(sospechoso_id, "sospechoso"),
@@ -1072,9 +1055,6 @@ class Sala:
         }
         if es_turno_humano and self.estado_jugada == JUGADA_ESPERANDO_MOVIMIENTO:
             posicion = self.posiciones.obtener(jugador_id)
-            if TABLERO.es_ubicacion(posicion):
-                datos["puede_sospechar_aqui"] = True
-                datos["ubicacion_actual"] = self.describir_posicion(posicion)
             destinos = TABLERO.destinos_pasadizo(posicion)
             if destinos:
                 datos["pasadizo"] = self.describir_posicion(destinos[0])

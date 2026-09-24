@@ -72,14 +72,14 @@ def test_sospecha_pnj_tablero_resuelta_sustituye_pausa_corta_por_cinco():
 class RngSospechaPrimera:
     def choices(self, opciones, weights, k):
         if opciones and isinstance(opciones[0], str):
-            return ["sospechar"]
+            return ["tirar"]
         return [opciones[0]]
 
     def choice(self, opciones):
         return opciones[0]
 
     def randint(self, minimo, maximo):
-        return 1
+        return 4
 
 
 def sala_ritmo_tablero(dos_pnj=True):

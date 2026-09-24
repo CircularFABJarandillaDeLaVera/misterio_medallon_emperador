@@ -101,8 +101,6 @@ sandbox.pintarMovimiento({
   movimiento: {
     fase: "esperando_movimiento",
     puede_tirar: true,
-    puede_sospechar_aqui: true,
-    ubicacion_actual: { id: "parador", nombre: "Parador", tipo: "ubicacion" },
     pasadizo: {
       id: "nuestra-senora-torre",
       nombre: "Ntra. Sra. de la Torre",
@@ -115,9 +113,9 @@ sandbox.pintarMovimiento({
 ok($("movimiento").hidden === false, "el panel de movimiento aparece en modo tablero");
 ok($("btn-tirar").hidden === false, "puede_tirar=true muestra TIRAR DADO");
 ok(
-  $("btn-sospecha-aqui").hidden === false &&
-    $("btn-sospecha-aqui").textContent.includes("PARADOR"),
-  "la capacidad server-side muestra FORMULAR SOSPECHA EN PARADOR"
+  !fs.readFileSync(path.join(__dirname, "..", "app", "templates", "sala.html"), "utf8")
+    .includes('id="btn-sospecha-aqui"'),
+  "la interfaz no ofrece sospecha gratuita al inicio"
 );
 ok($("btn-pasadizo").hidden === false, "el pasadizo sigue disponible como alternativa");
 
@@ -133,7 +131,6 @@ sandbox.pintarMovimiento({
     ],
   },
 });
-ok($("btn-sospecha-aqui").hidden === true, "tras tirar desaparece sospechar aquí");
 ok($("destinos-movimiento").children.length === 2, "tras tirar se renderizan los destinos server-side");
 
 vm.runInContext(`ultimaSala = {
@@ -145,8 +142,8 @@ vm.runInContext(`ultimaSala = {
     { id: "libro-hueco", nombre: "Libro hueco", categoria: "objeto" }
   ]
 }`, sandbox);
-$("btn-sospecha-aqui").click();
-ok($("modal-sospecha").hidden === false, "sospechar aquí abre el flujo existente");
+$("btn-sospecha").click();
+ok($("modal-sospecha").hidden === false, "tras entrar, FORMULAR SOSPECHA abre el flujo existente");
 ok(
   $("sospecha-lugar").parentElement.hidden === true &&
     $("sospecha-lugar").value === "parador",

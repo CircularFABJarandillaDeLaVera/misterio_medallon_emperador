@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=7a4" />
 </head>
 <body>
   <main class="contenedor">
@@ -32,10 +32,16 @@
       <div id="partida" hidden>
         <h2>EL MISTERIO COMIENZA</h2>
         <p class="turno" id="turno"></p>
+        <section id="tablero-visual" class="tablero-visual" aria-label="Tablero de Jarandilla" hidden>
+          <div id="tablero-canvas-contenedor" class="tablero-canvas-contenedor" hidden>
+            <canvas id="tablero-canvas" aria-label="Representación visual del tablero de Jarandilla"></canvas>
+            <div id="tablero-canvas-accesible" class="solo-lectores" aria-label="Acciones accesibles del tablero"></div>
+          </div>
+          <p id="tablero-ayuda" class="tablero-ayuda">Las posiciones resaltadas son destinos permitidos por el servidor.</p>
+        </section>
         <div id="movimiento" class="grupo-cartas" hidden>
           <p id="posicion-actual"></p>
           <p id="resultado-dado"></p>
-          <button id="btn-sospecha-aqui" type="button" hidden>🔎 FORMULAR SOSPECHA AQUÍ</button>
           <button id="btn-tirar" type="button" hidden>🎲 TIRAR DADO</button>
           <button id="btn-pasadizo" type="button" hidden>🌀 USAR PASADIZO</button>
           <div id="destinos-movimiento"></div>
@@ -103,6 +109,13 @@
           <button id="btn-cerrar-cartas" type="button">VOLVER A LA PARTIDA</button>
         </div>
       </div>
+      <div id="modal-ubicacion" class="modal" hidden>
+        <div id="modal-ubicacion-caja" class="modal-caja modal-carta-ubicacion" role="dialog" aria-modal="true" aria-label="Carta de ubicación">
+          <img id="imagen-ubicacion" alt="" />
+          <button id="btn-mover-ubicacion-canvas" type="button" hidden>MOVER AQUÍ</button>
+          <button id="btn-cerrar-ubicacion" type="button">CERRAR</button>
+        </div>
+      </div>
       <div id="modal-hoja" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Hoja de investigación">
           <h2>HOJA DE INVESTIGACIÓN</h2>
@@ -114,6 +127,7 @@
       </div>
     </section>
   </main>
-  <script src="/static/js/sala.js"></script>
+  <script src="/static/js/tablero_canvas.js?v=7d"></script>
+  <script src="/static/js/sala.js?v=7d"></script>
 </body>
 </html>
