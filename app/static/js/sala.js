@@ -253,8 +253,11 @@ function enviarDestinoTablero(destinoId, boton) {
 
 function abrirCartaUbicacion(nodo, activador) {
   focoAntesDeUbicacion = activador || null;
-  // El modal muestra siempre la tarjeta completa, nunca imagen_tablero.
-  imagenUbicacion.src = nodo.imagen_tarjeta;
+  // El modal muestra siempre la tarjeta completa derivada del ID canónico
+  // (guiones intactos), nunca tablero_*.png.
+  const idUbicacion = nodo.id;
+  const urlTarjeta = `/static/img/lugares/${idUbicacion}.jpeg`;
+  imagenUbicacion.src = urlTarjeta;
   imagenUbicacion.alt = nodo.nombre;
   modalUbicacionCaja.setAttribute("aria-label", `Carta de ${nodo.nombre}`);
   const destinos = new Set(

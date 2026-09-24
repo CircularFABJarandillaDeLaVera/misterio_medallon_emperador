@@ -114,12 +114,14 @@ const descriptor = {
 let resolverTablero;
 let socket;
 const enviados = [];
+const peticionesFetch = [];
 class WebSocketFalso {
   constructor() { socket = this; }
   send(mensaje) { enviados.push(JSON.parse(mensaje)); }
 }
-const fetchFalso = (url) => {
-  if (url === "/api/tablero") {
+const fetchFalso = (url, opciones) => {
+  peticionesFetch.push({ url, opciones });
+  if (typeof url === "string" && url.startsWith("/api/tablero")) {
     return new Promise((resolve) => { resolverTablero = () => resolve({ ok: true, status: 200, json: async () => ({ tablero: descriptor }) }); });
   }
   return Promise.resolve({ ok: true, status: 200, json: async () => ({ personajes: [] }) });
@@ -144,7 +146,7 @@ vm.createContext(sandbox);
   const html = fs.readFileSync(path.join(raiz, "app", "templates", "sala.html"), "utf8");
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=7e3'), "la plantilla carga el renderer Canvas oficial");
-  ok(html.includes('/static/js/sala.js?v=7e2'), "la plantilla carga la integración Canvas consolidada");
+  ok(html.includes('/static/js/sala.js?v=7e4'), "la plantilla carga la integración Canvas consolidada");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 
@@ -176,6 +178,10 @@ vm.createContext(sandbox);
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
   ok(registro["tablero-visual"].hidden === false, "el contenedor permanece visible tras cargar descriptor");
+  ok(
+    peticionesFetch.some((p) => typeof p.url === "string" && p.url.startsWith("/api/tablero")),
+    "se solicita el descriptor visual al montar"
+  );
   ok(registro["tablero-canvas-contenedor"].hidden === false, "sala.js activa Canvas en navegador compatible");
   const metricas = vm.runInContext("rendererCanvas.metricas", sandbox);
   ok(metricas.ubicaciones === 9 && metricas.casillas === 48, "Canvas monta 9 ubicaciones y 48 casillas");
@@ -190,9 +196,20 @@ vm.createContext(sandbox);
   registro["tablero-canvas"].emitir(50, 8);
   ok(registro["modal-ubicacion"].hidden === false, "hit test Canvas abre el modal HTML");
   ok(registro["imagen-ubicacion"].src === "/static/img/lugares/parador.jpeg", "el modal usa la tarjeta completa, no imagen_tablero");
+  ok(!String(registro["imagen-ubicacion"].src).includes("tablero_"), "el modal jamás usa tablero_*.png");
   const imagenesCanvas = vm.runInContext("rendererCanvas.imagenes", sandbox);
   ok(imagenesCanvas.has("/static/img/lugares/tablero_parador.png"), "el medallón Canvas deriva imagen_tablero del ID");
   ok(!imagenesCanvas.has("/static/img/lugares/parador.jpeg"), "el medallón Canvas no carga la tarjeta");
+  // Iglesia: Canvas dibuja su PNG pero el modal carga su JPEG.
+  registro["tablero-canvas"].emitir(79, 20);
+  ok(registro["imagen-ubicacion"].src === "/static/img/lugares/iglesia-san-agustin.jpeg", "iglesia: el modal carga su tarjeta JPEG");
+  ok(!String(registro["imagen-ubicacion"].src).includes("tablero_"), "iglesia: el modal no usa tablero_*.png");
+  ok(imagenesCanvas.has("/static/img/lugares/tablero_iglesia_san_agustin.png"), "iglesia: el medallón dibuja su PNG");
+  // Picota: ID directo a tarjeta, sin guiones bajos ni tablero_*.png.
+  sandbox.cerrarCartaUbicacion();
+  registro["tablero-canvas"].emitir(21, 20);
+  ok(registro["imagen-ubicacion"].src === "/static/img/lugares/picota.jpeg", "picota: el modal carga EXACTAMENTE picota.jpeg");
+  ok(imagenesCanvas.has("/static/img/lugares/tablero_picota.png"), "picota: el medallón dibuja tablero_picota.png");
   ok(enviados.length === 0, "consultar una ubicación no envía movimiento");
   registro["btn-cerrar-ubicacion"].click();
   ok(registro["modal-ubicacion"].hidden === true, "el botón cerrar cierra el modal");
@@ -208,6 +225,8 @@ vm.createContext(sandbox);
   registro["tablero-canvas"].emitir(50, 50);
   const moverPlaza = registro["btn-mover-ubicacion-canvas"];
   ok(registro["modal-ubicacion"].hidden === false && !moverPlaza.hidden, "ubicación legal separa CONSULTAR de MOVER AQUÍ HTML");
+  ok(registro["imagen-ubicacion"].src === "/static/img/lugares/plaza-constitucion.jpeg", "plaza: el modal carga su tarjeta JPEG");
+  ok(!String(registro["imagen-ubicacion"].src).includes("tablero_"), "plaza: el modal no usa tablero_*.png");
   ok(enviados.length === 0, "consultar una ubicación legal tampoco mueve");
   sandbox.cerrarCartaUbicacion();
   registro["tablero-canvas"].emitir(50, 50);
