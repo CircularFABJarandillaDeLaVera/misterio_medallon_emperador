@@ -162,6 +162,27 @@ def test_pnj_tablero_humano_eliminado_multimatch_crea_timeout():
     assert main._necesita_timeout_refutacion(sala)
 
 
+def test_pnj_eliminado_no_recibe_turno_pero_sigue_refutando():
+    sala, pnj, humano, otros = sala_pnj_tablero(con_segundo_pnj=True)
+    eliminado = otros[0]
+    eliminado["activo_investigacion"] = False
+    posicion_eliminado = sala.posiciones.obtener(eliminado["id"])
+    sala.orden_turnos = [humano["id"], eliminado["id"], pnj["id"]]
+    sala.turno_actual = 0
+    sala.avanzar_turno()
+    assert sala.jugador_en_turno()["id"] == pnj["id"]
+    assert sala.posiciones.obtener(eliminado["id"]) == posicion_eliminado
+
+    sala.orden_turnos = [pnj["id"], eliminado["id"], humano["id"]]
+    sala.turno_actual = 0
+    sala.estado_jugada = JUGADA_ESPERANDO_MOVIMIENTO
+    sala.manos[eliminado["id"]] = [CARTA_POR_ID["vera"]]
+    sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    assert "vera" in sala.vistas[pnj["id"]]
+    assert sala.jugador_en_turno()["id"] == humano["id"]
+    assert sala.posiciones.obtener(eliminado["id"]) == posicion_eliminado
+
+
 def test_pnj_resuelve_por_deduccion_legitima_antes_de_mover():
     sala, pnj, _, _ = sala_pnj_tablero()
     sala.misterio = {
