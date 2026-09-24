@@ -9,7 +9,10 @@ from __future__ import annotations
 from app.datos.jarandilla import LUGARES, OBJETOS, SOSPECHOSOS
 
 URL_IMG = "/static/img"
-PERSONAJES_CON_NOMBRE = frozenset({"alvaro", "bruno", "lucia", "mateo", "vera"})
+PERSONAJES_CON_NOMBRE = frozenset(
+    {"alvaro", "bruno", "eulalia", "lucia", "mateo", "vera"}
+)
+EXTENSIONES_NOMBRE = {"eulalia": "jpeg"}
 
 
 def _entrada(carta: dict, carpeta: str, extension: str) -> dict:
@@ -18,8 +21,9 @@ def _entrada(carta: dict, carpeta: str, extension: str) -> dict:
         "principal": f"{URL_IMG}/{carpeta}/{carta['id']}.{extension}",
     }
     if carta["id"] in PERSONAJES_CON_NOMBRE:
+        extension_nombre = EXTENSIONES_NOMBRE.get(carta["id"], extension)
         entrada["nombre"] = (
-            f"{URL_IMG}/{carpeta}/{carta['id']}-nombre.{extension}"
+            f"{URL_IMG}/{carpeta}/{carta['id']}-nombre.{extension_nombre}"
         )
     return entrada
 

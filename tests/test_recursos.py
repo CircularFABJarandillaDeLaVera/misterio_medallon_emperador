@@ -41,17 +41,24 @@ def test_todos_los_recursos_principales_existen_con_case_linux_exacto():
         assert ruta.suffix in {".png", ".jpeg"}
 
 
-def test_variantes_nombre_son_opcionales_y_solo_existen_las_reales():
+def test_los_seis_personajes_tienen_variante_nombre():
     ids_con_variante = {
         cid for cid, recurso in RECURSOS_VISUALES.items() if "nombre" in recurso
     }
     assert ids_con_variante == PERSONAJES_CON_NOMBRE
-    assert ids_con_variante == {"alvaro", "bruno", "lucia", "mateo", "vera"}
-    assert "nombre" not in RECURSOS_VISUALES["eulalia"]
+    assert ids_con_variante == {
+        "alvaro",
+        "bruno",
+        "eulalia",
+        "lucia",
+        "mateo",
+        "vera",
+    }
     for cid in ids_con_variante:
         ruta = ruta_runtime(RECURSOS_VISUALES[cid]["nombre"])
         assert ruta.is_file()
-        assert ruta.name == f"{cid}-nombre.png"
+        extension = "jpeg" if cid == "eulalia" else "png"
+        assert ruta.name == f"{cid}-nombre.{extension}"
 
 
 def test_rutas_son_unicas_ascii_minusculas_y_sin_colisiones_de_case():
