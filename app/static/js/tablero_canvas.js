@@ -7,6 +7,12 @@
   const RADIO_CASILLA_LEGAL = 2.25;
   const TAMANO_PEON_CASILLA = 4.5;
 
+  // Prueba visual directa: URL PNG construida desde el ID, un solo cálculo.
+  function urlTablero(nodo) {
+    const nombreTablero = String((nodo && nodo.id) || "").replace(/-/g, "_");
+    return `/static/img/lugares/tablero_${nombreTablero}.png`;
+  }
+
   class TableroCanvas {
     constructor(canvas, descriptor, acciones = {}) {
       this.canvas = canvas;
@@ -38,7 +44,7 @@
 
     _precargar() {
       this.descriptor.nodos.filter((n) => n.tipo === "ubicacion")
-        .forEach((n) => this._cargarImagen(n.imagen_tablero));
+        .forEach((n) => this._cargarImagen(urlTablero(n)));
       this._cargarImagen(this.descriptor.peon, true);
     }
 
@@ -155,7 +161,7 @@
       ctx.beginPath(); ctx.arc(nodo.x, nodo.y, radio, 0, TAU); ctx.clip();
       // El medallón usa exclusivamente imagen_tablero; la tarjeta completa
       // (imagen_tarjeta) es solo para el modal HTML.
-      const recurso = this.imagenes.get(nodo.imagen_tablero);
+      const recurso = this.imagenes.get(urlTablero(nodo));
       if (recurso && recurso.estado === "lista") {
         const img = recurso.imagen;
         const lado = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);

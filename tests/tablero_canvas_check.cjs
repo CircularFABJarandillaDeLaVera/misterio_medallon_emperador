@@ -55,12 +55,11 @@ const exteriores = ["parador", "iglesia-san-agustin", "ermita-sopetran", "cristo
 const coords = [[50, 11], [77.58, 22.42], [89, 50], [77.58, 77.58], [50, 89], [22.42, 77.58], [11, 50], [22.42, 22.42]];
 const nodos = exteriores.map((id, i) => ({
   id, tipo: "ubicacion", nombre: id, x: coords[i][0], y: coords[i][1], diametro: 14,
+  // Señuelo: el Canvas real ignora imagen_tarjeta y deriva el PNG del ID.
   imagen_tarjeta: `/static/img/lugares/${id}.jpeg`,
-  imagen_tablero: `/static/img/lugares/tablero_${id.replace(/-/g, "_")}.png`,
 }));
 nodos.push({ id: "plaza-constitucion", tipo: "ubicacion", nombre: "Plaza", x: 50, y: 50, diametro: 32.3,
-  imagen_tarjeta: "/static/img/lugares/plaza-constitucion.jpeg",
-  imagen_tablero: "/static/img/lugares/tablero_plaza_constitucion.png" });
+  imagen_tarjeta: "/static/img/lugares/plaza-constitucion.jpeg" });
 const parejas = exteriores.map((id, i) => [id, exteriores[(i + 1) % 8]]).concat(exteriores.map((id) => [id, "plaza-constitucion"]));
 const caminos = parejas.map(([a, b]) => {
   const id = `camino-${a}-${b}`; const na = nodos.find((n) => n.id === a); const nb = nodos.find((n) => n.id === b);
@@ -107,9 +106,12 @@ const renderer = new ventana.TableroCanvas(canvas, descriptor, {
 });
 renderer.actualizar(estado);
 
-const urlsTablero = nodos.filter((n) => n.tipo === "ubicacion").map((n) => n.imagen_tablero);
+const esperadasTablero = nodos
+  .filter((n) => n.tipo === "ubicacion")
+  .map((n) => `/static/img/lugares/tablero_${n.id.replace(/-/g, "_")}.png`);
+const urlsTablero = esperadasTablero;
 const urlsTarjeta = nodos.filter((n) => n.tipo === "ubicacion").map((n) => n.imagen_tarjeta);
-ok(urlsTablero.every((url) => renderer.imagenes.has(url)), "el medallón carga imagen_tablero en las 9 ubicaciones");
+ok(urlsTablero.every((url) => renderer.imagenes.has(url)), "el medallón deriva imagen_tablero del ID en las 9 ubicaciones");
 ok(urlsTarjeta.every((url) => !renderer.imagenes.has(url)), "el medallón nunca carga la tarjeta completa");
 
 ok(canvas.width === 1200 && canvas.height === 1200, "devicePixelRatio escala el backing store HiDPI");
