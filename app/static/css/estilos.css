@@ -46,119 +46,72 @@ body.en-partida .tarjeta {
   padding: 8px 12px 10px;
 }
 
-/* Cabecera general y de partida (Microfase 8A.6: Barra de Estado Compacta ~28-32px) */
+/* Cabecera en lobby */
 .cabecera-juego {
   margin-bottom: 8px;
 }
 
-body:not(.en-partida) .cabecera-fila {
+.cabecera-fila {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
 }
 
-body:not(.en-partida) .cabecera-identidad {
+.cabecera-identidad {
   display: block;
   text-align: center;
 }
 
-body:not(.en-partida) h1 {
+h1 {
   font-size: 1.5rem;
   letter-spacing: 2px;
   color: var(--dorado-claro);
   margin: 0;
 }
 
-body:not(.en-partida) .subtitulo {
+.subtitulo {
   margin: 2px 0 10px;
   font-style: italic;
   font-size: 0.85rem;
   color: var(--texto-tenue);
 }
 
-body:not(.en-partida) #modo-partida {
+#modo-partida {
   margin: 2px 0 6px;
   font-size: 0.8rem;
   letter-spacing: 1px;
 }
 
-body:not(.en-partida) .turno,
-body:not(.en-partida) .resumen-sala {
+.turno,
+.resumen-sala {
   display: none;
 }
 
-/* En partida: cabecera en UNA SOLA FILA compacta (28-32px) y separación de 8px */
+/* En partida: eliminación total de la cabecera (Microfase 8A.7) */
 body.en-partida .cabecera-juego {
-  margin-bottom: 8px;
-}
-
-body.en-partida .subtitulo {
   display: none;
+  margin: 0;
+  padding: 0;
+  height: 0;
+  min-height: 0;
 }
 
 body.en-partida #estado {
   display: none;
 }
 
-body.en-partida .cabecera-fila {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 10px;
-  background: #262140;
-  border-radius: 6px;
-  border: 1px solid #4a4266;
-  min-height: 28px;
-  line-height: 1.2;
+.error {
+  min-height: 1.2em;
+  margin: 6px 0 0;
+  color: var(--error);
+  font-size: 0.85rem;
 }
 
-body.en-partida .cabecera-identidad {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-body.en-partida .cabecera-identidad h1 {
-  font-size: 0.98rem;
-  letter-spacing: 1.2px;
+.error:empty {
+  display: none;
+  min-height: 0;
   margin: 0;
-  color: var(--dorado-claro);
-  display: inline;
-}
-
-body.en-partida #modo-partida {
-  font-size: 0.72rem;
-  color: var(--texto-tenue);
-  margin: 0;
-  display: inline;
-}
-
-body.en-partida #modo-partida::before {
-  content: " · ";
-  color: var(--dorado);
-}
-
-body.en-partida .turno {
-  text-align: center;
-  font-size: 0.92rem;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-  color: var(--dorado-claro);
-  margin: 0;
-  white-space: nowrap;
-}
-
-body.en-partida .resumen-sala {
-  text-align: right;
-  font-size: 0.78rem;
-  font-style: italic;
-  color: var(--texto-tenue);
-  margin: 0;
-  white-space: nowrap;
 }
 
 .separador {
@@ -220,19 +173,6 @@ button.discreto {
   padding: 4px 10px;
   font-size: 0.75rem;
   min-height: 28px;
-}
-
-.error {
-  min-height: 1.2em;
-  margin: 6px 0 0;
-  color: var(--error);
-  font-size: 0.85rem;
-}
-
-.error:empty {
-  display: none;
-  min-height: 0;
-  margin: 0;
 }
 
 .codigo-sala {
@@ -717,3 +657,4 @@ img {
   }
   button:active { transform: none; }
 }
+
