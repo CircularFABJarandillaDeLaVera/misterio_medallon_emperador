@@ -10,6 +10,20 @@ from app.datos.jarandilla import LUGARES, OBJETOS, SOSPECHOSOS
 
 URL_IMG = "/static/img"
 RECURSO_PEON = f"{URL_IMG}/personajes/peon.svg"
+
+# Correspondencia canónica explícita ID de ubicación -> imagen de tablero.
+# Las claves son IDs del juego; los valores, rutas runtime. Nunca al revés.
+IMAGEN_TABLERO_POR_ID = {
+    "parador": f"{URL_IMG}/lugares/tablero_parador.png",
+    "iglesia-san-agustin": f"{URL_IMG}/lugares/tablero_iglesia_san_agustin.png",
+    "ermita-sopetran": f"{URL_IMG}/lugares/tablero_ermita_sopetran.png",
+    "picota": f"{URL_IMG}/lugares/tablero_picota.png",
+    "plaza-constitucion": f"{URL_IMG}/lugares/tablero_plaza_constitucion.png",
+    "cristo-humilladero": f"{URL_IMG}/lugares/tablero_cristo_humilladero.png",
+    "puente-parral": f"{URL_IMG}/lugares/tablero_puente_parral.png",
+    "museo-escobazos": f"{URL_IMG}/lugares/tablero_museo_escobazos.png",
+    "nuestra-senora-torre": f"{URL_IMG}/lugares/tablero_nuestra_senora_torre.png",
+}
 COLORES_PERSONAJES = {
     "vera": "#6f42a5",
     "bruno": "#3f4448",
@@ -34,6 +48,8 @@ def _entrada(carta: dict, carpeta: str, extension: str) -> dict:
         entrada["nombre"] = (
             f"{URL_IMG}/{carpeta}/{carta['id']}-nombre.{extension_nombre}"
         )
+    if carta["id"] in IMAGEN_TABLERO_POR_ID:
+        entrada["tablero"] = IMAGEN_TABLERO_POR_ID[carta["id"]]
     return entrada
 
 

@@ -38,7 +38,7 @@
 
     _precargar() {
       this.descriptor.nodos.filter((n) => n.tipo === "ubicacion")
-        .forEach((n) => this._cargarImagen(n.imagen));
+        .forEach((n) => this._cargarImagen(n.imagen_tablero));
       this._cargarImagen(this.descriptor.peon, true);
     }
 
@@ -153,7 +153,9 @@
       const ctx = this.ctx;
       ctx.save();
       ctx.beginPath(); ctx.arc(nodo.x, nodo.y, radio, 0, TAU); ctx.clip();
-      const recurso = this.imagenes.get(nodo.imagen);
+      // El medallón usa exclusivamente imagen_tablero; la tarjeta completa
+      // (imagen_tarjeta) es solo para el modal HTML.
+      const recurso = this.imagenes.get(nodo.imagen_tablero);
       if (recurso && recurso.estado === "lista") {
         const img = recurso.imagen;
         const lado = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);

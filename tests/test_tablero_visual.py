@@ -97,7 +97,12 @@ def test_descriptor_publico_usa_runtime_y_no_expone_datos_privados():
     for prohibido in ("misterio", "mano", "vista", "deduccion", "candidato"):
         assert prohibido not in texto
     ubicaciones = [n for n in TABLERO_VISUAL["nodos"] if n["tipo"] == "ubicacion"]
-    assert all(n["imagen"].startswith("/static/img/lugares/") for n in ubicaciones)
+    assert all(
+        n["imagen_tarjeta"].startswith("/static/img/lugares/")
+        and n["imagen_tablero"].startswith("/static/img/lugares/")
+        and n["imagen_tarjeta"] != n["imagen_tablero"]
+        for n in ubicaciones
+    )
     assert TABLERO_VISUAL["peon"] == "/static/img/personajes/peon.svg"
     assert set(TABLERO_VISUAL["colores_personajes"]) == {
         "vera", "bruno", "lucia", "alvaro", "mateo", "eulalia"

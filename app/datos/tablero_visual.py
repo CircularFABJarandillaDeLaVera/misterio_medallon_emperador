@@ -7,7 +7,12 @@ from __future__ import annotations
 
 import math
 
-from app.datos.recursos import COLORES_PERSONAJES, RECURSOS_VISUALES, RECURSO_PEON
+from app.datos.recursos import (
+    COLORES_PERSONAJES,
+    IMAGEN_TABLERO_POR_ID,
+    RECURSOS_VISUALES,
+    RECURSO_PEON,
+)
 from app.motor.tablero import EXTERIORES, PLAZA_ID, TABLERO
 
 
@@ -76,7 +81,10 @@ def descripcion_tablero_visual() -> dict:
             "x": x,
             "y": y,
             "diametro": round(RADIOS_UBICACIONES[ubicacion_id] * 2, 3),
-            "imagen": RECURSOS_VISUALES[ubicacion_id]["principal"],
+            # Tarjeta completa (modal HTML) e imagen de tablero (Canvas):
+            # dos recursos distintos para la misma ubicación canónica.
+            "imagen_tarjeta": RECURSOS_VISUALES[ubicacion_id]["principal"],
+            "imagen_tablero": IMAGEN_TABLERO_POR_ID[ubicacion_id],
         }
 
     caminos = []

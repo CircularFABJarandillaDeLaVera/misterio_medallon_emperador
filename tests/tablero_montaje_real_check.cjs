@@ -81,7 +81,8 @@ const ubicaciones = [...exteriores, "plaza-constitucion"];
 const coordenadas = [[50, 8], [79, 20], [92, 50], [79, 80], [50, 92], [21, 80], [8, 50], [21, 20], [50, 50]];
 const nodos = ubicaciones.map((id, i) => ({
   id, tipo: "ubicacion", nombre: id, x: coordenadas[i][0], y: coordenadas[i][1],
-  imagen: `/static/img/lugares/${id}.jpeg`,
+  imagen_tarjeta: `/static/img/lugares/${id}.jpeg`,
+  imagen_tablero: `/static/img/lugares/tablero_${id.replace(/-/g, "_")}.png`,
 }));
 const parejas = exteriores.map((id, i) => [id, exteriores[(i + 1) % 8]])
   .concat(exteriores.map((id) => [id, "plaza-constitucion"]));
@@ -143,8 +144,8 @@ vm.createContext(sandbox);
   const raiz = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(raiz, "app", "templates", "sala.html"), "utf8");
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
-  ok(html.includes('/static/js/tablero_canvas.js?v=7d'), "la plantilla carga el renderer Canvas oficial");
-  ok(html.includes('/static/js/sala.js?v=7d'), "la plantilla carga la integración Canvas consolidada");
+  ok(html.includes('/static/js/tablero_canvas.js?v=7e'), "la plantilla carga el renderer Canvas oficial");
+  ok(html.includes('/static/js/sala.js?v=7e'), "la plantilla carga la integración Canvas consolidada");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 
@@ -189,7 +190,10 @@ vm.createContext(sandbox);
   ok(botonesInfo.length === 9, "la capa HTML mantiene las 9 ubicaciones consultables");
   registro["tablero-canvas"].emitir(50, 8);
   ok(registro["modal-ubicacion"].hidden === false, "hit test Canvas abre el modal HTML");
-  ok(registro["imagen-ubicacion"].src === "/static/img/lugares/parador.jpeg", "el modal usa la imagen runtime canónica");
+  ok(registro["imagen-ubicacion"].src === "/static/img/lugares/parador.jpeg", "el modal usa la tarjeta completa, no imagen_tablero");
+  const imagenesCanvas = vm.runInContext("rendererCanvas.imagenes", sandbox);
+  ok(imagenesCanvas.has("/static/img/lugares/tablero_parador.png"), "el medallón Canvas carga imagen_tablero");
+  ok(!imagenesCanvas.has("/static/img/lugares/parador.jpeg"), "el medallón Canvas no carga la tarjeta");
   ok(enviados.length === 0, "consultar una ubicación no envía movimiento");
   registro["btn-cerrar-ubicacion"].click();
   ok(registro["modal-ubicacion"].hidden === true, "el botón cerrar cierra el modal");

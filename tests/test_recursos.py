@@ -68,7 +68,7 @@ def test_rutas_son_unicas_ascii_minusculas_y_sin_colisiones_de_case():
         valor
         for recurso in RECURSOS_VISUALES.values()
         for clave, valor in recurso.items()
-        if clave in {"principal", "nombre"}
+        if clave in {"principal", "nombre", "tablero"}
     ] + [RECURSO_TABLERO]
     assert len(rutas) == len(set(rutas))
     assert len(rutas) == len({ruta.casefold() for ruta in rutas})
@@ -82,7 +82,7 @@ def test_rutas_son_unicas_ascii_minusculas_y_sin_colisiones_de_case():
 
 def test_extensiones_coinciden_con_firmas_reales():
     for recurso in RECURSOS_VISUALES.values():
-        for clave in ("principal", "nombre"):
+        for clave in ("principal", "nombre", "tablero"):
             if clave not in recurso:
                 continue
             ruta = ruta_runtime(recurso[clave])

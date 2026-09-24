@@ -53,8 +53,14 @@ class ImagenFalsa {
 
 const exteriores = ["parador", "iglesia-san-agustin", "ermita-sopetran", "cristo-humilladero", "nuestra-senora-torre", "museo-escobazos", "puente-parral", "picota"];
 const coords = [[50, 11], [77.58, 22.42], [89, 50], [77.58, 77.58], [50, 89], [22.42, 77.58], [11, 50], [22.42, 22.42]];
-const nodos = exteriores.map((id, i) => ({ id, tipo: "ubicacion", nombre: id, x: coords[i][0], y: coords[i][1], diametro: 14, imagen: `/static/img/lugares/${id}.jpeg` }));
-nodos.push({ id: "plaza-constitucion", tipo: "ubicacion", nombre: "Plaza", x: 50, y: 50, diametro: 32.3, imagen: "/static/img/lugares/plaza-constitucion.jpeg" });
+const nodos = exteriores.map((id, i) => ({
+  id, tipo: "ubicacion", nombre: id, x: coords[i][0], y: coords[i][1], diametro: 14,
+  imagen_tarjeta: `/static/img/lugares/${id}.jpeg`,
+  imagen_tablero: `/static/img/lugares/tablero_${id.replace(/-/g, "_")}.png`,
+}));
+nodos.push({ id: "plaza-constitucion", tipo: "ubicacion", nombre: "Plaza", x: 50, y: 50, diametro: 32.3,
+  imagen_tarjeta: "/static/img/lugares/plaza-constitucion.jpeg",
+  imagen_tablero: "/static/img/lugares/tablero_plaza_constitucion.png" });
 const parejas = exteriores.map((id, i) => [id, exteriores[(i + 1) % 8]]).concat(exteriores.map((id) => [id, "plaza-constitucion"]));
 const caminos = parejas.map(([a, b]) => {
   const id = `camino-${a}-${b}`; const na = nodos.find((n) => n.id === a); const nb = nodos.find((n) => n.id === b);
@@ -100,6 +106,11 @@ const renderer = new ventana.TableroCanvas(canvas, descriptor, {
   mover: (id) => movimientos.push(id),
 });
 renderer.actualizar(estado);
+
+const urlsTablero = nodos.filter((n) => n.tipo === "ubicacion").map((n) => n.imagen_tablero);
+const urlsTarjeta = nodos.filter((n) => n.tipo === "ubicacion").map((n) => n.imagen_tarjeta);
+ok(urlsTablero.every((url) => renderer.imagenes.has(url)), "el medallón carga imagen_tablero en las 9 ubicaciones");
+ok(urlsTarjeta.every((url) => !renderer.imagenes.has(url)), "el medallón nunca carga la tarjeta completa");
 
 ok(canvas.width === 1200 && canvas.height === 1200, "devicePixelRatio escala el backing store HiDPI");
 ok(renderer.metricas.dpr === 2, "el renderer registra DPR 2");
@@ -213,11 +224,11 @@ ok(canvas.width === 800 && renderer.metricas.peones === 6, "resize repinta sin a
 renderer.actualizar({ ...estado, turno_alias: "J2" });
 ok(renderer.metricas.peones === 6, "repintado WebSocket/reconexión no duplica peones");
 
-fallarFotos = new Set([descriptor.peon, "/static/img/lugares/parador.jpeg"]);
+fallarFotos = new Set([descriptor.peon, "/static/img/lugares/tablero_parador.png"]);
 const canvasFallos = new CanvasFalso(500);
 const rendererFallos = new ventana.TableroCanvas(canvasFallos, descriptor, {});
 rendererFallos.actualizar(estado);
-ok(rendererFallos.imagenes.get("/static/img/lugares/parador.jpeg").estado === "error" && rendererFallos.metricas.ubicaciones === 9, "fallo de fotografía usa placeholder sin destruir tablero");
+ok(rendererFallos.imagenes.get("/static/img/lugares/tablero_parador.png").estado === "error" && rendererFallos.metricas.ubicaciones === 9, "fallo de imagen_tablero usa placeholder sin destruir tablero");
 ok(rendererFallos.imagenes.get(descriptor.peon).estado === "error" && rendererFallos.metricas.peones === 6, "fallo de peon.svg usa fallback geométrico");
 
 if (fallos) process.exit(1);
