@@ -9,7 +9,7 @@ from app.datos.tablero_visual import (
     TABLERO_VISUAL,
 )
 from app.main import app
-from app.motor.tablero import EXTERIORES, TABLERO
+from app.motor.tablero import CENTRO_ID, EXTERIORES, TABLERO
 
 
 def test_descriptor_visual_cubre_exactamente_todos_los_nodos_reales():
@@ -31,7 +31,7 @@ def test_caminos_visuales_derivan_los_16_caminos_y_sus_tres_casillas():
 
 
 def test_octagono_regular_y_caminos_visibles_de_longitud_equivalente():
-    centro = COORDENADAS_UBICACIONES["plaza-constitucion"]
+    centro = COORDENADAS_UBICACIONES[CENTRO_ID]
     exteriores = list(EXTERIORES)
     radios = [math.dist(COORDENADAS_UBICACIONES[uid], centro) for uid in exteriores]
     lados = [

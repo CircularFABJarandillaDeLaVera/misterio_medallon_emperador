@@ -100,6 +100,7 @@ def test_tablero_asigna_seis_posiciones_por_personaje_humano_o_pnj(monkeypatch):
 
 def test_inicio_turno_en_ubicacion_no_ofrece_sospecha_pero_si_dado_y_pasadizo():
     sala, a, _, _ = sala_tablero_controlada()
+    sala.posiciones.asignar(a["id"], "plaza-constitucion")
     assert TABLERO.es_ubicacion(sala.posiciones.obtener(a["id"]))
     movimiento = sala.estado_privado(a["id"])["movimiento"]
     assert not movimiento.get("puede_sospechar_aqui", False)
@@ -110,6 +111,7 @@ def test_inicio_turno_en_ubicacion_no_ofrece_sospecha_pero_si_dado_y_pasadizo():
 
 def test_peticion_falsificada_de_sospecha_inicial_es_rechazada_por_backend():
     sala, a, _, _ = sala_tablero_controlada()
+    sala.posiciones.asignar(a["id"], "plaza-constitucion")
     with pytest.raises(ValueError, match="sospecha pendiente"):
         sala.formular_sospecha(a["id"], "vera", "parador", "libro-hueco")
     movimiento = sala.estado_privado(a["id"])["movimiento"]
@@ -162,6 +164,7 @@ def test_refutacion_tras_entrar_reconecta_sin_acciones_y_avanza_una_vez():
 
 def test_nuevo_turno_en_misma_ubicacion_no_regala_otra_sospecha():
     sala, a, _, _ = sala_tablero_controlada()
+    sala.posiciones.asignar(a["id"], "plaza-constitucion")
     sala.manos = {j["id"]: [] for j in sala.jugadores}
     sala.usar_pasadizo(a["id"])
     destino = sala.posiciones.obtener(a["id"])
@@ -228,6 +231,7 @@ def test_llegada_ubicacion_habilita_sospecha_y_fija_lugar():
 
 def test_pasadizo_excluye_dado_llega_y_habilita_sospecha():
     sala, a, _, _ = sala_tablero_controlada()
+    sala.posiciones.asignar(a["id"], "plaza-constitucion")
     privado = sala.estado_privado(a["id"])
     assert privado["movimiento"]["pasadizo"]["id"] == "nuestra-senora-torre"
     assert sala.usar_pasadizo(a["id"]) == "nuestra-senora-torre"

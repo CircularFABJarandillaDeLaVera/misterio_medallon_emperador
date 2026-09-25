@@ -14,9 +14,10 @@ import random
 
 from app.datos.jarandilla import LUGARES
 
+CENTRO_ID = "parador"
 PLAZA_ID = "plaza-constitucion"
 EXTERIORES = (
-    "parador",
+    "plaza-constitucion",
     "iglesia-san-agustin",
     "ermita-sopetran",
     "cristo-humilladero",
@@ -30,9 +31,9 @@ PAREJAS_PERIMETRALES = tuple(
     (EXTERIORES[i], EXTERIORES[(i + 1) % len(EXTERIORES)])
     for i in range(len(EXTERIORES))
 )
-PAREJAS_RADIALES = tuple((exterior, PLAZA_ID) for exterior in EXTERIORES)
+PAREJAS_RADIALES = tuple((exterior, CENTRO_ID) for exterior in EXTERIORES)
 PAREJAS_PASADIZOS = (
-    ("parador", "nuestra-senora-torre"),
+    ("plaza-constitucion", "nuestra-senora-torre"),
     ("ermita-sopetran", "puente-parral"),
 )
 
@@ -75,7 +76,7 @@ def tirar_dado(rng=None) -> int:
 class Tablero:
     def __init__(self) -> None:
         self.ubicaciones = {lugar["id"]: dict(lugar) for lugar in LUGARES}
-        if set(self.ubicaciones) != {PLAZA_ID, *EXTERIORES}:
+        if set(self.ubicaciones) != {CENTRO_ID, *EXTERIORES}:
             raise ValueError("Las ubicaciones canónicas no coinciden con el tablero.")
         self.caminos: dict[str, Camino] = {}
         self.pasadizos: dict[str, Pasadizo] = {}

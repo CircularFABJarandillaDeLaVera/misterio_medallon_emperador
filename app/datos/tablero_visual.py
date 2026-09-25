@@ -13,7 +13,7 @@ from app.datos.recursos import (
     RECURSOS_VISUALES,
     RECURSO_PEON,
 )
-from app.motor.tablero import EXTERIORES, PLAZA_ID, TABLERO
+from app.motor.tablero import CENTRO_ID, EXTERIORES, TABLERO
 
 
 CENTRO = (50.0, 50.0)
@@ -34,12 +34,12 @@ COORDENADAS_UBICACIONES = {
     )
     for i, ubicacion_id in enumerate(EXTERIORES)
 }
-COORDENADAS_UBICACIONES[PLAZA_ID] = CENTRO
+COORDENADAS_UBICACIONES[CENTRO_ID] = CENTRO
 
 RADIOS_UBICACIONES = {
     ubicacion_id: RADIO_UBICACION_EXTERIOR for ubicacion_id in EXTERIORES
 }
-RADIOS_UBICACIONES[PLAZA_ID] = RADIO_UBICACION_CENTRAL
+RADIOS_UBICACIONES[CENTRO_ID] = RADIO_UBICACION_CENTRAL
 
 
 def _interpolar(origen: tuple[float, float], destino: tuple[float, float], paso: int):

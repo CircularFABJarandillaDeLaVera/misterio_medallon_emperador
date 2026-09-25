@@ -1,6 +1,7 @@
 import pytest
 
 from app.motor.tablero import (
+    CENTRO_ID,
     EXTERIORES,
     PAREJAS_PASADIZOS,
     PLAZA_ID,
@@ -11,16 +12,18 @@ from app.motor.tablero import (
 )
 
 
-def test_nueve_ubicaciones_canonicas_y_plaza_unica():
+def test_nueve_ubicaciones_canonicas_y_centro_unico():
     assert len(TABLERO.ubicaciones) == 9
+    assert CENTRO_ID == "parador"
+    assert CENTRO_ID in TABLERO.ubicaciones
+    assert CENTRO_ID not in TABLERO.casillas
     assert PLAZA_ID in TABLERO.ubicaciones
-    assert PLAZA_ID not in TABLERO.casillas
-    assert set(EXTERIORES) == set(TABLERO.ubicaciones) - {PLAZA_ID}
+    assert set(EXTERIORES) == set(TABLERO.ubicaciones) - {CENTRO_ID}
 
 
 def test_ocho_caminos_perimetrales_y_ocho_radiales():
-    perimetrales = [c for c in TABLERO.caminos.values() if PLAZA_ID not in {c.origen, c.destino}]
-    radiales = [c for c in TABLERO.caminos.values() if PLAZA_ID in {c.origen, c.destino}]
+    perimetrales = [c for c in TABLERO.caminos.values() if CENTRO_ID not in {c.origen, c.destino}]
+    radiales = [c for c in TABLERO.caminos.values() if CENTRO_ID in {c.origen, c.destino}]
     assert len(perimetrales) == 8
     assert len(radiales) == 8
     assert len(TABLERO.caminos) == 16
@@ -34,7 +37,7 @@ def test_cada_camino_tiene_tres_posiciones_intermedias_unicas():
 
 
 def test_caminos_bidireccionales_y_distancia_cuatro_entre_lugares():
-    camino = TABLERO.caminos["camino-parador-iglesia-san-agustin"]
+    camino = TABLERO.caminos["camino-plaza-constitucion-iglesia-san-agustin"]
     secuencia = (camino.origen, *camino.casillas, camino.destino)
     for a, b in zip(secuencia, secuencia[1:]):
         assert b in TABLERO.vecinos_normales(a)
@@ -50,14 +53,17 @@ def test_todas_las_conexiones_normales_directas_tienen_distancia_cuatro():
         assert TABLERO.distancia_normal(camino.destino, camino.origen) == 4
 
 
-def test_conexiones_normales_de_parador():
+def test_conexiones_normales_del_centro_parador():
     destinos = TABLERO.destinos_alcanzables("parador", 4)
-    assert {"iglesia-san-agustin", "picota", PLAZA_ID} <= destinos
+    assert set(EXTERIORES) <= destinos
+    # La torre ya no es solo pasadizo: el centro conecta con ella por radial.
+    assert "nuestra-senora-torre" in destinos
+
+
+def test_plaza_exterior_conecta_con_centro_y_vecinas():
+    destinos = TABLERO.destinos_alcanzables("plaza-constitucion", 4)
+    assert {"parador", "iglesia-san-agustin", "picota"} <= destinos
     assert "nuestra-senora-torre" not in destinos  # solo es pasadizo
-
-
-def test_plaza_puede_salir_hacia_los_ocho_exteriores():
-    assert set(EXTERIORES) <= TABLERO.destinos_alcanzables(PLAZA_ID, 4)
 
 
 class DadoFijo:
@@ -84,15 +90,15 @@ def test_dado_rechaza_rng_fuera_de_rango(valor):
 
 
 def test_movimiento_de_una_y_varias_casillas():
-    camino = TABLERO.caminos["camino-parador-iglesia-san-agustin"]
-    rutas1 = TABLERO.rutas_legales("parador", 1)
+    camino = TABLERO.caminos["camino-plaza-constitucion-iglesia-san-agustin"]
+    rutas1 = TABLERO.rutas_legales("plaza-constitucion", 1)
     assert any(r.posiciones == (camino.casillas[0],) for r in rutas1)
-    rutas3 = TABLERO.rutas_legales("parador", 3)
+    rutas3 = TABLERO.rutas_legales("plaza-constitucion", 3)
     assert any(r.posiciones == camino.casillas[:3] for r in rutas3)
 
 
 def test_entrada_sin_tirada_exacta_pierde_sobrantes():
-    camino = TABLERO.caminos["camino-parador-iglesia-san-agustin"]
+    camino = TABLERO.caminos["camino-plaza-constitucion-iglesia-san-agustin"]
     origen = camino.casillas[1]
     rutas = TABLERO.rutas_legales(origen, 6)
     entrada = next(r for r in rutas if r.destino == "iglesia-san-agustin")
@@ -102,7 +108,7 @@ def test_entrada_sin_tirada_exacta_pierde_sobrantes():
 
 
 def test_no_se_atraviesa_ubicacion_con_puntos_sobrantes():
-    camino = TABLERO.caminos["camino-parador-iglesia-san-agustin"]
+    camino = TABLERO.caminos["camino-plaza-constitucion-iglesia-san-agustin"]
     rutas = TABLERO.rutas_legales(camino.casillas[1], 6)
     for ruta in rutas:
         if "iglesia-san-agustin" in ruta.posiciones:
@@ -112,8 +118,8 @@ def test_no_se_atraviesa_ubicacion_con_puntos_sobrantes():
 
 @pytest.mark.parametrize("puntos", [4, 5, 6])
 def test_desde_ubicacion_entrar_con_cuatro_o_mas_siempre_termina(puntos):
-    camino = TABLERO.caminos["camino-parador-iglesia-san-agustin"]
-    rutas = TABLERO.rutas_legales("parador", puntos)
+    camino = TABLERO.caminos["camino-plaza-constitucion-iglesia-san-agustin"]
+    rutas = TABLERO.rutas_legales("plaza-constitucion", puntos)
     entrada = next(r for r in rutas if r.destino == "iglesia-san-agustin")
     assert entrada.puntos_usados == 4
     assert entrada.posiciones == (*camino.casillas, "iglesia-san-agustin")
@@ -121,9 +127,9 @@ def test_desde_ubicacion_entrar_con_cuatro_o_mas_siempre_termina(puntos):
 
 
 def test_bifurcaciones_y_sin_teletransporte():
-    rutas = TABLERO.rutas_legales("parador", 1)
+    rutas = TABLERO.rutas_legales("plaza-constitucion", 1)
     assert len({r.destino for r in rutas}) == 3
-    assert not TABLERO.validar_movimiento("parador", "puente-parral", 1)
+    assert not TABLERO.validar_movimiento("plaza-constitucion", "puente-parral", 1)
 
 
 def test_rutas_no_repiten_posiciones_ni_crean_bucles():
@@ -134,11 +140,11 @@ def test_rutas_no_repiten_posiciones_ni_crean_bucles():
 
 
 def test_validacion_server_side_de_destino_y_ruta():
-    camino = TABLERO.caminos["camino-parador-plaza-constitucion"]
+    camino = TABLERO.caminos["camino-plaza-constitucion-parador"]
     ruta = list(camino.casillas[:3])
-    assert TABLERO.validar_movimiento("parador", camino.casillas[2], 3, ruta)
-    assert not TABLERO.validar_movimiento("parador", camino.casillas[2], 2, ruta)
-    assert not TABLERO.validar_movimiento("sitio-falso", "parador", 3)
+    assert TABLERO.validar_movimiento("plaza-constitucion", camino.casillas[2], 3, ruta)
+    assert not TABLERO.validar_movimiento("plaza-constitucion", camino.casillas[2], 2, ruta)
+    assert not TABLERO.validar_movimiento("sitio-falso", "plaza-constitucion", 3)
 
 
 def test_dos_pasadizos_canonicos_bidireccionales():
@@ -156,7 +162,7 @@ def test_pasadizo_solo_desde_ubicacion_no_usa_dado_y_termina_directo():
     with pytest.raises(ValueError):
         TABLERO.usar_pasadizo(casilla, "parador")
     # La API especial no recibe puntos ni RNG: el destino es inmediato.
-    assert TABLERO.usar_pasadizo("parador", "nuestra-senora-torre") == "nuestra-senora-torre"
+    assert TABLERO.usar_pasadizo("plaza-constitucion", "nuestra-senora-torre") == "nuestra-senora-torre"
 
 
 def test_posicion_unica_y_ocupacion_compartida():

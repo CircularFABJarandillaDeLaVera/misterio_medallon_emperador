@@ -38,7 +38,7 @@ class RngPNJ:
         return self.dado
 
 
-def sala_pnj_tablero(posicion="parador", con_segundo_pnj=False):
+def sala_pnj_tablero(posicion="plaza-constitucion", con_segundo_pnj=False):
     sala = Sala("JARA-PNJ-TABLERO", modo=MODO_TABLERO)
     pnj = sala.agregar_jugador("Bruno", True, TIPO_PNJ, "bruno")
     humano = sala.agregar_jugador("Humano", personaje_id="vera")
@@ -92,7 +92,7 @@ def test_pnj_desde_ubicacion_sin_pasadizo_tira_obligatoriamente():
 
 
 def test_pnj_en_casilla_intermedia_tira_y_termina_en_destino_legal():
-    camino = next(c for c in TABLERO.caminos.values() if c.origen == "parador")
+    camino = next(c for c in TABLERO.caminos.values() if c.origen == "plaza-constitucion")
     origen = camino.casillas[1]
     sala, pnj, humano, _ = sala_pnj_tablero(origen)
     legales = TABLERO.destinos_alcanzables(origen, 1)
@@ -105,7 +105,7 @@ def test_pnj_en_casilla_intermedia_tira_y_termina_en_destino_legal():
 
 
 def test_pnj_prefiere_ubicacion_frente_a_intermedia_si_es_alcanzable():
-    camino = next(c for c in TABLERO.caminos.values() if c.origen == "parador")
+    camino = next(c for c in TABLERO.caminos.values() if c.origen == "plaza-constitucion")
     origen = camino.casillas[0]
     sala, pnj, _, _ = sala_pnj_tablero(origen)
     rutas = TABLERO.rutas_legales(origen, 2)
@@ -117,7 +117,7 @@ def test_pnj_prefiere_ubicacion_frente_a_intermedia_si_es_alcanzable():
 
 
 def test_pnj_elige_entre_varias_ubicaciones_con_rng_inyectado():
-    camino = next(c for c in TABLERO.caminos.values() if c.origen == "parador")
+    camino = next(c for c in TABLERO.caminos.values() if c.origen == "plaza-constitucion")
     origen = camino.casillas[1]
     sala, pnj, _, _ = sala_pnj_tablero(origen)
     ubicaciones = [
