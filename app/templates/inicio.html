@@ -3,39 +3,69 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cluedo Jarandilla — El misterio del medallón imperial</title>
-  <link rel="stylesheet" href="/static/css/estilos.css" />
+  <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
+  <title>El misterio del medallón — Juego de misterio y deducción</title>
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b1" />
 </head>
-<body>
-  <main class="contenedor">
-    <section class="tarjeta">
-      <h1>CLUEDO JARANDILLA</h1>
-      <p class="subtitulo">El misterio del medallón imperial</p>
-      <div class="separador">❦ ❦ ❦</div>
+<body class="portada">
+  <!-- FONDO DEFINITIVO PENDIENTE: esta capa queda preparada para recibir la
+       ilustración cinematográfica final (azul noche / Jarandilla / medallón).
+       Bastará con fijar --portada-imagen con la ruta /static/... definitiva.
+       No se pinta ningún botón dentro del fondo: la interfaz es HTML real. -->
+  <div class="portada-fondo" aria-hidden="true" data-fondo-definitivo="pendiente"></div>
+  <div class="portada-velo" aria-hidden="true"></div>
 
+  <main class="portada-escena">
+    <header class="portada-identidad">
+      <p class="portada-escenario">Jarandilla de la Vera</p>
+      <div class="portada-medallon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" focusable="false">
+          <circle cx="32" cy="32" r="29" class="medallon-anillo" />
+          <circle cx="32" cy="32" r="22" class="medallon-interior" />
+          <path d="M32 14 L36.5 27.5 L50 27.5 L39.2 35.4 L43.1 48.5 L32 40.8 L20.9 48.5 L24.8 35.4 L14 27.5 L27.5 27.5 Z" class="medallon-estrella" />
+          <circle cx="32" cy="32" r="4.5" class="medallon-nucleo" />
+        </svg>
+      </div>
+      <h1 class="portada-titulo">
+        <span class="portada-linea">El misterio</span>
+        <span class="portada-linea portada-del">del</span>
+        <span class="portada-linea">medallón</span>
+      </h1>
+      <p class="portada-sub">Juego de misterio y deducción</p>
+    </header>
+
+    <section class="portada-menu" aria-label="Menú principal">
       {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
-      <label for="alias">Tu alias</label>
-      <input id="alias" type="text" maxlength="20" autocomplete="off"
+      <label class="portada-etiqueta" for="alias">Tu alias</label>
+      <input id="alias" class="portada-campo" type="text" maxlength="20" autocomplete="off"
              placeholder="Ej. Paco" />
 
-      <label for="modo">Modo de partida</label>
-      <select id="modo">
-        <option value="rapido">MODO RÁPIDO</option>
-        <option value="tablero">MODO TABLERO</option>
-      </select>
+      <div class="portada-columnas">
+        <div class="portada-bloque">
+          <label class="portada-etiqueta" for="modo">Modo de partida</label>
+          <select id="modo" class="portada-campo">
+            <option value="rapido">MODO RÁPIDO</option>
+            <option value="tablero">MODO TABLERO</option>
+          </select>
+          <button id="btn-nueva" class="portada-btn portada-btn-primario" type="button">
+            <span class="portada-glyph" aria-hidden="true">▶</span> NUEVA PARTIDA
+          </button>
+        </div>
 
-      <button id="btn-nueva" type="button">NUEVA PARTIDA</button>
+        <p class="portada-o" aria-hidden="true"><span>o</span></p>
 
-      <div class="separador">— o —</div>
+        <div class="portada-bloque">
+          <label class="portada-etiqueta" for="codigo">Código de sala</label>
+          <input id="codigo" class="portada-campo portada-codigo" type="text" autocomplete="off"
+                 placeholder="JARA-XXXX" style="text-transform: uppercase" />
+          <button id="btn-unirse" class="portada-btn portada-btn-secundario" type="button">
+            ÚNETE CON UN CÓDIGO
+          </button>
+        </div>
+      </div>
 
-      <label for="codigo">Código de sala</label>
-      <input id="codigo" type="text" autocomplete="off"
-             placeholder="JARA-XXXX" style="text-transform: uppercase" />
-
-      <button id="btn-unirse" class="secundario" type="button">UNIRME</button>
-
-      <p id="error" class="error"></p>
+      <p id="error" class="error" role="alert"></p>
     </section>
   </main>
   <script src="/static/js/inicio.js?v=6b-modo-sala"></script>
