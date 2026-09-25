@@ -518,12 +518,14 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 .modal {
   position: fixed;
   inset: 0;
+  height: 100vh;
+  height: 100dvh;
   background: rgba(8, 6, 16, 0.82);
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   padding: 16px;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 50;
 }
 
@@ -534,6 +536,10 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 .modal-caja {
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--fondo-tarjeta);
   border: 1px solid var(--dorado);
   border-radius: 10px;
@@ -575,11 +581,18 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 
 .modal-carta-ubicacion > img {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   height: auto;
-  max-height: calc(100vh - 130px);
+  max-height: min(44vh, 400px, calc(100vh - 300px));
+  max-height: min(44dvh, 400px, calc(100dvh - 300px));
+  margin: 0 auto;
   object-fit: contain;
   border-radius: 8px;
+}
+
+.modal-carta-ubicacion > img[hidden] {
+  display: none;
 }
 
 #jugada:empty {

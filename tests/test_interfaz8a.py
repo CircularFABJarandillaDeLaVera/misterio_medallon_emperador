@@ -107,3 +107,17 @@ def test_28_29_png_tablero_y_jpeg_modal():
     ).read_text(encoding="utf-8")
     assert "/static/img/lugares/${idUbicacion}.jpeg" in SALA_JS
     assert "imagenUbicacion.src = urlTarjeta" in SALA_JS
+
+
+def test_popup_contextual_limitado_al_viewport_sin_deformar_imagen():
+    assert "height: 100dvh" in CSS
+    assert re.search(r"\.modal\s*\{[^}]*overflow:\s*hidden", CSS, re.DOTALL)
+    assert re.search(r"\.modal-caja\s*\{[^}]*max-height:[^;]*100dvh", CSS, re.DOTALL)
+    assert re.search(r"\.modal-caja\s*\{[^}]*overflow-y:\s*auto", CSS, re.DOTALL)
+    assert re.search(
+        r"\.modal-carta-ubicacion\s*>\s*img\s*\{[^}]*width:\s*auto"
+        r"[^}]*max-width:\s*100%[^}]*height:\s*auto[^}]*object-fit:\s*contain",
+        CSS,
+        re.DOTALL,
+    )
+    assert "max-height: min(44dvh, 400px" in CSS

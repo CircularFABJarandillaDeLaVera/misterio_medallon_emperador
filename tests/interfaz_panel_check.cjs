@@ -156,8 +156,8 @@ ok($("bloque-jugadores").hidden === false && $("bloque-orden").hidden === false,
 ok(!cuerpo.classList.contains("en-partida"), "lobby sin marca en-partida");
 sandbox.pintarSala(sala);
 
-// Panel por defecto: TU TURNO / turno ajeno.
-ok($("vista-contextual").textContent.includes("TU TURNO"), "panel informa TU TURNO");
+// Panel por defecto: siguiente acción / turno ajeno.
+ok($("vista-contextual").textContent === "Tira el dado.", "panel indica la siguiente acción");
 const salaRival = { ...sala, es_mi_turno: false, turno_alias: "Rival" };
 sandbox.pintarSala(salaRival);
 ok($("vista-contextual").textContent.includes("Turno de Rival"), "panel informa turno ajeno");
@@ -206,7 +206,48 @@ ok(
     !$("modal-contextual-detalle").textContent.includes("RESOLVER"),
   "ficha de personaje sin herramientas globales"
 );
-ok($("vista-contextual").textContent.includes("TU TURNO"), "panel derecho permanece en estado base");
+ok($("vista-contextual").textContent === "Tira el dado.", "panel derecho permanece en estado base");
+
+// El personaje propio reutiliza CARTAS e INVESTIGACIÓN; otros no.
+sandbox.verPersonaje("vera");
+const detallePropio = $("modal-contextual-detalle");
+const botonesPropios = detallePropio.children.filter((h) => h.tag === "button");
+ok(
+  detallePropio.children.some((h) => h.tag === "p" && h.textContent === "Yo"),
+  "personaje propio muestra solo el alias"
+);
+ok(
+  botonesPropios.some((b) => b.textContent === "CARTAS") &&
+    botonesPropios.some((b) => b.textContent === "INVESTIGACIÓN") &&
+    !botonesPropios.some((b) => b.textContent === "RESOLVER") &&
+    !botonesPropios.some((b) => b.textContent === "FORMULAR SOSPECHA"),
+  "personaje propio ofrece solo sus herramientas privadas"
+);
+botonesPropios.find((b) => b.textContent === "CARTAS").click();
+ok($("modal-cartas").hidden === false, "CARTAS propio reutiliza su modal");
+$("btn-cerrar-cartas").click();
+botonesPropios.find((b) => b.textContent === "INVESTIGACIÓN").click();
+ok($("modal-hoja").hidden === false, "INVESTIGACIÓN propia reutiliza su modal");
+$("btn-cerrar-hoja").click();
+
+const salaOtroHumano = {
+  ...sala,
+  jugadores: sala.jugadores.map((j) => j.personaje_id === "bruno" ? { ...j, tipo: "humano" } : j),
+};
+vm.runInContext(`ultimaSala = ${JSON.stringify(salaOtroHumano)};`, sandbox);
+sandbox.verPersonaje("bruno");
+ok(
+  !$("modal-contextual-detalle").textContent.includes("CARTAS") &&
+    !$("modal-contextual-detalle").textContent.includes("INVESTIGACIÓN"),
+  "otro humano no muestra herramientas privadas"
+);
+vm.runInContext(`ultimaSala = ${JSON.stringify(sala)};`, sandbox);
+sandbox.verPersonaje("bruno");
+ok(
+  !$("modal-contextual-detalle").textContent.includes("CARTAS") &&
+    !$("modal-contextual-detalle").textContent.includes("INVESTIGACIÓN"),
+  "PNJ no muestra herramientas privadas"
+);
 
 // 14-15. Destino legal mantiene MOVER AQUÍ y consultar no mueve.
 enviados.length = 0;
@@ -242,12 +283,47 @@ const selects = [];
 (function recoge(nodo) {
   if (nodo.tag === "select") selects.push(nodo);
   nodo.children.forEach(recoge);
-})($("vista-contextual"));
-ok(selects.length === 2, "sospecha en tablero no vuelve a pedir ubicación");
-selects[0].value = "bruno";
-selects[1].value = "baul-imperial";
+})($("modal-contextual-detalle"));
+ok(
+  $("modal-ubicacion").hidden === false &&
+    $("modal-contextual-titulo").textContent === "SOSPECHA EN PARADOR" &&
+    selects.length === 2,
+  "sospecha abre popup y no vuelve a pedir ubicación"
+);
+ok(
+  $("vista-contextual").textContent ===
+    "Has llegado. Pulsa la ubicación para ver tus opciones.",
+  "sospecha no sustituye el panel derecho"
+);
+ok(
+  !$("modal-contextual-detalle").textContent.includes("CARTAS") &&
+    !$("modal-contextual-detalle").textContent.includes("INVESTIGACIÓN") &&
+    !$("modal-contextual-detalle").textContent.includes("RESOLVER"),
+  "popup de sospecha sin herramientas globales"
+);
+$("modal-contextual-detalle").children
+  .find((h) => h.tag === "button" && h.textContent === "VOLVER").click();
+ok(
+  $("modal-contextual-titulo").textContent === "Parador" &&
+    $("imagen-ubicacion").src === "/static/img/lugares/parador.jpeg",
+  "VOLVER recupera el popup de la misma ubicación"
+);
+ok(
+  $("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"),
+  "VOLVER no consume el derecho a sospechar"
+);
+$("modal-contextual-detalle").children
+  .find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
+const selectsConfirmacion = [];
+(function recoge(nodo) {
+  if (nodo.tag === "select") selectsConfirmacion.push(nodo);
+  nodo.children.forEach(recoge);
+})($("modal-contextual-detalle"));
+selectsConfirmacion[0].value = "bruno";
+selectsConfirmacion[1].value = "baul-imperial";
 enviados.length = 0;
-$("vista-contextual").children.find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
+$("modal-contextual-detalle").children
+  .find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
 ok(
   enviados.length === 1 && enviados[0].accion === "formular_sospecha" &&
     enviados[0].sospechoso_id === "bruno" && enviados[0].lugar_id === "parador" &&
@@ -295,7 +371,7 @@ ok(
     $("modal-contextual-detalle").textContent === "",
   "CERRAR limpia el panel intermedio"
 );
-ok($("vista-contextual").textContent.includes("TU TURNO"), "CERRAR deja el panel derecho en estado base");
+ok($("vista-contextual").textContent === "Tira el dado.", "CERRAR deja el panel derecho en estado base");
 
 if (fallos) process.exit(1);
 console.log("INTERFAZ PANEL OK");

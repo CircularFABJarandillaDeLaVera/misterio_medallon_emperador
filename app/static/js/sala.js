@@ -93,7 +93,7 @@ fetch("/api/personajes")
 let ultimaSala = null;
 let TABLERO_VISUAL = null;
 let RECURSOS_VISUALES = {};
-let panelSel = null;
+let ubicacionContextualId = null;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -289,13 +289,16 @@ function enviarDestinoTablero(destinoId, boton) {
 }
 
 function abrirCartaUbicacion(nodo, activador) {
-  focoAntesDeUbicacion = activador || null;
+  if (modalUbicacion.hidden) focoAntesDeUbicacion = activador || null;
   // El modal muestra siempre la tarjeta completa derivada del ID canónico
   // (guiones intactos), nunca tablero_*.png.
   const idUbicacion = nodo.id;
   const urlTarjeta = `/static/img/lugares/${idUbicacion}.jpeg`;
   imagenUbicacion.src = urlTarjeta;
   imagenUbicacion.alt = nodo.nombre;
+  imagenUbicacion.hidden = false;
+  ubicacionContextualId = nodo.id;
+  btnCerrarUbicacion.hidden = false;
   modalContextualTitulo.textContent = nodo.nombre;
   modalContextualDetalle.innerHTML = "";
   modalUbicacionCaja.setAttribute("aria-label", `Información de ${nodo.nombre}`);
@@ -337,13 +340,9 @@ function abrirCartaUbicacion(nodo, activador) {
     const sospechar = document.createElement("button");
     sospechar.type = "button";
     sospechar.textContent = "FORMULAR SOSPECHA";
-    sospechar.addEventListener("click", () => {
-      cerrarCartaUbicacion();
-      verSospecha();
-    });
+    sospechar.addEventListener("click", () => verSospecha(nodo.id));
     modalContextualDetalle.appendChild(sospechar);
   }
-  panelSel = null;
   if (ultimaSala) pintarPanel(ultimaSala);
   modalUbicacion.hidden = false;
   if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
@@ -363,9 +362,11 @@ function cerrarCartaUbicacion() {
   modalContextualDetalle.innerHTML = "";
   imagenUbicacion.src = "";
   imagenUbicacion.alt = "";
+  imagenUbicacion.hidden = false;
+  ubicacionContextualId = null;
   destinoUbicacionModal = null;
   btnMoverUbicacionCanvas.hidden = true;
-  panelSel = null;
+  btnCerrarUbicacion.hidden = false;
   if (ultimaSala) pintarPanel(ultimaSala);
   if (focoAntesDeUbicacion && focoAntesDeUbicacion.focus) {
     focoAntesDeUbicacion.focus();
@@ -615,29 +616,41 @@ function verPersonaje(personajeId, activador) {
   modalContextualDetalle.innerHTML = "";
   imagenUbicacion.src = (RECURSOS_VISUALES[personajeId] || {}).principal || "";
   imagenUbicacion.alt = nombre;
+  imagenUbicacion.hidden = false;
+  ubicacionContextualId = null;
+  btnCerrarUbicacion.hidden = false;
   modalUbicacionCaja.setAttribute("aria-label", `Información de ${nombre}`);
   if (jugador && jugador.alias) {
     const linea = document.createElement("p");
-    linea.textContent = `En partida como ${jugador.alias}`;
+    linea.textContent = jugador.alias;
     modalContextualDetalle.appendChild(linea);
+  }
+  const esPersonajePropio = jugador && jugador.tipo !== "pnj" &&
+    jugador.personaje_id === ultimaSala.personaje_id;
+  if (esPersonajePropio) {
+    const cartas = document.createElement("button");
+    cartas.type = "button";
+    cartas.textContent = "CARTAS";
+    cartas.addEventListener("click", abrirCartas);
+    modalContextualDetalle.appendChild(cartas);
+    const investigacion = document.createElement("button");
+    investigacion.type = "button";
+    investigacion.textContent = "INVESTIGACIÓN";
+    investigacion.addEventListener("click", abrirHoja);
+    modalContextualDetalle.appendChild(investigacion);
   }
   destinoUbicacionModal = null;
   btnMoverUbicacionCanvas.hidden = true;
-  panelSel = null;
   pintarPanel(ultimaSala);
   modalUbicacion.hidden = false;
   if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
 }
 
-function verSospecha() {
-  if (!ultimaSala) return;
-  panelSel = { tipo: "sospecha", turno: ultimaSala.turno_alias };
-  pintarPanel(ultimaSala);
-}
-
-function cerrarPanel() {
-  panelSel = null;
-  if (ultimaSala) pintarPanel(ultimaSala);
+function verSospecha(ubicacionId) {
+  if (!ultimaSala || ultimaSala.modo !== "tablero" ||
+      !puedeSospecharServidor(ultimaSala) || !ultimaSala.posicion ||
+      ultimaSala.posicion.id !== ubicacionId) return;
+  pintarVistaSospecha(ultimaSala, ubicacionId);
 }
 
 function nodoUbicacion(ubicacionId) {
@@ -650,7 +663,19 @@ function pintarVistaInfo(sala) {
   if (sala.estado === "terminada") {
     linea.textContent = "Partida terminada.";
   } else if (sala.es_mi_turno) {
-    linea.textContent = "TU TURNO";
+    const movimiento = sala.movimiento || {};
+    if (movimiento.fase === "esperando_destino" ||
+        (movimiento.destinos || []).length > 0) {
+      linea.textContent = "Elige una ubicación disponible.";
+    } else if (movimiento.puede_sospechar) {
+      linea.textContent = "Has llegado. Pulsa la ubicación para ver tus opciones.";
+    } else if (movimiento.puede_tirar && movimiento.pasadizo) {
+      linea.textContent = "Tira el dado o usa el pasadizo disponible.";
+    } else if (movimiento.puede_tirar) {
+      linea.textContent = "Tira el dado.";
+    } else {
+      linea.textContent = "TU TURNO";
+    }
   } else {
     linea.textContent =
       `Turno de ${sala.turno_alias || "—"}. Pulsa una ubicación o un peón para consultar.`;
@@ -658,25 +683,33 @@ function pintarVistaInfo(sala) {
   vistaContextual.appendChild(linea);
 }
 
-function pintarVistaSospecha(sala) {
-  const titulo = document.createElement("h3");
-  const aqui = (sala.posicion && sala.posicion.nombre) || "";
-  titulo.textContent = aqui ? `SOSPECHA EN ${aqui.toUpperCase()}` : "FORMULAR SOSPECHA";
-  vistaContextual.appendChild(titulo);
+function pintarVistaSospecha(sala, ubicacionId) {
+  const nodo = nodoUbicacion(ubicacionId);
+  const aqui = (nodo && nodo.nombre) || (sala.posicion && sala.posicion.nombre) || "";
+  ubicacionContextualId = ubicacionId;
+  modalContextualTitulo.textContent = aqui
+    ? `SOSPECHA EN ${aqui.toUpperCase()}` : "FORMULAR SOSPECHA";
+  modalContextualDetalle.innerHTML = "";
+  imagenUbicacion.src = "";
+  imagenUbicacion.alt = "";
+  imagenUbicacion.hidden = true;
+  btnMoverUbicacionCanvas.hidden = true;
+  btnCerrarUbicacion.hidden = true;
+  modalUbicacionCaja.setAttribute("aria-label", modalContextualTitulo.textContent);
   // La ubicación la fija el servidor (lugar de entrada): solo se piden
   // sospechoso y objeto, con datos canónicos de la propia hoja.
   const cartas = sala.investigacion || [];
   const etiquetaS = document.createElement("label");
   etiquetaS.textContent = "¿DE QUIÉN SOSPECHAS?";
-  vistaContextual.appendChild(etiquetaS);
+  modalContextualDetalle.appendChild(etiquetaS);
   const selS = document.createElement("select");
-  vistaContextual.appendChild(selS);
+  modalContextualDetalle.appendChild(selS);
   llenarSelect(selS, cartas, "sospechoso");
   const etiquetaO = document.createElement("label");
   etiquetaO.textContent = "¿CON QUÉ OBJETO?";
-  vistaContextual.appendChild(etiquetaO);
+  modalContextualDetalle.appendChild(etiquetaO);
   const selO = document.createElement("select");
-  vistaContextual.appendChild(selO);
+  modalContextualDetalle.appendChild(selO);
   llenarSelect(selO, cartas, "objeto");
   const confirmar = document.createElement("button");
   confirmar.type = "button";
@@ -687,43 +720,34 @@ function pintarVistaSospecha(sala) {
       return;
     }
     confirmar.disabled = true;
-    panelSel = null;
     ws.send(JSON.stringify({
       accion: "formular_sospecha",
       sospechoso_id: selS.value,
       lugar_id: sala.posicion.id,
       objeto_id: selO.value,
     }));
+    cerrarCartaUbicacion();
   });
-  vistaContextual.appendChild(confirmar);
+  modalContextualDetalle.appendChild(confirmar);
   const volver = document.createElement("button");
   volver.type = "button";
   volver.className = "secundario";
   volver.textContent = "VOLVER";
   volver.addEventListener("click", () => {
-    if (sala.posicion) verUbicacion(sala.posicion.id);
-    else cerrarPanel();
+    const ubicacion = nodoUbicacion(ubicacionContextualId);
+    if (ubicacion) abrirCartaUbicacion(ubicacion, focoAntesDeUbicacion);
   });
-  vistaContextual.appendChild(volver);
+  modalContextualDetalle.appendChild(volver);
+  pintarPanel(sala);
+  modalUbicacion.hidden = false;
+  if (volver.focus) volver.focus();
 }
 
 function pintarPanel(sala) {
   if (!vistaContextual) return;
-  if (panelSel && panelSel.turno !== sala.turno_alias) panelSel = null;
   vistaContextual.innerHTML = "";
   vistaContextual.hidden = false;
-  if (!panelSel) {
-    pintarVistaInfo(sala);
-  } else if (
-    panelSel.tipo === "sospecha" &&
-    sala.modo === "tablero" &&
-    puedeSospecharServidor(sala)
-  ) {
-    pintarVistaSospecha(sala);
-  } else {
-    panelSel = null;
-    pintarVistaInfo(sala);
-  }
+  pintarVistaInfo(sala);
 }
 
 function pintarFinal(sala) {

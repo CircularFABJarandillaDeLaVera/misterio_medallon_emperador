@@ -91,6 +91,7 @@ const $ = (id) => documentStub.getElementById(id);
 const base = {
   modo: "tablero",
   estado: "iniciada",
+  es_mi_turno: true,
   posicion: { id: "parador", nombre: "Parador", tipo: "ubicacion" },
   orden: [],
   pnj_pensando_alias: null,
@@ -119,8 +120,20 @@ ok(
   "la interfaz no ofrece sospecha gratuita al inicio"
 );
 ok($("btn-pasadizo").hidden === false, "el pasadizo sigue disponible como alternativa");
+sandbox.pintarPanel({
+  ...base,
+  movimiento: {
+    fase: "esperando_movimiento",
+    puede_tirar: true,
+    pasadizo: { id: "nuestra-senora-torre", nombre: "Ntra. Sra. de la Torre" },
+  },
+});
+ok(
+  $("vista-contextual").textContent === "Tira el dado o usa el pasadizo disponible.",
+  "antes de tirar el panel indica las acciones disponibles"
+);
 
-sandbox.pintarMovimiento({
+const esperandoDestino = {
   ...base,
   movimiento: {
     fase: "esperando_destino",
@@ -131,8 +144,29 @@ sandbox.pintarMovimiento({
       { id: "camino-2", nombre: "Camino 2", tipo: "casilla" },
     ],
   },
-});
+};
+sandbox.pintarMovimiento(esperandoDestino);
+sandbox.pintarPanel(esperandoDestino);
 ok($("destinos-movimiento").children.length === 2, "tras tirar se renderizan los destinos server-side");
+ok($("resultado-dado").textContent === "HAS SACADO: 2", "la tirada se mantiene visible");
+ok(
+  $("vista-contextual").textContent === "Elige una ubicación disponible.",
+  "tras tirar el panel pide elegir una ubicación"
+);
+
+const llegada = {
+  ...base,
+  posicion: { id: "cristo-humilladero", nombre: "Cristo del Humilladero" },
+  movimiento: { fase: "esperando_sospecha", puede_sospechar: true },
+};
+sandbox.pintarMovimiento(llegada);
+sandbox.pintarPanel(llegada);
+ok($("posicion-actual").textContent === "Cristo del Humilladero", "la llegada muestra la ubicación");
+ok(
+  $("vista-contextual").textContent ===
+    "Has llegado. Pulsa la ubicación para ver tus opciones.",
+  "la llegada explica el siguiente paso"
+);
 
 vm.runInContext(`ultimaSala = {
   modo: "tablero",
@@ -147,17 +181,21 @@ vm.runInContext(`ultimaSala = {
     { id: "libro-hueco", nombre: "Libro hueco", categoria: "objeto" }
   ]
 }`, sandbox);
-sandbox.verSospecha();
+sandbox.verSospecha("parador");
 const selPanel = [];
 (function recoge(nodo) {
   if (nodo.tag === "select") selPanel.push(nodo);
   nodo.children.forEach(recoge);
-})($("vista-contextual"));
-ok(selPanel.length === 2, "en tablero la sospecha del panel no vuelve a pedir ubicación");
+})($("modal-contextual-detalle"));
+ok(selPanel.length === 2, "en tablero el popup de sospecha no vuelve a pedir ubicación");
+ok(
+  !$("vista-contextual").textContent.includes("¿DE QUIÉN SOSPECHAS?"),
+  "el panel derecho conserva su estado base"
+);
 selPanel[0].value = "vera";
 selPanel[1].value = "libro-hueco";
 enviados.length = 0;
-$("vista-contextual").children
+$("modal-contextual-detalle").children
   .find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
 ok(
   enviados.length === 1 && enviados[0].accion === "formular_sospecha" &&
