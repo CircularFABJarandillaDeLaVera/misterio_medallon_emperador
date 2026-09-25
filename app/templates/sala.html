@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b11a" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b12" />
 </head>
 <body>
   <main class="contenedor">
@@ -78,12 +78,15 @@
         <p class="estado" id="total"></p>
       </div>
       <div id="modal-resolver" class="modal" hidden>
-        <div class="modal-caja" role="dialog" aria-label="Resolver el misterio">
+        <div class="modal-caja modal-resolver-caja" role="dialog" aria-label="Resolver el misterio">
           <h2>🏆 RESOLVER EL MISTERIO</h2>
           <p class="nota-privada">Es irreversible. Si fallas quedarás eliminado como investigador.</p>
-          <label>SOSPECHOSO<select id="resolver-sospechoso"></select></label>
-          <label>LUGAR<select id="resolver-lugar"></select></label>
-          <label>OBJETO<select id="resolver-objeto"></select></label>
+          <p class="resolver-pregunta">¿QUIÉN ESCONDIÓ EL MEDALLÓN?</p>
+          <div id="resolver-grupo-sospechoso" class="selector-cartas-resolver" data-categoria="sospechoso" role="group" aria-label="Selecciona un sospechoso"></div>
+          <p class="resolver-pregunta">¿DÓNDE OCURRIÓ?</p>
+          <div id="resolver-grupo-lugar" class="selector-cartas-resolver" data-categoria="lugar" role="group" aria-label="Selecciona un lugar"></div>
+          <p class="resolver-pregunta">¿DÓNDE LO ESCONDIÓ?</p>
+          <div id="resolver-grupo-objeto" class="selector-cartas-resolver" data-categoria="objeto" role="group" aria-label="Selecciona un escondite"></div>
           <button id="btn-confirmar-resolver" type="button">CONTINUAR</button>
           <button id="btn-cancelar-resolver" type="button" class="secundario">CANCELAR</button>
         </div>
@@ -158,6 +161,6 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b11"></script>
+  <script src="/static/js/sala.js?v=8b12"></script>
 </body>
 </html>

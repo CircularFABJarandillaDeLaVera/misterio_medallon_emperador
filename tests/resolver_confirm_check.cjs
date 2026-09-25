@@ -27,11 +27,26 @@ ok(!/[^a-zA-Z]alert\s*\(/.test(fuente), "sin alert(...) en sala.js");
 ok(!/[^a-zA-Z]prompt\s*\(/.test(fuente), "sin prompt(...) en sala.js");
 ok(fuente.includes("btn-enviar-resolver"), "existe botón de envío único");
 
+function claseLista() {
+  const clases = new Set();
+  return {
+    add(...cs) { cs.forEach((c) => clases.add(c)); },
+    remove(...cs) { cs.forEach((c) => clases.delete(c)); },
+    toggle(c, f) {
+      if (f === undefined) { if (clases.has(c)) clases.delete(c); else clases.add(c); }
+      else if (f) clases.add(c); else clases.delete(c);
+    },
+    contains(c) { return clases.has(c); },
+  };
+}
+
 function makeElemento(tag) {
   const el = {
     tag,
     children: [],
     className: "",
+    classList: claseLista(),
+    dataset: {},
     hidden: true,
     disabled: false,
     title: "",
@@ -114,22 +129,71 @@ vm.runInContext(fuente, sandbox, { filename: "sala.js" });
 
 const $ = (id) => documentStub.getElementById(id);
 
-function fijarSelect(id, valor, nombre) {
-  const sel = $(id);
-  sel.value = valor;
-  sel.options = [{ textContent: nombre }];
-  sel.selectedIndex = 0;
-}
+// 0. Resolver ya no usa selects; el modo rápido conserva los suyos.
+const htmlSala = fs.readFileSync(
+  path.join(__dirname, "..", "app", "templates", "sala.html"),
+  "utf8"
+);
+ok(
+  !htmlSala.includes('id="resolver-sospechoso"') &&
+    !htmlSala.includes('id="resolver-lugar"') &&
+    !htmlSala.includes('id="resolver-objeto"'),
+  "Resolver sin selects visibles"
+);
+ok(
+  htmlSala.includes('id="sospecha-sospechoso"') &&
+    htmlSala.includes('id="sospecha-lugar"') &&
+    htmlSala.includes('id="sospecha-objeto"'),
+  "modo rápido conserva sus selects"
+);
+ok(
+  htmlSala.includes('id="resolver-grupo-sospechoso"') &&
+    htmlSala.includes('id="resolver-grupo-lugar"') &&
+    htmlSala.includes('id="resolver-grupo-objeto"'),
+  "Resolver ofrece 3 grupos visuales"
+);
 
 // 1. Abrir selección y pasar a confirmación con los nombres visibles.
+vm.runInContext(`ultimaSala = {
+  investigacion: [
+    { id: "vera", nombre: "Vera", categoria: "sospechoso", estado: "sin_informacion" },
+    { id: "bruno", nombre: "Bruno", categoria: "sospechoso", estado: "sin_informacion" },
+    { id: "parador", nombre: "Parador", categoria: "lugar", estado: "sin_informacion" },
+    { id: "picota", nombre: "Picota", categoria: "lugar", estado: "sin_informacion" },
+    { id: "baul-imperial", nombre: "Baúl Imperial", categoria: "objeto", estado: "sin_informacion" },
+    { id: "libro-hueco", nombre: "Libro Hueco", categoria: "objeto", estado: "sin_informacion" }
+  ],
+  mis_cartas: [{ id: "vera", nombre: "Vera", categoria: "sospechoso" }]
+};`, sandbox);
+function pulsarCarta(grupoId, indice = 0) {
+  const botones = $(grupoId).children.filter((h) => h.tag === "button");
+  botones[indice].click();
+  return botones;
+}
 $("modal-resolver").hidden = true;
 $("modal-confirmar-resolver").hidden = true;
-fijarSelect("resolver-sospechoso", "vera", "Vera");
-fijarSelect("resolver-lugar", "parador", "Parador");
-fijarSelect("resolver-objeto", "baul-imperial", "Baúl Imperial");
 $("btn-resolver").click();
 ok($("modal-resolver").hidden === false, "RESOLVER abre el modal de selección");
+ok($("btn-confirmar-resolver").disabled === true, "CONTINUAR exige las tres selecciones");
+const cartasS = pulsarCarta("resolver-grupo-sospechoso", 0);
+ok(cartasS.length === 2, "el grupo muestra los sospechosos disponibles");
+pulsarCarta("resolver-grupo-lugar", 0);
+ok($("btn-confirmar-resolver").disabled === true, "con dos selecciones sigue bloqueado");
+pulsarCarta("resolver-grupo-objeto", 0);
+ok($("btn-confirmar-resolver").disabled === false, "con tres selecciones se habilita");
+// Exclusividad: una nueva selección sustituye a la anterior.
+pulsarCarta("resolver-grupo-sospechoso", 1);
+ok(
+  cartasS.filter((b) => b.classList.contains("seleccionada")).length === 1,
+  "una sola carta seleccionada por categoría"
+);
+pulsarCarta("resolver-grupo-sospechoso", 0);
+ok(
+  $("resolver-grupo-sospechoso").textContent.includes("TU CARTA"),
+  "la carta propia se identifica y sigue seleccionable"
+);
 $("btn-confirmar-resolver").click();
+ok(enviados.length === 0, "CONTINUAR no envía WebSocket");
 ok($("modal-resolver").hidden === true, "CONTINUAR cierra la selección");
 ok(
   $("modal-confirmar-resolver").hidden === false,
@@ -162,6 +226,9 @@ ok(
 // 3. CANCELAR no envía nada y conserva la selección.
 enviados.length = 0;
 $("btn-resolver").click();
+pulsarCarta("resolver-grupo-sospechoso", 0);
+pulsarCarta("resolver-grupo-lugar", 0);
+pulsarCarta("resolver-grupo-objeto", 0);
 $("btn-confirmar-resolver").click();
 $("btn-cancelar-confirmar-resolver").click();
 ok(

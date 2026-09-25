@@ -41,9 +41,10 @@ const selectLugar = document.getElementById("sospecha-lugar");
 const selectObjeto = document.getElementById("sospecha-objeto");
 const btnResolver = document.getElementById("btn-resolver");
 const modalResolver = document.getElementById("modal-resolver");
-const resolverSospechoso = document.getElementById("resolver-sospechoso");
-const resolverLugar = document.getElementById("resolver-lugar");
-const resolverObjeto = document.getElementById("resolver-objeto");
+const grupoResolverSospechoso = document.getElementById("resolver-grupo-sospechoso");
+const grupoResolverLugar = document.getElementById("resolver-grupo-lugar");
+const grupoResolverObjeto = document.getElementById("resolver-grupo-objeto");
+const btnConfirmarResolver = document.getElementById("btn-confirmar-resolver");
 const modalConfirmarResolver = document.getElementById("modal-confirmar-resolver");
 const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
 const confResolverSospechoso = document.getElementById("conf-resolver-sospechoso");
@@ -1182,33 +1183,63 @@ document.getElementById("btn-confirmar-sospecha").addEventListener("click", () =
   modalSospecha.hidden = true;
 });
 
-btnResolver.addEventListener("click", () => {
+const resolverSeleccion = { sospechoso: "", lugar: "", objeto: "" };
+
+function nombreCartaResolver(cartas, cartaId) {
+  const carta = (cartas || []).find((entrada) => entrada.id === cartaId);
+  return carta ? carta.nombre : "";
+}
+
+function pintarGrupoResolver(contenedor, cartas, categoria, clave) {
+  contenedor.innerHTML = "";
+  const cartasPropias = new Set(((ultimaSala && ultimaSala.mis_cartas) || []).map((carta) => carta.id));
+  cartas.filter((carta) => carta.categoria === categoria).forEach((carta) => {
+    const boton = crearCartaVisual(carta, {
+      esPropia: cartasPropias.has(carta.id),
+      fueVista: carta.estado === "vista",
+      mostrarNombre: false,
+      seleccionada: resolverSeleccion[clave] === carta.id,
+      alPulsar: () => {
+        resolverSeleccion[clave] = carta.id;
+        Array.from(contenedor.children).forEach((opcion) => {
+          const activa = opcion.dataset.cartaId === carta.id;
+          opcion.classList.toggle("seleccionada", activa);
+          opcion.setAttribute("aria-pressed", activa ? "true" : "false");
+        });
+        btnConfirmarResolver.disabled = !resolverSeleccion.sospechoso ||
+          !resolverSeleccion.lugar || !resolverSeleccion.objeto;
+      },
+    });
+    contenedor.appendChild(boton);
+  });
+}
+
+function abrirResolver() {
   const cartas = (ultimaSala && ultimaSala.investigacion) || [];
-  llenarSelect(resolverSospechoso, cartas, "sospechoso");
-  llenarSelect(resolverLugar, cartas, "lugar");
-  llenarSelect(resolverObjeto, cartas, "objeto");
+  resolverSeleccion.sospechoso = "";
+  resolverSeleccion.lugar = "";
+  resolverSeleccion.objeto = "";
+  pintarGrupoResolver(grupoResolverSospechoso, cartas, "sospechoso", "sospechoso");
+  pintarGrupoResolver(grupoResolverLugar, cartas, "lugar", "lugar");
+  pintarGrupoResolver(grupoResolverObjeto, cartas, "objeto", "objeto");
+  btnConfirmarResolver.disabled = true;
   modalResolver.hidden = false;
-});
+}
+
+btnResolver.addEventListener("click", abrirResolver);
 document.getElementById("btn-cancelar-resolver").addEventListener("click", () => {
   modalResolver.hidden = true;
 });
-function nombreSeleccionado(select) {
-  if (!select || !select.value) {
-    return "";
-  }
-  const opciones = select.options || [];
-  const elegida = opciones[select.selectedIndex];
-  return elegida ? elegida.textContent : select.value;
-}
 
 document.getElementById("btn-confirmar-resolver").addEventListener("click", () => {
-  if (!resolverSospechoso.value || !resolverLugar.value || !resolverObjeto.value) {
+  const cartas = (ultimaSala && ultimaSala.investigacion) || [];
+  if (!resolverSeleccion.sospechoso || !resolverSeleccion.lugar || !resolverSeleccion.objeto) {
     error.textContent = "Selecciona sospechoso, lugar y objeto.";
     return;
   }
-  confResolverSospechoso.textContent = `Sospechoso: ${nombreSeleccionado(resolverSospechoso)}`;
-  confResolverLugar.textContent = `Lugar: ${nombreSeleccionado(resolverLugar)}`;
-  confResolverObjeto.textContent = `Objeto: ${nombreSeleccionado(resolverObjeto)}`;
+  confResolverSospechoso.textContent = `Sospechoso: ${nombreCartaResolver(cartas, resolverSeleccion.sospechoso)}`;
+  confResolverLugar.textContent = `Lugar: ${nombreCartaResolver(cartas, resolverSeleccion.lugar)}`;
+  confResolverObjeto.textContent = `Objeto: ${nombreCartaResolver(cartas, resolverSeleccion.objeto)}`;
   modalResolver.hidden = true;
   // Rearme para un único envío: CANCELAR no envía nada y volver a
   // confirmar reactiva el botón.
@@ -1229,9 +1260,9 @@ btnEnviarResolver.addEventListener("click", () => {
   btnEnviarResolver.disabled = true;
   ws.send(JSON.stringify({
     accion: "resolver_misterio",
-    sospechoso_id: resolverSospechoso.value,
-    lugar_id: resolverLugar.value,
-    objeto_id: resolverObjeto.value,
+    sospechoso_id: resolverSeleccion.sospechoso,
+    lugar_id: resolverSeleccion.lugar,
+    objeto_id: resolverSeleccion.objeto,
   }));
   modalConfirmarResolver.hidden = true;
 });

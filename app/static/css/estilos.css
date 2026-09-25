@@ -646,6 +646,73 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   padding: 5px 14px;
 }
 
+/* Variante Resolver: 6 personajes + 9 lugares + 6 escondites en una
+   fila por categoría, sin nombres inferiores (Microfase 8B.12).
+   Reutiliza la base .carta-selector-sospecha y su halo .seleccionada. */
+.modal-resolver-caja {
+  width: min(94vw, 1000px);
+  max-width: 1000px;
+}
+
+.resolver-pregunta {
+  margin: 6px 0 2px;
+  font-size: 0.78rem;
+  letter-spacing: 1.5px;
+  color: var(--dorado-claro);
+}
+
+.selector-cartas-resolver {
+  display: grid;
+  gap: 6px;
+  justify-content: center;
+  margin: 2px 0 4px;
+}
+
+.selector-cartas-resolver[data-categoria="sospechoso"] {
+  grid-template-columns: repeat(6, minmax(0, 88px));
+}
+
+.selector-cartas-resolver[data-categoria="lugar"] {
+  grid-template-columns: repeat(9, minmax(0, 88px));
+}
+
+.selector-cartas-resolver[data-categoria="objeto"] {
+  grid-template-columns: repeat(6, minmax(0, 86px));
+}
+
+.selector-cartas-resolver .carta-selector-sospecha {
+  padding: 2px;
+  border-radius: 5px;
+}
+
+.selector-cartas-resolver .carta-selector-sospecha img {
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #101727;
+}
+
+.selector-cartas-resolver[data-categoria="sospechoso"] .carta-selector-sospecha img {
+  height: 80px;
+}
+
+.selector-cartas-resolver[data-categoria="lugar"] .carta-selector-sospecha img {
+  height: 84px;
+}
+
+.selector-cartas-resolver[data-categoria="objeto"] .carta-selector-sospecha img {
+  height: 78px;
+}
+
+.selector-cartas-resolver .carta-selector-marca {
+  top: 4px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  padding: 1px 3px;
+  font-size: 0.46rem;
+}
+
 .carta-selector-sospecha {
   position: relative;
   min-width: 0;
@@ -837,6 +904,17 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 
   .carta-sospecha-compacta img {
     height: auto !important;
+    aspect-ratio: 3 / 4;
+  }
+
+  .selector-cartas-resolver[data-categoria="sospechoso"],
+  .selector-cartas-resolver[data-categoria="lugar"],
+  .selector-cartas-resolver[data-categoria="objeto"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .selector-cartas-resolver .carta-selector-sospecha img {
+    height: auto;
     aspect-ratio: 3 / 4;
   }
 
