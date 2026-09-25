@@ -439,29 +439,72 @@ button.discreto {
   margin-top: 4px;
 }
 
-/* Herramientas integradas en el panel derecho (apiladas verticalmente) */
-.panel-contextual .accesos {
+/* Barra de herramientas del jugador: compacta, en la zona inferior
+   del panel derecho, bajo el contexto del turno (Microfase 8B.2). */
+.panel-contextual #barra-herramientas {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-top: auto;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid #3d3558;
 }
 
-.panel-contextual .accesos button {
+.panel-contextual #barra-herramientas button {
   width: 100%;
   margin-top: 0;
   padding: 8px 10px;
-  font-size: 0.82rem;
-  letter-spacing: 0.5px;
   min-height: 40px;
+  font-size: 0.78rem;
+  letter-spacing: 1px;
   border-radius: 6px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-#barra-herramientas {
-  opacity: 0.95;
+/* Panel derecho = acción actual: sin cajas acumuladas (Microfase 8B.2).
+   Solo el contexto del turno; el registro narrativo vive fuera. */
+.panel-contextual > #movimiento.grupo-cartas,
+.panel-contextual > #vista-contextual.grupo-cartas {
+  background: transparent;
+  border: none;
+  padding: 2px;
+}
+
+#posicion-actual {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  letter-spacing: 1px;
+  color: var(--dorado-claro);
+}
+
+#resultado-dado:empty {
+  display: none;
+}
+
+#vista-contextual > p:first-child {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+}
+
+/* Registro de la última jugada: fuera del flujo de acción, discreto.
+   Sin sistema definitivo de narración todavía (Microfase 8B.2). */
+#zona-juego > #jugada.grupo-cartas {
+  background: transparent;
+  border: none;
+  border-top: 1px solid #3d3558;
+  border-radius: 0;
+  padding: 8px 2px 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--texto-tenue);
+}
+
+#zona-juego > #jugada.grupo-cartas p {
+  margin: 2px 0;
 }
 
 /* Modales */
@@ -646,6 +689,29 @@ img {
     gap: 16px;
     align-items: stretch;
     margin: 0;
+  }
+
+  /* Tablero protagonista: el panel derecho ocupa la altura del Canvas
+     con las herramientas ancladas abajo; el registro queda a ancho
+     completo sin añadir filas bajo el Canvas (Microfase 8B.2). */
+  body.modo-tablero-activo #tablero-visual {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body.modo-tablero-activo #panel-contextual {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body.modo-tablero-activo #zona-juego > #jugada {
+    grid-column: 1 / -1;
+  }
+
+  /* Modo rápido: filas apiladas a ancho completo, sin regresión. */
+  body:not(.modo-tablero-activo) #panel-contextual,
+  body:not(.modo-tablero-activo) #zona-juego > #jugada {
+    grid-column: 1 / -1;
   }
 }
 

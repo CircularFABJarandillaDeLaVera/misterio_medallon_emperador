@@ -526,14 +526,14 @@ function pintarMovimiento(sala) {
   movimientoDiv.hidden = sala.modo !== "tablero";
   if (sala.modo !== "tablero") return;
   const movimiento = sala.movimiento || {};
-  posicionActual.textContent = `POSICIÓN ACTUAL: ${(sala.posicion && sala.posicion.nombre) || "—"}`;
+  posicionActual.textContent = (sala.posicion && sala.posicion.nombre) || "—";
   resultadoDado.textContent = movimiento.tirada ? `HAS SACADO: ${movimiento.tirada}` : "";
   btnTirar.disabled = false;
   btnPasadizo.disabled = false;
   btnTirar.hidden = !movimiento.puede_tirar;
   btnPasadizo.hidden = !movimiento.pasadizo;
   if (movimiento.pasadizo) {
-    btnPasadizo.textContent = `🌀 USAR PASADIZO A ${movimiento.pasadizo.nombre}`;
+    btnPasadizo.textContent = `PASADIZO → ${movimiento.pasadizo.nombre}`;
   }
   destinosMovimiento.innerHTML = "";
   (movimiento.destinos || []).forEach((destino) => {
@@ -600,7 +600,7 @@ function pintarVistaInfo(sala) {
   if (sala.estado === "terminada") {
     linea.textContent = "Partida terminada.";
   } else if (sala.es_mi_turno) {
-    linea.textContent = "TU TURNO: actúa en el tablero o usa las acciones disponibles.";
+    linea.textContent = "TU TURNO";
   } else {
     linea.textContent =
       `Turno de ${sala.turno_alias || "—"}. Pulsa una ubicación o un peón para consultar.`;

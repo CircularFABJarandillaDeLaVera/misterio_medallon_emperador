@@ -56,20 +56,20 @@
             <div id="movimiento" class="grupo-cartas" hidden>
               <p id="posicion-actual"></p>
               <p id="resultado-dado"></p>
-              <button id="btn-tirar" type="button" hidden>🎲 TIRAR DADO</button>
-              <button id="btn-pasadizo" type="button" hidden>🌀 USAR PASADIZO</button>
+              <button id="btn-tirar" type="button" hidden>TIRAR DADO</button>
+              <button id="btn-pasadizo" type="button" hidden>USAR PASADIZO</button>
               <div id="destinos-movimiento"></div>
             </div>
-            <div id="jugada" class="grupo-cartas"></div>
             <div id="vista-contextual" class="grupo-cartas" hidden></div>
             <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
             <div id="final-partida" class="grupo-cartas" hidden></div>
-            <div class="accesos" id="barra-herramientas">
-              <button id="btn-ver-cartas" type="button" class="secundario">🃏 MIS CARTAS</button>
-              <button id="btn-ver-hoja" type="button">🔎 HOJA DE INVESTIGACIÓN</button>
-              <button id="btn-resolver" type="button" hidden>🏆 RESOLVER EL MISTERIO</button>
+            <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
+              <button id="btn-ver-cartas" type="button" class="secundario" title="Mis cartas">CARTAS</button>
+              <button id="btn-ver-hoja" type="button" class="secundario" title="Hoja de investigación">INVESTIGACIÓN</button>
+              <button id="btn-resolver" type="button" title="Resolver el misterio" hidden>RESOLVER</button>
             </div>
           </aside>
+          <div id="jugada" class="grupo-cartas" aria-label="Registro de la última jugada"></div>
         </div>
         <div id="bloque-orden">
           <p><strong>ORDEN DE JUEGO</strong></p>
