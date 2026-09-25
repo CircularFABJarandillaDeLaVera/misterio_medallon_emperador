@@ -220,6 +220,80 @@ ok(
   "sin plazo no hay aviso de timeout"
 );
 
+// 6. Revelación visual: solo aparece cuando el privado incluye carta_mostrada.
+vm.runInContext(`RECURSOS_VISUALES = {
+  vera: { principal: "/static/img/personajes/vera.png", nombre: "/static/img/personajes/vera-nombre.png" },
+  parador: { principal: "/static/img/lugares/parador.jpeg" },
+  "cantaro-barro": { principal: "/static/img/objetos/cantaro-barro.jpeg" }
+};`, sandbox);
+
+function jugadaRefutada(carta, refutador = "Bruno") {
+  return {
+    estado: "esperando_movimiento",
+    resultado: "refutada",
+    investigador_alias: "Yo",
+    refutador_alias: refutador,
+    sospecha: {
+      sospechoso_id: { id: "vera", nombre: "Vera" },
+      lugar_id: { id: "parador", nombre: "Parador" },
+      objeto_id: { id: "cantaro-barro", nombre: "Cántaro de barro" },
+    },
+    carta_mostrada: carta,
+  };
+}
+
+const revelacionPersonaje = jugadaRefutada({
+  id: "vera", nombre: "Vera, la cronista", categoria: "sospechoso",
+});
+pintarJugada(salaBase(revelacionPersonaje));
+ok(
+  $("modal-revelacion-refutacion").hidden === false &&
+    $("revelacion-refutador").textContent === "BRUNO REFUTA TU SOSPECHA",
+  "investigador ve quién refuta"
+);
+ok(
+  $("revelacion-carta-imagen").src === "/static/img/personajes/vera-nombre.png" &&
+    $("revelacion-carta-nombre").textContent === "Vera, la cronista",
+  "personaje revelado usa la variante con nombre"
+);
+const enviosAntesContinuar = enviados.length;
+$("btn-continuar-revelacion").click();
+ok(
+  $("modal-revelacion-refutacion").hidden && enviados.length === enviosAntesContinuar,
+  "CONTINUAR solo cierra la presentación"
+);
+pintarJugada(salaBase(revelacionPersonaje));
+ok($("modal-revelacion-refutacion").hidden, "el mismo estado no reabre la revelación descartada");
+
+// Un estado sin carta privada limpia el ciclo y no revela nada a terceros.
+pintarJugada(salaBase({
+  estado: "esperando_movimiento", resultado: "refutada",
+  investigador_alias: "Otra", refutador_alias: "Bruno",
+}));
+ok($("modal-revelacion-refutacion").hidden, "otro cliente no ve la carta mostrada");
+
+const revelacionLugar = jugadaRefutada({
+  id: "parador", nombre: "Parador", categoria: "lugar",
+});
+pintarJugada(salaBase(revelacionLugar));
+ok(
+  $("revelacion-carta-imagen").src === "/static/img/lugares/parador.jpeg",
+  "lugar revelado usa su JPEG original"
+);
+$("btn-continuar-revelacion").click();
+pintarJugada(salaBase({ estado: "esperando_movimiento", resultado: "sin_refutacion" }));
+ok($("modal-revelacion-refutacion").hidden, "sospecha sin refutación no abre revelación");
+
+const revelacionPnj = jugadaRefutada({
+  id: "cantaro-barro", nombre: "Cántaro de barro", categoria: "objeto",
+}, "Mateo PNJ");
+pintarJugada(salaBase(revelacionPnj));
+ok(
+  $("revelacion-refutador").textContent === "MATEO PNJ REFUTA TU SOSPECHA" &&
+    $("revelacion-carta-imagen").src === "/static/img/objetos/cantaro-barro.jpeg",
+  "PNJ produce la misma revelación privada con la imagen del objeto"
+);
+
 if (fallos > 0) {
   console.log(`${fallos} FALLO(S)`);
   process.exit(1);

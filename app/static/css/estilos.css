@@ -574,12 +574,14 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   border-radius: 6px;
 }
 
-.modal-carta-ubicacion {
+.modal-carta-ubicacion,
+.modal-carta-revelacion {
   width: min(92vw, 680px);
   max-width: 680px;
 }
 
-.modal-carta-ubicacion > img {
+.modal-carta-ubicacion > img,
+.modal-carta-revelacion > img {
   display: block;
   width: auto;
   max-width: 100%;
@@ -591,8 +593,18 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   border-radius: 8px;
 }
 
-.modal-carta-ubicacion > img[hidden] {
+.modal-carta-ubicacion > img[hidden],
+.modal-carta-revelacion > img[hidden] {
   display: none;
+}
+
+.modal-carta-revelacion {
+  max-width: 520px;
+}
+
+#revelacion-carta-nombre {
+  color: var(--dorado-claro);
+  font-weight: bold;
 }
 
 #jugada:empty {

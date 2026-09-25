@@ -115,7 +115,7 @@ def test_popup_contextual_limitado_al_viewport_sin_deformar_imagen():
     assert re.search(r"\.modal-caja\s*\{[^}]*max-height:[^;]*100dvh", CSS, re.DOTALL)
     assert re.search(r"\.modal-caja\s*\{[^}]*overflow-y:\s*auto", CSS, re.DOTALL)
     assert re.search(
-        r"\.modal-carta-ubicacion\s*>\s*img\s*\{[^}]*width:\s*auto"
+        r"\.modal-carta-revelacion\s*>\s*img\s*\{[^}]*width:\s*auto"
         r"[^}]*max-width:\s*100%[^}]*height:\s*auto[^}]*object-fit:\s*contain",
         CSS,
         re.DOTALL,

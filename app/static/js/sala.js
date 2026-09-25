@@ -31,6 +31,11 @@ const btnSospecha = document.getElementById("btn-sospecha");
 const modalSospecha = document.getElementById("modal-sospecha");
 const modalRefutacion = document.getElementById("modal-refutacion");
 const opcionesRefutacion = document.getElementById("opciones-refutacion");
+const modalRevelacionRefutacion = document.getElementById("modal-revelacion-refutacion");
+const revelacionRefutador = document.getElementById("revelacion-refutador");
+const revelacionCartaImagen = document.getElementById("revelacion-carta-imagen");
+const revelacionCartaNombre = document.getElementById("revelacion-carta-nombre");
+const btnContinuarRevelacion = document.getElementById("btn-continuar-revelacion");
 const selectSospechoso = document.getElementById("sospecha-sospechoso");
 const selectLugar = document.getElementById("sospecha-lugar");
 const selectObjeto = document.getElementById("sospecha-objeto");
@@ -94,6 +99,8 @@ let ultimaSala = null;
 let TABLERO_VISUAL = null;
 let RECURSOS_VISUALES = {};
 let ubicacionContextualId = null;
+let revelacionDescartada = null;
+let revelacionVisible = null;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -123,6 +130,7 @@ fetch("/api/recursos")
   .then((r) => r.json())
   .then((datos) => {
     RECURSOS_VISUALES = (datos && datos.recursos) || {};
+    if (ultimaSala) pintarRevelacionPrivada(ultimaSala);
   });
 
 const protocolo = window.location.protocol === "https:" ? "wss" : "ws";
@@ -482,6 +490,54 @@ function llenarSelect(select, cartas, categoria) {
   });
 }
 
+function firmaRevelacion(jugada) {
+  if (!jugada || !jugada.carta_mostrada) return null;
+  const sospecha = jugada.sospecha || {};
+  return [
+    jugada.investigador_alias || "",
+    jugada.refutador_alias || "",
+    jugada.carta_mostrada.id || "",
+    ...["sospechoso_id", "lugar_id", "objeto_id"].map(
+      (clave) => (sospecha[clave] || {}).id || ""
+    ),
+  ].join("|");
+}
+
+function imagenRevelacion(carta) {
+  const recurso = (carta && RECURSOS_VISUALES[carta.id]) || {};
+  return carta && carta.categoria === "sospechoso"
+    ? (recurso.nombre || recurso.principal || "")
+    : (recurso.principal || "");
+}
+
+function pintarRevelacionPrivada(sala) {
+  const jugada = (sala && sala.jugada) || {};
+  const firma = firmaRevelacion(jugada);
+  if (!firma) {
+    revelacionDescartada = null;
+    revelacionVisible = null;
+    modalRevelacionRefutacion.hidden = true;
+    return;
+  }
+  if (firma === revelacionDescartada) return;
+  const carta = jugada.carta_mostrada;
+  revelacionVisible = firma;
+  revelacionRefutador.textContent =
+    `${(jugada.refutador_alias || "ALGUIEN").toUpperCase()} REFUTA TU SOSPECHA`;
+  revelacionCartaImagen.src = imagenRevelacion(carta);
+  revelacionCartaImagen.alt = carta.nombre || "Carta mostrada";
+  revelacionCartaImagen.hidden = !revelacionCartaImagen.src;
+  revelacionCartaNombre.textContent = carta.nombre || "";
+  modalRevelacionRefutacion.hidden = false;
+  if (btnContinuarRevelacion.focus) btnContinuarRevelacion.focus();
+}
+
+btnContinuarRevelacion.addEventListener("click", () => {
+  revelacionDescartada = revelacionVisible;
+  revelacionVisible = null;
+  modalRevelacionRefutacion.hidden = true;
+});
+
 function pintarJugada(sala) {
   const jugada = sala.jugada || {};
   jugadaDiv.innerHTML = "";
@@ -534,10 +590,8 @@ function pintarJugada(sala) {
   } else if (jugada.resultado === "sin_resolver") {
     resultado.textContent = "NO QUEDAN INVESTIGADORES ACTIVOS. EL MISTERIO QUEDA SIN RESOLVER.";
   }
-  if (jugada.carta_mostrada) {
-    resultado.textContent += ` ${jugada.refutador_alias} TE HA MOSTRADO: ${jugada.carta_mostrada.nombre}`;
-  }
   jugadaDiv.appendChild(resultado);
+  pintarRevelacionPrivada(sala);
 
   const opciones = Array.isArray(jugada.opciones_refutacion)
     ? jugada.opciones_refutacion : [];
