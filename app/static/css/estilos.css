@@ -682,8 +682,146 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   background: rgba(76, 57, 113, 0.94);
 }
 
+.carta-selector-marca.es-descartada {
+  background: rgba(115, 42, 42, 0.94);
+}
+
+#modal-hoja .modal-caja {
+  width: 84vw;
+  max-width: 1100px;
+  height: auto;
+  min-height: 0;
+  max-height: 85vh;
+  max-height: 85dvh;
+  overflow-y: auto;
+  padding: 7px 10px;
+}
+
+#modal-hoja .modal-caja h2 {
+  margin-bottom: 1px;
+}
+
+#modal-hoja .nota-privada {
+  margin-bottom: 3px;
+}
+
+#modal-hoja .grupo-hoja:first-child h3 {
+  margin-top: 1px;
+}
+
+.hoja-grid-cartas {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+#hoja > .grupo-hoja:nth-child(1) .hoja-grid-cartas,
+#hoja > .grupo-hoja:nth-child(3) .hoja-grid-cartas {
+  grid-template-columns: repeat(6, minmax(0, 108px));
+  justify-content: center;
+}
+
+#hoja > .grupo-hoja:nth-child(2) .hoja-grid-cartas {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+}
+
+#modal-hoja .grupo-hoja {
+  margin: 1px 0;
+  padding: 2px 5px;
+}
+
+.grupo-hoja h3 {
+  margin: 1px 0 2px;
+  color: var(--dorado-claro);
+  font-size: 0.78rem;
+  letter-spacing: 1.3px;
+}
+
+.carta-visual-compacta.descartada img {
+  opacity: 0.48;
+  filter: saturate(0.6);
+}
+
+.carta-visual-compacta {
+  padding: 2px;
+  border-radius: 5px;
+}
+
+.carta-visual-compacta img {
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #101727;
+}
+
+#hoja > .grupo-hoja:nth-child(1) .carta-visual-compacta img {
+  height: 80px;
+}
+
+#hoja > .grupo-hoja:nth-child(2) .carta-visual-compacta img {
+  height: 84px;
+}
+
+#hoja > .grupo-hoja:nth-child(3) .carta-visual-compacta img {
+  height: 78px;
+}
+
+.carta-visual-compacta .carta-selector-nombre {
+  min-height: 2.15em;
+  padding: 2px 0 1px;
+  font-size: 0.53rem;
+  line-height: 1.05;
+}
+
+.carta-visual-compacta .carta-selector-marca {
+  top: 4px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  padding: 1px 3px;
+  font-size: 0.46rem;
+}
+
+.carta-visual-compacta[aria-disabled="true"] {
+  cursor: default;
+}
+
+#btn-cerrar-hoja {
+  min-height: 28px;
+  margin: 4px 0 0;
+  padding: 5px 14px;
+  font-size: 0.75rem;
+}
+
 @media (max-width: 620px) {
   .selector-cartas-sospecha {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hoja-grid-cartas {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  #hoja > .grupo-hoja:nth-child(1) .hoja-grid-cartas,
+  #hoja > .grupo-hoja:nth-child(2) .hoja-grid-cartas,
+  #hoja > .grupo-hoja:nth-child(3) .hoja-grid-cartas {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  #hoja .carta-visual-compacta img {
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+}
+
+@media (max-width: 420px) {
+  .hoja-grid-cartas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #hoja > .grupo-hoja:nth-child(1) .hoja-grid-cartas,
+  #hoja > .grupo-hoja:nth-child(2) .hoja-grid-cartas,
+  #hoja > .grupo-hoja:nth-child(3) .hoja-grid-cartas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

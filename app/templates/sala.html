@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b9" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b10f" />
 </head>
 <body>
   <main class="contenedor">
@@ -64,7 +64,7 @@
             <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
             <div id="final-partida" class="grupo-cartas" hidden></div>
             <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
-              <button id="btn-ver-cartas" type="button" class="secundario" title="Mis cartas">CARTAS</button>
+              <button id="btn-ver-cartas" type="button" class="secundario" title="Mis cartas" hidden>CARTAS</button>
               <button id="btn-ver-hoja" type="button" class="secundario" title="Hoja de investigación">INVESTIGACIÓN</button>
               <button id="btn-resolver" type="button" title="Resolver el misterio" hidden>RESOLVER</button>
             </div>
@@ -149,7 +149,7 @@
       <div id="modal-hoja" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Hoja de investigación">
           <h2>HOJA DE INVESTIGACIÓN</h2>
-          <p class="nota-privada">Privada: solo tú ves tus marcas. Toca una carta para alternar entre SIN INFORMACIÓN y DESCARTADA.</p>
+          <p class="nota-privada">Toca una carta para marcarla como descartada.</p>
           <div id="hoja"></div>
           <button id="btn-cerrar-hoja" type="button">VOLVER A LA PARTIDA</button>
           <p id="error-hoja" class="error"></p>
@@ -158,6 +158,6 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b9a"></script>
+  <script src="/static/js/sala.js?v=8b10f"></script>
 </body>
 </html>

@@ -24,12 +24,18 @@ function makeElemento(tag) {
     className: "",
     hidden: false,
     disabled: false,
+    dataset: {},
     title: "",
     type: "",
     style: {},
     _texto: "",
     _attrs: {},
     _oyentes: {},
+    classList: {
+      add(clase) { if (!el.className.split(/\s+/).includes(clase)) el.className += ` ${clase}`; },
+      remove(clase) { el.className = el.className.split(/\s+/).filter((c) => c && c !== clase).join(" "); },
+      contains(clase) { return el.className.split(/\s+/).includes(clase); },
+    },
     set textContent(v) {
       this.children = [];
       this._texto = String(v);
@@ -122,19 +128,32 @@ vm.runInContext(fs.readFileSync(rutaSala, "utf8"), sandbox, {
 
 const pintarHoja = sandbox.pintarHoja;
 ok(typeof pintarHoja === "function", "pintarHoja existe en sala.js");
+const css = fs.readFileSync(path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
+ok(/nth-child\(1\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css) &&
+  /nth-child\(2\)[^}]*repeat\(9, minmax\(0, 1fr\)\)/s.test(css) &&
+  /nth-child\(3\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css),
+  "grids de Investigación distribuyen 6/9/6 sin overflow horizontal");
+ok(/\.selector-cartas-sospecha\s*\{[^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css),
+  "el selector de sospecha conserva sus 6 columnas y tamaño normal");
+ok(/nth-child\(1\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*80px/s.test(css) &&
+  /nth-child\(2\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*84px/s.test(css) &&
+  /nth-child\(3\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*78px/s.test(css),
+  "Investigación controla la altura 80/84/78 de sus tres categorías");
+ok(/\.carta-visual-compacta img\s*\{[^}]*aspect-ratio:\s*auto[^}]*object-fit:\s*contain/s.test(css),
+  "miniaturas compactas no se deforman ni heredan la proporción alta");
 
 function muestra(estadosPorCategoria) {
   const lista = [];
   const categorias = [
-    ["sospechoso", 6],
-    ["lugar", 9],
-    ["objeto", 6],
+    ["sospechoso", ["vera", "bruno", "lucia", "alvaro", "mateo", "eulalia"]],
+    ["lugar", ["parador", "iglesia-san-agustin", "ermita-sopetran", "picota", "plaza-constitucion", "cristo-humilladero", "puente-parral", "museo-escobazos", "nuestra-senora-torre"]],
+    ["objeto", ["baul-imperial", "cantaro-barro", "saco-pimenton", "zurron-cuero", "caja-herramientas", "libro-hueco"]],
   ];
-  for (const [categoria, n] of categorias) {
-    for (let i = 0; i < n; i += 1) {
+  for (const [categoria, ids] of categorias) {
+    for (const id of ids) {
       lista.push({
-        id: `${categoria}-${i}`,
-        nombre: `${categoria} ${i}`,
+        id,
+        nombre: id,
         categoria,
         estado: estadosPorCategoria[categoria] || "sin_informacion",
       });
@@ -145,84 +164,81 @@ function muestra(estadosPorCategoria) {
 
 const hojaDiv = documentStub.getElementById("hoja");
 
-// 1. Renderiza 21 filas agrupadas 6/9/6 con cabeceras plegables.
-pintarHoja(muestra({}));
-const cabeceras = hojaDiv.querySelectorAll(".hoja-cabecera");
-ok(cabeceras.length === 3, "tres cabeceras plegables");
-ok(
-  cabeceras.map((c) => c.textContent).join("|").includes("(6)") &&
-    cabeceras.map((c) => c.textContent).join("|").includes("(9)"),
-  "cabeceras muestran conteos 6/9/6"
-);
-const filas = hojaDiv.querySelectorAll(".hoja-fila");
-ok(filas.length === 21, `21 filas visibles (hay ${filas.length})`);
+const lista = muestra({});
+const recursos = Object.fromEntries(lista.map((carta) => [carta.id, {
+  nombre: carta.categoria === "sospechoso" ? `/static/img/personajes/${carta.id}-nombre.png` : undefined,
+  principal: `/static/img/${carta.categoria === "objeto" ? "objetos" : carta.categoria === "lugar" ? "lugares" : "personajes"}/${carta.id}.${carta.categoria === "sospechoso" ? "png" : "jpeg"}`,
+}]));
+vm.runInContext(`RECURSOS_VISUALES = ${JSON.stringify(recursos)}`, sandbox);
+const propias = [lista[0]];
+
+// 1. Renderiza 21 cartas visuales agrupadas 6/9/6.
+pintarHoja(lista, propias);
+const cartas = hojaDiv.querySelectorAll(".carta-visual-compacta");
+ok(cartas.length === 21, `21 cartas visuales (hay ${cartas.length})`);
 const cuerpos = hojaDiv.querySelectorAll(".hoja-cuerpo");
 ok(cuerpos.length === 3, "tres cuerpos de grupo");
 ok(
-  cuerpos.map((c) => c.querySelectorAll(".hoja-fila").length).join(",") ===
+  cuerpos.map((c) => c.querySelectorAll(".carta-visual-compacta").length).join(",") ===
     "6,9,6",
-  "filas por grupo 6/9/6"
+  "cartas por grupo 6/9/6"
 );
-
-// 2. Plegar una categoría no cierra las otras.
-ok(cuerpos.every((c) => c.hidden === false), "grupos abiertos por defecto");
-cabeceras[0].click();
-ok(cuerpos[0].hidden === true, "SOSPECHOSOS se pliega");
-ok(
-  cuerpos[1].hidden === false && cuerpos[2].hidden === false,
-  "plegar uno no cierra los otros"
-);
-ok(
-  cabeceras[0].getAttribute("aria-expanded") === "false",
-  "aria-expanded se actualiza"
-);
-cabeceras[0].click();
-ok(cuerpos[0].hidden === false, "SOSPECHOSOS se despliega");
+ok(cuerpos.every((c) => c.hidden === false), "los tres grupos quedan visibles");
+ok(cartas[0].children[0].src === "/static/img/personajes/vera-nombre.png" &&
+  cartas[1].children[0].src === "/static/img/personajes/bruno-nombre.png", "Vera y Bruno reciben sus URLs runtime finales");
+ok(cartas[6].children[0].src === "/static/img/lugares/parador.jpeg" &&
+  cartas[7].children[0].src === "/static/img/lugares/iglesia-san-agustin.jpeg" &&
+  !cartas[6].children[0].src.includes("tablero_"), "Parador e Iglesia usan JPEG runtime original");
+ok(cartas[15].children[0].src === "/static/img/objetos/baul-imperial.jpeg" &&
+  cartas[16].children[0].src === "/static/img/objetos/cantaro-barro.jpeg", "Baúl y Cántaro reciben sus recursos runtime finales");
+ok(cartas.every((carta) => carta.classList.contains("carta-visual-compacta")), "Investigación usa exclusivamente la variante compacta");
+ok(hojaDiv.querySelectorAll(".carta-selector-nombre").length === 0 &&
+  cartas.every((carta) => String(carta.getAttribute("aria-label") || "").length > 0),
+  "Investigación elimina nombres visibles sin perder nombres accesibles");
+ok(cartas[0].textContent.includes("TU CARTA"), "TU CARTA procede de mis_cartas");
 
 // 3. Toggle SIN INFORMACIÓN -> DESCARTADA por WebSocket.
 enviados.length = 0;
-filas[0].click();
+cartas[1].click();
 ok(
   enviados.length === 1 &&
     enviados[0].accion === "marcar_investigacion" &&
-    enviados[0].carta_id === "sospechoso-0" &&
+    enviados[0].carta_id === "bruno" &&
     enviados[0].estado === "descartada",
   "click en SIN INFORMACIÓN envía descartada"
 );
 
 // 4. Toggle DESCARTADA -> SIN INFORMACIÓN.
-pintarHoja(muestra({ sospechoso: "descartada" }));
-const filaDesc = hojaDiv.querySelectorAll(".hoja-fila")[0];
+pintarHoja(muestra({ sospechoso: "descartada" }), []);
+const filaDesc = hojaDiv.querySelectorAll(".carta-visual-compacta")[0];
 enviados.length = 0;
 filaDesc.click();
 ok(
   enviados.length === 1 && enviados[0].estado === "sin_informacion",
   "click en DESCARTADA envía sin_informacion"
 );
+ok(filaDesc.classList.contains("descartada") && filaDesc.textContent.includes("DESCARTADA") && !filaDesc.children[0].hidden,
+  "DESCARTADA conserva imagen reconocible y marca visual");
 
-// 5. LA TENGO no es modificable.
-pintarHoja(muestra({ sospechoso: "la_tengo" }));
-const filaTengo = hojaDiv.querySelectorAll(".hoja-fila")[0];
-ok(filaTengo.disabled === true, "LA TENGO deshabilitada");
+// 5. TU CARTA y VISTA no son modificables.
+pintarHoja(lista.map((c, i) => i === 1 ? { ...c, estado: "vista" } : c), propias);
+const confirmadas = hojaDiv.querySelectorAll(".carta-visual-compacta");
 enviados.length = 0;
-filaTengo.click();
-ok(enviados.length === 0, "LA TENGO no envía nada");
-ok(
-  filaTengo.textContent.includes("LA TENGO"),
-  "LA TENGO muestra su estado"
-);
+confirmadas[0].click();
+confirmadas[1].click();
+ok(enviados.length === 0, "TU CARTA y VISTA no envían cambios");
+ok(confirmadas[0].textContent.includes("TU CARTA") && confirmadas[1].textContent.includes("VISTA"), "estados confirmados permanecen visibles");
 
 // 6. Sin datos: aviso visible en vez de tres títulos vacíos.
 pintarHoja([]);
 ok(
-  hojaDiv.querySelectorAll(".hoja-fila").length === 0 &&
-    hojaDiv.querySelectorAll(".hoja-cabecera").length === 0 &&
+  hojaDiv.querySelectorAll(".carta-visual-compacta").length === 0 &&
     hojaDiv.textContent.includes("Cargando"),
   "sin datos se avisa en vez de mostrar grupos vacíos"
 );
 pintarHoja(undefined);
 ok(
-  hojaDiv.querySelectorAll(".hoja-fila").length === 0 &&
+  hojaDiv.querySelectorAll(".carta-visual-compacta").length === 0 &&
     hojaDiv.textContent.includes("Cargando"),
   "investigacion ausente también avisa"
 );
@@ -237,7 +253,7 @@ rara.push({
 });
 pintarHoja(rara);
 ok(
-  hojaDiv.querySelectorAll(".hoja-fila").length === 22,
+  hojaDiv.querySelectorAll(".carta-visual-compacta").length === 22,
   "categoría inesperada también se renderiza"
 );
 

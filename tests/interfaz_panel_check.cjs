@@ -219,7 +219,7 @@ ok(
 );
 ok($("vista-contextual").textContent === "Tira el dado.", "panel derecho permanece en estado base");
 
-// El personaje propio reutiliza CARTAS e INVESTIGACIÓN; otros no.
+// El personaje propio ofrece solo la investigación unificada; otros no.
 sandbox.verPersonaje("vera");
 const detallePropio = $("modal-contextual-detalle");
 const botonesPropios = detallePropio.children.filter((h) => h.tag === "button");
@@ -228,15 +228,12 @@ ok(
   "personaje propio muestra solo el alias"
 );
 ok(
-  botonesPropios.some((b) => b.textContent === "CARTAS") &&
+  !botonesPropios.some((b) => b.textContent === "CARTAS") &&
     botonesPropios.some((b) => b.textContent === "INVESTIGACIÓN") &&
     !botonesPropios.some((b) => b.textContent === "RESOLVER") &&
     !botonesPropios.some((b) => b.textContent === "FORMULAR SOSPECHA"),
-  "personaje propio ofrece solo sus herramientas privadas"
+  "personaje propio ofrece INVESTIGACIÓN sin acceso redundante a CARTAS"
 );
-botonesPropios.find((b) => b.textContent === "CARTAS").click();
-ok($("modal-cartas").hidden === false, "CARTAS propio reutiliza su modal");
-$("btn-cerrar-cartas").click();
 botonesPropios.find((b) => b.textContent === "INVESTIGACIÓN").click();
 ok($("modal-hoja").hidden === false, "INVESTIGACIÓN propia reutiliza su modal");
 $("btn-cerrar-hoja").click();
@@ -301,6 +298,12 @@ ok(
 );
 ok(gruposCartas[0].children.length === 6, "selector visual muestra los 6 personajes");
 ok(gruposCartas[1].children.length === 6, "selector visual muestra los 6 objetos");
+ok(gruposCartas.every((grupo) => grupo.children.every((carta) =>
+  !carta.classList.contains("carta-visual-compacta"))),
+"FORMULAR SOSPECHA conserva cartas de tamaño normal");
+ok(gruposCartas.every((grupo) => grupo.children.every((carta) =>
+  carta.children.some((hijo) => hijo.className === "carta-selector-nombre"))),
+"FORMULAR SOSPECHA conserva los nombres visibles de 8B.9");
 const veraVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "vera");
 const brunoVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "bruno");
 const baulVisual = gruposCartas[1].children.find((b) => b.dataset.cartaId === "baul-imperial");
@@ -394,7 +397,7 @@ $("btn-ver-hoja").click();
 ok($("modal-hoja").hidden === false, "HOJA funciona");
 $("btn-ver-cartas").click();
 ok($("modal-cartas").hidden === false, "MIS CARTAS funciona");
-ok($("barra-herramientas"), "barra secundaria de herramientas existe");
+ok($("barra-herramientas") && $("btn-ver-cartas").hidden, "panel oculta CARTAS y conserva herramientas");
 sandbox.pintarSala({ ...sala, jugada: { estado: "esperando_sospecha" } });
 ok($("btn-resolver").hidden === false, "resolver visible cuando el servidor lo permite");
 

@@ -136,7 +136,10 @@ fetch("/api/recursos")
   .then((r) => r.json())
   .then((datos) => {
     RECURSOS_VISUALES = (datos && datos.recursos) || {};
-    if (ultimaSala) pintarRevelacionPrivada(ultimaSala);
+    if (ultimaSala) {
+      pintarRevelacionPrivada(ultimaSala);
+      pintarHoja(ultimaSala.investigacion || [], ultimaSala.mis_cartas || []);
+    }
   });
 
 const protocolo = window.location.protocol === "https:" ? "wss" : "ws";
@@ -329,7 +332,7 @@ function pintarSala(sala) {
     }
     pintarTurno(sala);
     pintarCartas(sala.mis_cartas);
-    pintarHoja(sala.investigacion || []);
+    pintarHoja(sala.investigacion || [], sala.mis_cartas || []);
     pintarJugada(sala);
     pintarMovimiento(sala);
     pintarTablero(sala);
@@ -760,11 +763,6 @@ function verPersonaje(personajeId, activador) {
   const esPersonajePropio = jugador && jugador.tipo !== "pnj" &&
     jugador.personaje_id === ultimaSala.personaje_id;
   if (esPersonajePropio) {
-    const cartas = document.createElement("button");
-    cartas.type = "button";
-    cartas.textContent = "CARTAS";
-    cartas.addEventListener("click", abrirCartas);
-    modalContextualDetalle.appendChild(cartas);
     const investigacion = document.createElement("button");
     investigacion.type = "button";
     investigacion.textContent = "INVESTIGACIÓN";
@@ -788,6 +786,43 @@ function verSospecha(ubicacionId) {
 function nodoUbicacion(ubicacionId) {
   const nodos = (TABLERO_VISUAL && TABLERO_VISUAL.nodos) || [];
   return nodos.find((n) => n.id === ubicacionId && n.tipo === "ubicacion") || null;
+}
+
+function crearCartaVisual(carta, opciones = {}) {
+  const recurso = RECURSOS_VISUALES[carta.id] || {};
+  const esPropia = Boolean(opciones.esPropia);
+  const fueVista = Boolean(opciones.fueVista);
+  const descartada = Boolean(opciones.descartada);
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.className = `carta-selector-sospecha${opciones.compacta ? " carta-visual-compacta" : ""}${descartada ? " descartada" : ""}`;
+  boton.dataset.cartaId = carta.id;
+  boton.setAttribute("aria-pressed", opciones.seleccionada ? "true" : "false");
+  if (opciones.seleccionada) boton.classList.add("seleccionada");
+  const estado = esPropia ? "tu carta" : fueVista ? "vista" : descartada ? "descartada" : "sin información";
+  boton.setAttribute("aria-label", `${carta.nombre}, ${estado}`);
+  const imagen = document.createElement("img");
+  imagen.src = carta.categoria === "sospechoso"
+    ? (recurso.nombre || recurso.principal || "")
+    : (recurso.principal || "");
+  imagen.alt = "";
+  imagen.hidden = !imagen.src;
+  boton.appendChild(imagen);
+  if (opciones.mostrarNombre !== false) {
+    const nombre = document.createElement("span");
+    nombre.className = "carta-selector-nombre";
+    nombre.textContent = carta.nombre;
+    boton.appendChild(nombre);
+  }
+  if (esPropia || fueVista || descartada) {
+    const marca = document.createElement("span");
+    marca.className = `carta-selector-marca ${esPropia ? "es-propia" : fueVista ? "es-vista" : "es-descartada"}`;
+    marca.textContent = esPropia ? "✓ TU CARTA" : fueVista ? "◉ VISTA" : "× DESCARTADA";
+    boton.appendChild(marca);
+  }
+  if (opciones.alPulsar) boton.addEventListener("click", () => opciones.alPulsar(boton));
+  else boton.setAttribute("aria-disabled", "true");
+  return boton;
 }
 
 function pintarVistaInfo(sala) {
@@ -840,37 +875,9 @@ function pintarVistaSospecha(sala, ubicacionId) {
     grupo.className = "selector-cartas-sospecha";
     grupo.setAttribute("role", "group");
     cartas.filter((carta) => carta.categoria === categoria).forEach((carta) => {
-      const recurso = RECURSOS_VISUALES[carta.id] || {};
       const esPropia = cartasPropias.has(carta.id);
       const fueVista = carta.estado === "vista";
-      const boton = document.createElement("button");
-      boton.type = "button";
-      boton.className = "carta-selector-sospecha";
-      boton.dataset.cartaId = carta.id;
-      boton.setAttribute("aria-pressed", "false");
-      boton.setAttribute("aria-label", `${carta.nombre}${esPropia ? ", tu carta" : fueVista ? ", vista" : ""}`);
-
-      const imagen = document.createElement("img");
-      imagen.src = categoria === "sospechoso"
-        ? (recurso.nombre || recurso.principal || "")
-        : (recurso.principal || "");
-      imagen.alt = "";
-      imagen.hidden = !imagen.src;
-      boton.appendChild(imagen);
-
-      const nombre = document.createElement("span");
-      nombre.className = "carta-selector-nombre";
-      nombre.textContent = carta.nombre;
-      boton.appendChild(nombre);
-
-      if (esPropia || fueVista) {
-        const marca = document.createElement("span");
-        marca.className = `carta-selector-marca ${esPropia ? "es-propia" : "es-vista"}`;
-        marca.textContent = esPropia ? "✓ TU CARTA" : "◉ VISTA";
-        boton.appendChild(marca);
-      }
-
-      boton.addEventListener("click", () => {
+      const boton = crearCartaVisual(carta, { esPropia, fueVista, alPulsar: () => {
         Array.from(grupo.children).forEach((opcion) => {
           opcion.classList.remove("seleccionada");
           opcion.setAttribute("aria-pressed", "false");
@@ -880,7 +887,7 @@ function pintarVistaSospecha(sala, ubicacionId) {
         if (categoria === "sospechoso") sospechosoSeleccionado = carta.id;
         else objetoSeleccionado = carta.id;
         confirmar.disabled = !sospechosoSeleccionado || !objetoSeleccionado;
-      });
+      } });
       grupo.appendChild(boton);
     });
     return grupo;
@@ -1013,40 +1020,24 @@ if (btnCopiarCodigo) {
   });
 }
 
-function filaHoja(entrada) {
-  const fila = document.createElement("button");
-  fila.type = "button";
-  fila.className = `hoja-fila estado-${entrada.estado}`;
-  const nombre = document.createElement("span");
-  nombre.className = "hoja-nombre";
-  nombre.textContent = entrada.nombre;
-  fila.appendChild(nombre);
-  const marca = document.createElement("span");
-  marca.className = "hoja-estado";
-  marca.textContent = ETIQUETA_ESTADO[entrada.estado] || entrada.estado;
-  fila.appendChild(marca);
-  if (entrada.estado === "la_tengo" || entrada.estado === "vista") {
-    fila.disabled = true;
-    fila.title =
-      entrada.estado === "la_tengo"
-        ? "Es una de tus cartas: no se puede modificar."
-        : "Carta vista: se conserva automáticamente.";
-  } else {
-    fila.addEventListener("click", () => {
-      if (errorHoja) {
-        errorHoja.textContent = "";
-      }
-      ws.send(
-        JSON.stringify({
-          accion: "marcar_investigacion",
-          carta_id: entrada.id,
-          estado:
-            entrada.estado === "descartada" ? "sin_informacion" : "descartada",
-        })
-      );
-    });
-  }
-  return fila;
+function cartaHoja(entrada, cartasPropias) {
+  const esPropia = cartasPropias.has(entrada.id);
+  const fueVista = entrada.estado === "vista";
+  return crearCartaVisual(entrada, {
+    esPropia,
+    fueVista,
+    descartada: entrada.estado === "descartada",
+    compacta: true,
+    mostrarNombre: false,
+    alPulsar: esPropia || fueVista ? null : () => {
+      if (errorHoja) errorHoja.textContent = "";
+      ws.send(JSON.stringify({
+        accion: "marcar_investigacion",
+        carta_id: entrada.id,
+        estado: entrada.estado === "descartada" ? "sin_informacion" : "descartada",
+      }));
+    },
+  });
 }
 
 const CATEGORIAS_HOJA = ["sospechoso", "lugar", "objeto"];
@@ -1059,7 +1050,7 @@ function categoriaDe(entrada) {
     .toLowerCase();
 }
 
-function pintarHoja(investigacion) {
+function pintarHoja(investigacion, misCartas = []) {
   if (!hojaDiv) {
     return;
   }
@@ -1068,6 +1059,7 @@ function pintarHoja(investigacion) {
     errorHoja.textContent = "";
   }
   const lista = Array.isArray(investigacion) ? investigacion : [];
+  const cartasPropias = new Set((misCartas || []).map((carta) => carta.id));
   if (lista.length === 0) {
     // Nunca mostrar los tres títulos vacíos en silencio: avisar.
     const aviso = document.createElement("p");
@@ -1081,36 +1073,14 @@ function pintarHoja(investigacion) {
     const entradas = lista.filter((e) => categoriaDe(e) === categoria);
     const grupo = document.createElement("div");
     grupo.className = "grupo-cartas grupo-hoja";
-    const cabecera = document.createElement("button");
-    cabecera.type = "button";
-    cabecera.className = "hoja-cabecera";
-    const titulo = document.createElement("span");
+    const titulo = document.createElement("h3");
     titulo.textContent = `${TITULOS[categoria]} (${entradas.length})`;
-    cabecera.appendChild(titulo);
-    const flecha = document.createElement("span");
-    flecha.className = "hoja-flecha";
-    flecha.textContent = GRUPO_ABIERTO[categoria] ? "▾" : "▸";
-    cabecera.appendChild(flecha);
-    cabecera.setAttribute(
-      "aria-expanded",
-      GRUPO_ABIERTO[categoria] ? "true" : "false"
-    );
+    grupo.appendChild(titulo);
     const cuerpo = document.createElement("div");
-    cuerpo.className = "hoja-cuerpo";
-    cuerpo.hidden = !GRUPO_ABIERTO[categoria];
+    cuerpo.className = "hoja-cuerpo hoja-grid-cartas";
     entradas.forEach((entrada) => {
-      cuerpo.appendChild(filaHoja(entrada));
+      cuerpo.appendChild(cartaHoja(entrada, cartasPropias));
     });
-    cabecera.addEventListener("click", () => {
-      GRUPO_ABIERTO[categoria] = !GRUPO_ABIERTO[categoria];
-      cuerpo.hidden = !GRUPO_ABIERTO[categoria];
-      flecha.textContent = GRUPO_ABIERTO[categoria] ? "▾" : "▸";
-      cabecera.setAttribute(
-        "aria-expanded",
-        GRUPO_ABIERTO[categoria] ? "true" : "false"
-      );
-    });
-    grupo.appendChild(cabecera);
     grupo.appendChild(cuerpo);
     hojaDiv.appendChild(grupo);
   });
@@ -1123,7 +1093,7 @@ function pintarHoja(investigacion) {
     titulo.textContent = `OTRAS (${resto.length})`;
     grupo.appendChild(titulo);
     resto.forEach((entrada) => {
-      grupo.appendChild(filaHoja(entrada));
+      grupo.appendChild(cartaHoja(entrada, cartasPropias));
     });
     hojaDiv.appendChild(grupo);
   }
