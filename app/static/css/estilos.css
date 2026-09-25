@@ -602,6 +602,92 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   max-width: 520px;
 }
 
+.selector-cartas-sospecha {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  margin: 5px 0 10px;
+}
+
+.carta-selector-sospecha {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 3px;
+  overflow: hidden;
+  color: var(--texto);
+  background: #151d31;
+  border: 1px solid #4a5368;
+  border-radius: 7px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.carta-selector-sospecha:hover,
+.carta-selector-sospecha:focus-visible {
+  border-color: var(--dorado-claro);
+}
+
+.carta-selector-sospecha.seleccionada {
+  z-index: 1;
+  transform: translateY(-2px) scale(1.025);
+  border-color: var(--dorado-claro);
+  box-shadow: 0 0 0 2px var(--dorado), 0 7px 16px rgba(201, 162, 39, 0.28);
+}
+
+.carta-selector-sospecha img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 4px;
+}
+
+.carta-selector-sospecha img[hidden] {
+  display: none;
+}
+
+.carta-selector-nombre {
+  display: block;
+  min-height: 2.25em;
+  padding: 4px 1px 2px;
+  font-size: 0.64rem;
+  line-height: 1.12;
+  font-weight: bold;
+}
+
+.carta-selector-marca {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  max-width: calc(100% - 12px);
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: #fff8dc;
+  background: rgba(12, 19, 32, 0.9);
+  font-size: 0.55rem;
+  line-height: 1.1;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.carta-selector-marca.es-propia {
+  background: rgba(37, 91, 66, 0.94);
+}
+
+.carta-selector-marca.es-vista {
+  background: rgba(76, 57, 113, 0.94);
+}
+
+@media (max-width: 620px) {
+  .selector-cartas-sospecha {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 #revelacion-carta-nombre {
   color: var(--dorado-claro);
   font-weight: bold;

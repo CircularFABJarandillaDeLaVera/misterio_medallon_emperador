@@ -89,13 +89,24 @@ function salaBase(modo = "tablero") {
   return {
     codigo: "JARA-TEST", modo, estado: "iniciada",
     alias: "Yo", es_anfitrion: true, personaje_id: "vera",
-    personaje: "Vera, la cronista", mis_cartas: [],
-    investigacion: [
-      { id: "bruno", nombre: "Bruno, el cantero", categoria: "sospechoso" },
-      { id: "lucia", nombre: "Lucía, la boticaria", categoria: "sospechoso" },
-      { id: "parador", nombre: "Parador", categoria: "lugar" },
+    personaje: "Vera, la cronista", mis_cartas: [
+      { id: "vera", nombre: "Vera, la cronista", categoria: "sospechoso" },
       { id: "baul-imperial", nombre: "Baúl imperial", categoria: "objeto" },
-      { id: "libro-hueco", nombre: "Libro hueco", categoria: "objeto" },
+    ],
+    investigacion: [
+      { id: "vera", nombre: "Vera, la cronista", categoria: "sospechoso", estado: "la_tengo" },
+      { id: "bruno", nombre: "Bruno, el cantero", categoria: "sospechoso", estado: "vista" },
+      { id: "lucia", nombre: "Lucía, la boticaria", categoria: "sospechoso", estado: "sin_informacion" },
+      { id: "alvaro", nombre: "Álvaro, el guardabosques", categoria: "sospechoso", estado: "sin_informacion" },
+      { id: "mateo", nombre: "Mateo, el escobero", categoria: "sospechoso", estado: "sin_informacion" },
+      { id: "eulalia", nombre: "Eulalia, la pimentonera", categoria: "sospechoso", estado: "sin_informacion" },
+      { id: "parador", nombre: "Parador", categoria: "lugar" },
+      { id: "baul-imperial", nombre: "Baúl imperial", categoria: "objeto", estado: "la_tengo" },
+      { id: "cantaro-barro", nombre: "Cántaro de barro", categoria: "objeto", estado: "sin_informacion" },
+      { id: "saco-pimenton", nombre: "Saco de pimentón", categoria: "objeto", estado: "sin_informacion" },
+      { id: "zurron-cuero", nombre: "Zurrón de cuero", categoria: "objeto", estado: "sin_informacion" },
+      { id: "caja-herramientas", nombre: "Caja de herramientas", categoria: "objeto", estado: "sin_informacion" },
+      { id: "libro-hueco", nombre: "Libro hueco", categoria: "objeto", estado: "vista" },
     ],
     es_mi_turno: true, activo_investigacion: true,
     jugadores: [
@@ -119,14 +130,14 @@ function fijarGlobales() {
     { id: "parador", tipo: "ubicacion", nombre: "Parador", imagen_tarjeta: "/static/img/lugares/parador.jpeg" },
     { id: "plaza-constitucion", tipo: "ubicacion", nombre: "Plaza", imagen_tarjeta: "/static/img/lugares/plaza-constitucion.jpeg" }
   ] };`, sandbox);
-  vm.runInContext(`PERSONAJES = [
-    { id: "vera", nombre: "Vera, la cronista" },
-    { id: "bruno", nombre: "Bruno, el cantero" }
-  ];`, sandbox);
-  vm.runInContext(`RECURSOS_VISUALES = {
-    vera: { principal: "/static/img/personajes/vera.png" },
-    bruno: { principal: "/static/img/personajes/bruno.png" }
-  };`, sandbox);
+  vm.runInContext(`PERSONAJES = ${JSON.stringify(salaBase().investigacion.filter((c) => c.categoria === "sospechoso"))};`, sandbox);
+  const recursos = {};
+  salaBase().investigacion.filter((c) => c.categoria !== "lugar").forEach((c) => {
+    recursos[c.id] = c.categoria === "sospechoso"
+      ? { nombre: `/static/img/personajes/${c.id}-nombre.png`, principal: `/static/img/personajes/${c.id}.png` }
+      : { principal: `/static/img/objetos/${c.id}.jpeg` };
+  });
+  vm.runInContext(`RECURSOS_VISUALES = ${JSON.stringify(recursos)};`, sandbox);
 }
 
 // 1-4. Cabecera compacta y listados técnicos fuera de la vista principal.
@@ -274,22 +285,32 @@ sandbox.pintarSala(sinPermiso);
 sandbox.verUbicacion("parador");
 ok(!$("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"), "empezar en ubicación no ofrece sospecha");
 
-// 20. Sospecha en tablero: solo sospechoso y objeto.
+// 20. Sospecha en tablero: selector visual privado de sospechoso y objeto.
 vm.runInContext(`ultimaSala = ${JSON.stringify(conPermiso)};`, sandbox);
 sandbox.pintarSala(conPermiso);
 sandbox.verUbicacion("parador");
 $("modal-contextual-detalle").children.find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
-const selects = [];
-(function recoge(nodo) {
-  if (nodo.tag === "select") selects.push(nodo);
-  nodo.children.forEach(recoge);
-})($("modal-contextual-detalle"));
+const gruposCartas = $("modal-contextual-detalle").children
+  .filter((h) => h.className === "selector-cartas-sospecha");
 ok(
   $("modal-ubicacion").hidden === false &&
     $("modal-contextual-titulo").textContent === "SOSPECHA EN PARADOR" &&
-    selects.length === 2,
-  "sospecha abre popup y no vuelve a pedir ubicación"
+    gruposCartas.length === 2 &&
+    !$("modal-contextual-detalle").children.some((h) => h.tag === "select"),
+  "sospecha abre selector visual sin los selects antiguos"
 );
+ok(gruposCartas[0].children.length === 6, "selector visual muestra los 6 personajes");
+ok(gruposCartas[1].children.length === 6, "selector visual muestra los 6 objetos");
+const veraVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "vera");
+const brunoVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "bruno");
+const baulVisual = gruposCartas[1].children.find((b) => b.dataset.cartaId === "baul-imperial");
+const libroVisual = gruposCartas[1].children.find((b) => b.dataset.cartaId === "libro-hueco");
+ok(veraVisual.textContent.includes("TU CARTA") && baulVisual.textContent.includes("TU CARTA"),
+  "TU CARTA procede de mis_cartas privadas");
+ok(brunoVisual.textContent.includes("VISTA") && libroVisual.textContent.includes("VISTA"),
+  "VISTA procede del estado privado de investigación");
+ok(veraVisual.children[0].src.includes("vera-nombre.png") && baulVisual.children[0].src.includes("objetos/baul-imperial.jpeg"),
+  "personajes y objetos reutilizan el manifiesto de recursos");
 ok(
   $("vista-contextual").textContent ===
     "Has llegado. Pulsa la ubicación para ver tus opciones.",
@@ -314,19 +335,34 @@ ok(
 );
 $("modal-contextual-detalle").children
   .find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
-const selectsConfirmacion = [];
-(function recoge(nodo) {
-  if (nodo.tag === "select") selectsConfirmacion.push(nodo);
-  nodo.children.forEach(recoge);
-})($("modal-contextual-detalle"));
-selectsConfirmacion[0].value = "bruno";
-selectsConfirmacion[1].value = "baul-imperial";
+const gruposConfirmacion = $("modal-contextual-detalle").children
+  .filter((h) => h.className === "selector-cartas-sospecha");
+const brunoConfirmacion = gruposConfirmacion[0].children.find((b) => b.dataset.cartaId === "bruno");
+const veraConfirmacion = gruposConfirmacion[0].children.find((b) => b.dataset.cartaId === "vera");
+const baulConfirmacion = gruposConfirmacion[1].children.find((b) => b.dataset.cartaId === "baul-imperial");
+// HTMLCollection real no implementa forEach. El harness anterior usaba arrays
+// y ocultaba la excepción que interrumpía el listener en el navegador.
+gruposConfirmacion[0].children.forEach = undefined;
+gruposConfirmacion[1].children.forEach = undefined;
+brunoConfirmacion.click();
+veraConfirmacion.click();
+baulConfirmacion.click();
+ok(brunoConfirmacion.getAttribute("aria-pressed") === "false" && veraConfirmacion.getAttribute("aria-pressed") === "true",
+  "click real persiste una sola selección de personaje con HTMLCollection");
+ok(veraConfirmacion.classList.contains("seleccionada") && baulConfirmacion.classList.contains("seleccionada"),
+  "personaje y objeto conservan simultáneamente la clase seleccionada");
+ok(brunoConfirmacion.textContent.includes("VISTA") && !brunoConfirmacion.classList.contains("seleccionada"),
+  "VISTA permanece visible al seleccionar y deseleccionar la carta");
+ok(veraConfirmacion.textContent.includes("TU CARTA") && veraConfirmacion.classList.contains("seleccionada"),
+  "TU CARTA permanece visible junto a SELECCIONADA");
+ok(!$("modal-contextual-detalle").children.find((h) => h.textContent === "CONFIRMAR SOSPECHA").disabled,
+  "confirmar se activa al elegir personaje y objeto, incluso conocidos");
 enviados.length = 0;
 $("modal-contextual-detalle").children
   .find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
 ok(
   enviados.length === 1 && enviados[0].accion === "formular_sospecha" &&
-    enviados[0].sospechoso_id === "bruno" && enviados[0].lugar_id === "parador" &&
+    enviados[0].sospechoso_id === "vera" && enviados[0].lugar_id === "parador" &&
     enviados[0].objeto_id === "baul-imperial",
   "sospecha usa la posición de entrada como lugar"
 );

@@ -829,34 +829,90 @@ function pintarVistaSospecha(sala, ubicacionId) {
   btnCerrarUbicacion.hidden = true;
   modalUbicacionCaja.setAttribute("aria-label", modalContextualTitulo.textContent);
   // La ubicación la fija el servidor (lugar de entrada): solo se piden
-  // sospechoso y objeto, con datos canónicos de la propia hoja.
+  // sospechoso y objeto, con datos canónicos de la propia hoja privada.
   const cartas = sala.investigacion || [];
+  const cartasPropias = new Set((sala.mis_cartas || []).map((carta) => carta.id));
+  let sospechosoSeleccionado = "";
+  let objetoSeleccionado = "";
+
+  function crearGrupoSelector(categoria) {
+    const grupo = document.createElement("div");
+    grupo.className = "selector-cartas-sospecha";
+    grupo.setAttribute("role", "group");
+    cartas.filter((carta) => carta.categoria === categoria).forEach((carta) => {
+      const recurso = RECURSOS_VISUALES[carta.id] || {};
+      const esPropia = cartasPropias.has(carta.id);
+      const fueVista = carta.estado === "vista";
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.className = "carta-selector-sospecha";
+      boton.dataset.cartaId = carta.id;
+      boton.setAttribute("aria-pressed", "false");
+      boton.setAttribute("aria-label", `${carta.nombre}${esPropia ? ", tu carta" : fueVista ? ", vista" : ""}`);
+
+      const imagen = document.createElement("img");
+      imagen.src = categoria === "sospechoso"
+        ? (recurso.nombre || recurso.principal || "")
+        : (recurso.principal || "");
+      imagen.alt = "";
+      imagen.hidden = !imagen.src;
+      boton.appendChild(imagen);
+
+      const nombre = document.createElement("span");
+      nombre.className = "carta-selector-nombre";
+      nombre.textContent = carta.nombre;
+      boton.appendChild(nombre);
+
+      if (esPropia || fueVista) {
+        const marca = document.createElement("span");
+        marca.className = `carta-selector-marca ${esPropia ? "es-propia" : "es-vista"}`;
+        marca.textContent = esPropia ? "✓ TU CARTA" : "◉ VISTA";
+        boton.appendChild(marca);
+      }
+
+      boton.addEventListener("click", () => {
+        Array.from(grupo.children).forEach((opcion) => {
+          opcion.classList.remove("seleccionada");
+          opcion.setAttribute("aria-pressed", "false");
+        });
+        boton.classList.add("seleccionada");
+        boton.setAttribute("aria-pressed", "true");
+        if (categoria === "sospechoso") sospechosoSeleccionado = carta.id;
+        else objetoSeleccionado = carta.id;
+        confirmar.disabled = !sospechosoSeleccionado || !objetoSeleccionado;
+      });
+      grupo.appendChild(boton);
+    });
+    return grupo;
+  }
+
   const etiquetaS = document.createElement("label");
   etiquetaS.textContent = "¿DE QUIÉN SOSPECHAS?";
   modalContextualDetalle.appendChild(etiquetaS);
-  const selS = document.createElement("select");
-  modalContextualDetalle.appendChild(selS);
-  llenarSelect(selS, cartas, "sospechoso");
+  const grupoSospechosos = crearGrupoSelector("sospechoso");
+  grupoSospechosos.setAttribute("aria-label", "Selecciona un sospechoso");
+  modalContextualDetalle.appendChild(grupoSospechosos);
   const etiquetaO = document.createElement("label");
   etiquetaO.textContent = "¿CON QUÉ OBJETO?";
   modalContextualDetalle.appendChild(etiquetaO);
-  const selO = document.createElement("select");
-  modalContextualDetalle.appendChild(selO);
-  llenarSelect(selO, cartas, "objeto");
+  const grupoObjetos = crearGrupoSelector("objeto");
+  grupoObjetos.setAttribute("aria-label", "Selecciona un objeto");
+  modalContextualDetalle.appendChild(grupoObjetos);
   const confirmar = document.createElement("button");
   confirmar.type = "button";
   confirmar.textContent = "CONFIRMAR SOSPECHA";
+  confirmar.disabled = true;
   confirmar.addEventListener("click", () => {
-    if (!selS.value || !selO.value || !sala.posicion) {
+    if (!sospechosoSeleccionado || !objetoSeleccionado || !sala.posicion) {
       error.textContent = "Selecciona sospechoso y objeto.";
       return;
     }
     confirmar.disabled = true;
     ws.send(JSON.stringify({
       accion: "formular_sospecha",
-      sospechoso_id: selS.value,
+      sospechoso_id: sospechosoSeleccionado,
       lugar_id: sala.posicion.id,
-      objeto_id: selO.value,
+      objeto_id: objetoSeleccionado,
     }));
     cerrarCartaUbicacion();
   });

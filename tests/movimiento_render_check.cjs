@@ -19,8 +19,9 @@ function makeElemento(tag) {
     hidden: true,
     disabled: false,
     style: {},
+    dataset: {},
     className: "",
-    classList: { add() {} },
+    classList: { add() {}, remove() {} },
     value: "",
     options: [],
     selectedIndex: -1,
@@ -189,18 +190,15 @@ vm.runInContext(`ultimaSala = {
   ]
 }`, sandbox);
 sandbox.verSospecha("parador");
-const selPanel = [];
-(function recoge(nodo) {
-  if (nodo.tag === "select") selPanel.push(nodo);
-  nodo.children.forEach(recoge);
-})($("modal-contextual-detalle"));
-ok(selPanel.length === 2, "en tablero el popup de sospecha no vuelve a pedir ubicación");
+const gruposPanel = $("modal-contextual-detalle").children
+  .filter((nodo) => nodo.className === "selector-cartas-sospecha");
+ok(gruposPanel.length === 2, "en tablero el popup visual no vuelve a pedir ubicación");
 ok(
   !$("vista-contextual").textContent.includes("¿DE QUIÉN SOSPECHAS?"),
   "el panel derecho conserva su estado base"
 );
-selPanel[0].value = "vera";
-selPanel[1].value = "libro-hueco";
+gruposPanel[0].children[0].click();
+gruposPanel[1].children[0].click();
 enviados.length = 0;
 $("modal-contextual-detalle").children
   .find((h) => h.tag === "button" && h.textContent === "CONFIRMAR SOSPECHA").click();
