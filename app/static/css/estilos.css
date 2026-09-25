@@ -507,6 +507,13 @@ button.discreto {
   margin: 2px 0;
 }
 
+/* Registro oculto visualmente solo en modo tablero: el elemento, su
+   contenido y su actualización JS quedan intactos para el futuro
+   historial (Microfase UX). */
+body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
+  display: none;
+}
+
 /* Modales */
 .modal {
   position: fixed;
