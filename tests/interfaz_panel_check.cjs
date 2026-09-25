@@ -170,44 +170,51 @@ sandbox.navigator = { clipboard: { writeText(t) { copiado = t; return { then(fn)
 $("btn-copiar-codigo").click();
 ok(copiado === "JARA-TEST" && $("btn-copiar-codigo").textContent === "¡COPIADO!", "copiar código discreto");
 
-// 11-15. Vista de ubicación con ocupantes reales y acciones.
+// 11-15. Modal contextual de ubicación con ocupantes reales y acciones.
 sandbox.verUbicacion("parador");
-const vista = $("vista-contextual").textContent;
+const vista = $("modal-contextual-titulo").textContent + $("modal-contextual-detalle").textContent;
 ok(vista.includes("Parador"), "ubicación muestra su nombre");
 ok(
-  $("vista-contextual").children.some((h) => h.tag === "img" && h.src === "/static/img/lugares/parador.jpeg"),
+  $("imagen-ubicacion").src === "/static/img/lugares/parador.jpeg",
   "ubicación muestra su tarjeta"
 );
 const botones = [];
 (function recogeBotones(nodo) {
   if (nodo.tag === "button") botones.push(nodo.textContent);
   nodo.children.forEach(recogeBotones);
-})($("vista-contextual"));
+})($("modal-contextual-detalle"));
 ok(botones.includes("Yo") && botones.includes("Rival"), "ocupantes reales desde posiciones");
-ok(!botones.includes("MOVER AQUÍ"), "sin destino legal no hay MOVER AQUÍ");
+ok($("btn-mover-ubicacion-canvas").hidden, "sin destino legal no hay MOVER AQUÍ");
 ok(!botones.includes("FORMULAR SOSPECHA"), "sin permiso del servidor no hay sospecha");
 sandbox.verUbicacion("plaza-constitucion");
-ok($("vista-contextual").textContent.includes("No hay personajes aquí."), "ubicación vacía discreta");
+ok($("modal-contextual-detalle").textContent.includes("No hay personajes aquí."), "ubicación vacía discreta");
 
 // 13. Ocupante abre su personaje (solo público).
 sandbox.verUbicacion("parador");
-$("vista-contextual").children
+$("modal-contextual-detalle").children
   .find((h) => h.tag === "div").children
   .find((b) => b.textContent === "Rival").click();
-ok($("vista-contextual").textContent.includes("Bruno, el cantero"), "ocupante abre su personaje");
+ok($("modal-contextual-titulo").textContent.includes("Bruno, el cantero"), "ocupante abre su personaje");
 ok(
-  $("vista-contextual").children.some((h) => h.tag === "img" && h.src === "/static/img/personajes/bruno.png"),
+  $("imagen-ubicacion").src === "/static/img/personajes/bruno.png",
   "personaje muestra su carta pública"
 );
-ok(!$("vista-contextual").textContent.includes("LA TENGO"), "personaje sin datos privados");
+ok(!$("modal-contextual-detalle").textContent.includes("LA TENGO"), "personaje sin datos privados");
+ok(
+  !$("modal-contextual-detalle").textContent.includes("CARTAS") &&
+    !$("modal-contextual-detalle").textContent.includes("INVESTIGACIÓN") &&
+    !$("modal-contextual-detalle").textContent.includes("RESOLVER"),
+  "ficha de personaje sin herramientas globales"
+);
+ok($("vista-contextual").textContent.includes("TU TURNO"), "panel derecho permanece en estado base");
 
 // 14-15. Destino legal mantiene MOVER AQUÍ y consultar no mueve.
 enviados.length = 0;
 vm.runInContext(`ultimaSala = ${JSON.stringify({ ...sala, movimiento: { ...sala.movimiento, destinos: [{ id: "plaza-constitucion", nombre: "Plaza" }] } })};`, sandbox);
 sandbox.pintarSala({ ...sala, movimiento: { ...sala.movimiento, destinos: [{ id: "plaza-constitucion", nombre: "Plaza" }] } });
 sandbox.verUbicacion("plaza-constitucion");
-const btnMover = $("vista-contextual").children.find((h) => h.tag === "button" && h.textContent === "MOVER AQUÍ");
-ok(Boolean(btnMover), "destino legal ofrece MOVER AQUÍ");
+const btnMover = $("btn-mover-ubicacion-canvas");
+ok(!btnMover.hidden, "destino legal ofrece MOVER AQUÍ");
 btnMover.click();
 ok(enviados.length === 1 && enviados[0].accion === "mover" && enviados[0].destino_id === "plaza-constitucion", "MOVER AQUÍ envía el destino legal");
 enviados.length = 0;
@@ -219,18 +226,18 @@ const conPermiso = { ...sala, movimiento: { ...sala.movimiento, puede_sospechar:
 vm.runInContext(`ultimaSala = ${JSON.stringify(conPermiso)};`, sandbox);
 sandbox.pintarSala(conPermiso);
 sandbox.verUbicacion("parador");
-ok($("vista-contextual").textContent.includes("FORMULAR SOSPECHA"), "entrar permite sospechar");
+ok($("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"), "entrar permite sospechar");
 const sinPermiso = { ...sala, movimiento: { ...sala.movimiento } };
 vm.runInContext(`ultimaSala = ${JSON.stringify(sinPermiso)};`, sandbox);
 sandbox.pintarSala(sinPermiso);
 sandbox.verUbicacion("parador");
-ok(!$("vista-contextual").textContent.includes("FORMULAR SOSPECHA"), "empezar en ubicación no ofrece sospecha");
+ok(!$("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"), "empezar en ubicación no ofrece sospecha");
 
 // 20. Sospecha en tablero: solo sospechoso y objeto.
 vm.runInContext(`ultimaSala = ${JSON.stringify(conPermiso)};`, sandbox);
 sandbox.pintarSala(conPermiso);
 sandbox.verUbicacion("parador");
-$("vista-contextual").children.find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
+$("modal-contextual-detalle").children.find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
 const selects = [];
 (function recoge(nodo) {
   if (nodo.tag === "select") selects.push(nodo);
@@ -279,10 +286,16 @@ ok($("barra-herramientas"), "barra secundaria de herramientas existe");
 sandbox.pintarSala({ ...sala, jugada: { estado: "esperando_sospecha" } });
 ok($("btn-resolver").hidden === false, "resolver visible cuando el servidor lo permite");
 
-// CERRAR vuelve a la vista general.
+// CERRAR limpia el modal y mantiene el panel derecho en su vista general.
 sandbox.verUbicacion("parador");
-$("vista-contextual").children.find((h) => h.tag === "button" && h.textContent === "CERRAR").click();
-ok($("vista-contextual").textContent.includes("TU TURNO"), "CERRAR vuelve a la vista general");
+$("btn-cerrar-ubicacion").click();
+ok(
+  $("modal-ubicacion").hidden && $("imagen-ubicacion").src === "" &&
+    $("modal-contextual-titulo").textContent === "" &&
+    $("modal-contextual-detalle").textContent === "",
+  "CERRAR limpia el panel intermedio"
+);
+ok($("vista-contextual").textContent.includes("TU TURNO"), "CERRAR deja el panel derecho en estado base");
 
 if (fallos) process.exit(1);
 console.log("INTERFAZ PANEL OK");

@@ -146,7 +146,7 @@ vm.createContext(sandbox);
   const html = fs.readFileSync(path.join(raiz, "app", "templates", "sala.html"), "utf8");
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=7e3'), "la plantilla carga el renderer Canvas oficial");
-  ok(html.includes('/static/js/sala.js?v=7e4'), "la plantilla carga la integración Canvas consolidada");
+  ok(html.includes('/static/js/sala.js?v=8b5'), "la plantilla carga la integración Canvas consolidada");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 

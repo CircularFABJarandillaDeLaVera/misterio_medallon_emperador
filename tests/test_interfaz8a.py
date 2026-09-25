@@ -105,5 +105,5 @@ def test_28_29_png_tablero_y_jpeg_modal():
     assert "urlTablero" in (
         RAIZ / "app" / "static" / "js" / "tablero_canvas.js"
     ).read_text(encoding="utf-8")
-    assert "imagen_tarjeta" in SALA_JS
-    assert "tarjeta-contextual" in SALA_JS
+    assert "/static/img/lugares/${idUbicacion}.jpeg" in SALA_JS
+    assert "imagenUbicacion.src = urlTarjeta" in SALA_JS

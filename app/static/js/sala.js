@@ -66,6 +66,8 @@ const tableroCanvas = document.getElementById("tablero-canvas");
 const tableroCanvasAccesible = document.getElementById("tablero-canvas-accesible");
 const modalUbicacion = document.getElementById("modal-ubicacion");
 const modalUbicacionCaja = document.getElementById("modal-ubicacion-caja");
+const modalContextualTitulo = document.getElementById("modal-contextual-titulo");
+const modalContextualDetalle = document.getElementById("modal-contextual-detalle");
 const imagenUbicacion = document.getElementById("imagen-ubicacion");
 const btnCerrarUbicacion = document.getElementById("btn-cerrar-ubicacion");
 const btnMoverUbicacionCanvas = document.getElementById("btn-mover-ubicacion-canvas");
@@ -294,7 +296,32 @@ function abrirCartaUbicacion(nodo, activador) {
   const urlTarjeta = `/static/img/lugares/${idUbicacion}.jpeg`;
   imagenUbicacion.src = urlTarjeta;
   imagenUbicacion.alt = nodo.nombre;
-  modalUbicacionCaja.setAttribute("aria-label", `Carta de ${nodo.nombre}`);
+  modalContextualTitulo.textContent = nodo.nombre;
+  modalContextualDetalle.innerHTML = "";
+  modalUbicacionCaja.setAttribute("aria-label", `Información de ${nodo.nombre}`);
+  const cabecera = document.createElement("p");
+  cabecera.textContent = "PERSONAJES AQUÍ";
+  modalContextualDetalle.appendChild(cabecera);
+  const ocupantes = ((ultimaSala || {}).jugadores || []).filter(
+    (j) => j.posicion && j.posicion.id === nodo.id
+  );
+  if (ocupantes.length === 0) {
+    const vacio = document.createElement("p");
+    vacio.className = "estado";
+    vacio.textContent = "No hay personajes aquí.";
+    modalContextualDetalle.appendChild(vacio);
+  } else {
+    const grupo = document.createElement("div");
+    grupo.className = "ocupantes";
+    ocupantes.forEach((j) => {
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.textContent = j.alias;
+      boton.addEventListener("click", () => verPersonaje(j.personaje_id));
+      grupo.appendChild(boton);
+    });
+    modalContextualDetalle.appendChild(grupo);
+  }
   const destinos = new Set(
     (((ultimaSala || {}).movimiento || {}).destinos || []).map((d) => d.id)
   );
@@ -304,24 +331,42 @@ function abrirCartaUbicacion(nodo, activador) {
   if (destinoUbicacionModal) {
     btnMoverUbicacionCanvas.setAttribute("aria-label", `Mover a ${nodo.nombre}`);
   }
+  const puedeSospecharAqui = puedeSospecharServidor(ultimaSala) &&
+    ultimaSala.posicion && ultimaSala.posicion.id === nodo.id;
+  if (puedeSospecharAqui) {
+    const sospechar = document.createElement("button");
+    sospechar.type = "button";
+    sospechar.textContent = "FORMULAR SOSPECHA";
+    sospechar.addEventListener("click", () => {
+      cerrarCartaUbicacion();
+      verSospecha();
+    });
+    modalContextualDetalle.appendChild(sospechar);
+  }
+  panelSel = null;
+  if (ultimaSala) pintarPanel(ultimaSala);
   modalUbicacion.hidden = false;
   if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
 }
 
 function consultarUbicacion(nodo, activador) {
   abrirCartaUbicacion(nodo, activador);
-  if (nodo && nodo.id) verUbicacion(nodo.id);
 }
 
-function verPersonajeCanvas(info) {
-  if (info && info.personaje_id) verPersonaje(info.personaje_id);
+function verPersonajeCanvas(info, activador) {
+  if (info && info.personaje_id) verPersonaje(info.personaje_id, activador);
 }
 
 function cerrarCartaUbicacion() {
   modalUbicacion.hidden = true;
+  modalContextualTitulo.textContent = "";
+  modalContextualDetalle.innerHTML = "";
   imagenUbicacion.src = "";
+  imagenUbicacion.alt = "";
   destinoUbicacionModal = null;
   btnMoverUbicacionCanvas.hidden = true;
+  panelSel = null;
+  if (ultimaSala) pintarPanel(ultimaSala);
   if (focoAntesDeUbicacion && focoAntesDeUbicacion.focus) {
     focoAntesDeUbicacion.focus();
   }
@@ -548,10 +593,6 @@ function pintarMovimiento(sala) {
   });
 }
 
-function destinosLegales(sala) {
-  return new Set(((sala.movimiento || {}).destinos || []).map((d) => d.id));
-}
-
 function puedeSospecharServidor(sala) {
   return Boolean(
     sala.estado === "iniciada" && (sala.movimiento || {}).puede_sospechar
@@ -560,14 +601,32 @@ function puedeSospecharServidor(sala) {
 
 function verUbicacion(ubicacionId) {
   if (!ultimaSala || !ubicacionId) return;
-  panelSel = { tipo: "ubicacion", id: ubicacionId, turno: ultimaSala.turno_alias };
-  pintarPanel(ultimaSala);
+  const nodo = nodoUbicacion(ubicacionId);
+  if (nodo) abrirCartaUbicacion(nodo, null);
 }
 
-function verPersonaje(personajeId) {
+function verPersonaje(personajeId, activador) {
   if (!ultimaSala || !personajeId) return;
-  panelSel = { tipo: "personaje", personaje_id: personajeId, turno: ultimaSala.turno_alias };
+  if (modalUbicacion.hidden) focoAntesDeUbicacion = activador || null;
+  const jugador = (ultimaSala.jugadores || []).find((j) => j.personaje_id === personajeId);
+  const datos = (PERSONAJES || []).find((p) => p.id === personajeId) || {};
+  const nombre = (jugador && jugador.personaje) || datos.nombre || personajeId;
+  modalContextualTitulo.textContent = nombre;
+  modalContextualDetalle.innerHTML = "";
+  imagenUbicacion.src = (RECURSOS_VISUALES[personajeId] || {}).principal || "";
+  imagenUbicacion.alt = nombre;
+  modalUbicacionCaja.setAttribute("aria-label", `Información de ${nombre}`);
+  if (jugador && jugador.alias) {
+    const linea = document.createElement("p");
+    linea.textContent = `En partida como ${jugador.alias}`;
+    modalContextualDetalle.appendChild(linea);
+  }
+  destinoUbicacionModal = null;
+  btnMoverUbicacionCanvas.hidden = true;
+  panelSel = null;
   pintarPanel(ultimaSala);
+  modalUbicacion.hidden = false;
+  if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
 }
 
 function verSospecha() {
@@ -579,15 +638,6 @@ function verSospecha() {
 function cerrarPanel() {
   panelSel = null;
   if (ultimaSala) pintarPanel(ultimaSala);
-}
-
-function botonCerrarPanel() {
-  const boton = document.createElement("button");
-  boton.type = "button";
-  boton.className = "secundario";
-  boton.textContent = "CERRAR";
-  boton.addEventListener("click", cerrarPanel);
-  return boton;
 }
 
 function nodoUbicacion(ubicacionId) {
@@ -606,83 +656,6 @@ function pintarVistaInfo(sala) {
       `Turno de ${sala.turno_alias || "—"}. Pulsa una ubicación o un peón para consultar.`;
   }
   vistaContextual.appendChild(linea);
-}
-
-function pintarVistaUbicacion(sala, ubicacionId) {
-  const nodo = nodoUbicacion(ubicacionId);
-  const titulo = document.createElement("h3");
-  titulo.textContent = (nodo && nodo.nombre) || ubicacionId;
-  vistaContextual.appendChild(titulo);
-  const tarjeta = (nodo && nodo.imagen_tarjeta) || "";
-  if (tarjeta) {
-    const img = document.createElement("img");
-    img.className = "tarjeta-contextual";
-    img.src = tarjeta;
-    img.alt = titulo.textContent;
-    vistaContextual.appendChild(img);
-  }
-  const cabecera = document.createElement("p");
-  cabecera.textContent = "PERSONAJES AQUÍ";
-  vistaContextual.appendChild(cabecera);
-  const ocupantes = (sala.jugadores || []).filter(
-    (j) => j.posicion && j.posicion.id === ubicacionId
-  );
-  if (ocupantes.length === 0) {
-    const vacio = document.createElement("p");
-    vacio.className = "estado";
-    vacio.textContent = "No hay personajes aquí.";
-    vistaContextual.appendChild(vacio);
-  } else {
-    const grupo = document.createElement("div");
-    grupo.className = "ocupantes";
-    ocupantes.forEach((j) => {
-      const boton = document.createElement("button");
-      boton.type = "button";
-      boton.textContent = j.alias;
-      boton.addEventListener("click", () => verPersonaje(j.personaje_id));
-      grupo.appendChild(boton);
-    });
-    vistaContextual.appendChild(grupo);
-  }
-  if (destinosLegales(sala).has(ubicacionId)) {
-    const mover = document.createElement("button");
-    mover.type = "button";
-    mover.textContent = "MOVER AQUÍ";
-    mover.addEventListener("click", () => enviarDestinoTablero(ubicacionId, mover));
-    vistaContextual.appendChild(mover);
-  }
-  if (puedeSospecharServidor(sala)) {
-    const sospechar = document.createElement("button");
-    sospechar.type = "button";
-    sospechar.textContent = "FORMULAR SOSPECHA";
-    sospechar.addEventListener("click", verSospecha);
-    vistaContextual.appendChild(sospechar);
-  }
-  vistaContextual.appendChild(botonCerrarPanel());
-}
-
-function pintarVistaPersonaje(sala, personajeId) {
-  const jugador = (sala.jugadores || []).find((j) => j.personaje_id === personajeId);
-  const datos = (PERSONAJES || []).find((p) => p.id === personajeId) || {};
-  const titulo = document.createElement("h3");
-  titulo.textContent = (jugador && jugador.personaje) || datos.nombre || personajeId;
-  vistaContextual.appendChild(titulo);
-  // Solo información pública: nombre e imagen de la carta. Nunca mano,
-  // hoja, carta mostrada ni conocimiento privado.
-  const imagen = (RECURSOS_VISUALES[personajeId] || {}).principal;
-  if (imagen) {
-    const img = document.createElement("img");
-    img.className = "tarjeta-contextual";
-    img.src = imagen;
-    img.alt = titulo.textContent;
-    vistaContextual.appendChild(img);
-  }
-  if (jugador && jugador.alias) {
-    const linea = document.createElement("p");
-    linea.textContent = `En partida como ${jugador.alias}`;
-    vistaContextual.appendChild(linea);
-  }
-  vistaContextual.appendChild(botonCerrarPanel());
 }
 
 function pintarVistaSospecha(sala) {
@@ -737,17 +710,10 @@ function pintarVistaSospecha(sala) {
 function pintarPanel(sala) {
   if (!vistaContextual) return;
   if (panelSel && panelSel.turno !== sala.turno_alias) panelSel = null;
-  if (panelSel && panelSel.tipo === "ubicacion" && sala.modo !== "tablero") {
-    panelSel = null;
-  }
   vistaContextual.innerHTML = "";
   vistaContextual.hidden = false;
   if (!panelSel) {
     pintarVistaInfo(sala);
-  } else if (panelSel.tipo === "ubicacion") {
-    pintarVistaUbicacion(sala, panelSel.id);
-  } else if (panelSel.tipo === "personaje") {
-    pintarVistaPersonaje(sala, panelSel.personaje_id);
   } else if (
     panelSel.tipo === "sospecha" &&
     sala.modo === "tablero" &&
