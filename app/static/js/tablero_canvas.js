@@ -21,6 +21,7 @@
       this.descriptor = descriptor;
       this.acciones = acciones;
       this.estado = null;
+      this.posicionesVisuales = new Map();
       this.imagenes = new Map();
       this.peonesTintados = new Map();
       this.areas = [];
@@ -69,12 +70,15 @@
       registro.imagen.src = url;
     }
 
-    actualizar(estado, descriptor = this.descriptor) {
+    actualizar(estado, descriptor = this.descriptor, posicionesVisuales = this.posicionesVisuales) {
       if (descriptor !== this.descriptor) {
         this.descriptor = descriptor;
         this._precargar();
       }
       this.estado = estado;
+      this.posicionesVisuales = posicionesVisuales instanceof Map
+        ? posicionesVisuales
+        : new Map();
       this.dibujar();
     }
 
@@ -326,9 +330,11 @@
       let svgDibujados = 0;
       let fallbacksDibujados = 0;
       ((this.estado || {}).jugadores || []).forEach((j) => {
-        if (!j.posicion || !nodos.has(j.posicion.id)) return;
-        const grupo = grupos.get(j.posicion.id) || [];
-        grupo.push(j); grupos.set(j.posicion.id, grupo);
+        if (!j.posicion) return;
+        const posicionVisual = this.posicionesVisuales.get(j.personaje_id) || j.posicion.id;
+        if (!nodos.has(posicionVisual)) return;
+        const grupo = grupos.get(posicionVisual) || [];
+        grupo.push(j); grupos.set(posicionVisual, grupo);
       });
       grupos.forEach((jugadores, nodoId) => {
         const nodo = nodos.get(nodoId);
@@ -359,7 +365,7 @@
             personaje_id: j.personaje_id,
             jugador_id: j.id || j.jugador_id || j.alias,
             tipo: j.tipo,
-            posicion: j.posicion.id,
+            posicion: nodoId,
             x, y, color,
             esTurno,
             encima: esTurno,

@@ -101,6 +101,12 @@ let RECURSOS_VISUALES = {};
 let ubicacionContextualId = null;
 let revelacionDescartada = null;
 let revelacionVisible = null;
+const DURACION_PASO_MS = 600;
+const posicionesVisuales = new Map();
+const animacionesMovimiento = new Map();
+let estadoVisualHidratado = false;
+let ultimoMovimientoId = null;
+let secuenciaAnimacion = 0;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -141,12 +147,84 @@ const ws = new WebSocket(
 ws.onmessage = (evento) => {
   const mensaje = JSON.parse(evento.data);
   if (mensaje.tipo === "estado_privado") {
-    ultimaSala = mensaje.sala;
-    pintarSala(mensaje.sala);
+    presentarEstadoPrivado(mensaje.sala);
   } else if (mensaje.tipo === "error") {
     error.textContent = mensaje.detalle;
   }
 };
+
+function cancelarAnimacionMovimiento(personajeId) {
+  const animacion = animacionesMovimiento.get(personajeId);
+  if (animacion && animacion.temporizador !== null) {
+    window.clearTimeout(animacion.temporizador);
+  }
+  animacionesMovimiento.delete(personajeId);
+  posicionesVisuales.delete(personajeId);
+}
+
+function continuarAnimacionMovimiento(personajeId, recorrido, indice, token) {
+  const animacion = animacionesMovimiento.get(personajeId);
+  if (!animacion || animacion.token !== token) return;
+  if (indice < recorrido.length) {
+    posicionesVisuales.set(personajeId, recorrido[indice]);
+    if (ultimaSala) pintarTablero(ultimaSala);
+    animacion.temporizador = window.setTimeout(
+      () => continuarAnimacionMovimiento(personajeId, recorrido, indice + 1, token),
+      DURACION_PASO_MS
+    );
+    return;
+  }
+  animacionesMovimiento.delete(personajeId);
+  posicionesVisuales.delete(personajeId);
+  if (ultimaSala) pintarTablero(ultimaSala);
+}
+
+function iniciarAnimacionMovimiento(movimiento) {
+  const personajeId = movimiento.personaje_id;
+  cancelarAnimacionMovimiento(personajeId);
+  posicionesVisuales.set(personajeId, movimiento.origen_id);
+  const token = ++secuenciaAnimacion;
+  const animacion = { token, temporizador: null };
+  animacionesMovimiento.set(personajeId, animacion);
+  animacion.temporizador = window.setTimeout(
+    () => continuarAnimacionMovimiento(personajeId, movimiento.recorrido, 0, token),
+    DURACION_PASO_MS
+  );
+}
+
+function presentarEstadoPrivado(sala) {
+  const movimiento = sala.movimiento_resuelto;
+  const movimientoId = movimiento && Number.isInteger(movimiento.movimiento_id)
+    ? movimiento.movimiento_id
+    : null;
+
+  if (!estadoVisualHidratado) {
+    estadoVisualHidratado = true;
+    ultimoMovimientoId = movimientoId;
+    ultimaSala = sala;
+    pintarSala(sala);
+    return;
+  }
+  if (movimientoId !== null && ultimoMovimientoId !== null && movimientoId < ultimoMovimientoId) {
+    return;
+  }
+
+  const esMovimientoNuevo = movimientoId !== null && movimientoId !== ultimoMovimientoId;
+  if (esMovimientoNuevo) ultimoMovimientoId = movimientoId;
+  if (esMovimientoNuevo && movimiento && movimiento.tipo === "normal"
+      && movimiento.personaje_id && movimiento.origen_id
+      && Array.isArray(movimiento.recorrido) && movimiento.recorrido.length) {
+    iniciarAnimacionMovimiento(movimiento);
+    ultimaSala = sala;
+    pintarSala(sala);
+    return;
+  }
+  if (esMovimientoNuevo && movimiento && movimiento.personaje_id) {
+    cancelarAnimacionMovimiento(movimiento.personaje_id);
+  }
+  ultimaSala = sala;
+  pintarSala(sala);
+}
 
 ws.onclose = () => {
   estado.textContent = "Conexión perdida. Recarga la página para reintentar.";
@@ -434,7 +512,7 @@ function pintarTablero(sala) {
         personaje: verPersonajeCanvas,
       });
     }
-    rendererCanvas.actualizar(sala, TABLERO_VISUAL);
+    rendererCanvas.actualizar(sala, TABLERO_VISUAL, posicionesVisuales);
   } catch (fallo) {
     canvasFallido = true;
     console.error("No se pudo inicializar el tablero Canvas.", fallo);

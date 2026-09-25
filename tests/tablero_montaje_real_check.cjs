@@ -115,6 +115,27 @@ let resolverTablero;
 let socket;
 const enviados = [];
 const peticionesFetch = [];
+const temporizadores = [];
+let siguienteTemporizador = 1;
+function programarTemporizador(fn, ms) {
+  const registro = { id: siguienteTemporizador++, fn, ms, activo: true };
+  temporizadores.push(registro);
+  return registro.id;
+}
+function cancelarTemporizador(id) {
+  const registro = temporizadores.find((item) => item.id === id);
+  if (registro) registro.activo = false;
+}
+function ejecutarSiguienteTemporizador() {
+  const registro = temporizadores.find((item) => item.activo);
+  if (!registro) return false;
+  registro.activo = false;
+  registro.fn();
+  return true;
+}
+function temporizadoresPendientes() {
+  return temporizadores.filter((item) => item.activo).length;
+}
 class WebSocketFalso {
   constructor() { socket = this; }
   send(mensaje) { enviados.push(JSON.parse(mensaje)); }
@@ -135,6 +156,8 @@ const sandbox = {
     Image: ImagenMontaje,
     ResizeObserver: class { constructor(fn) { this.fn = fn; } observe() {} },
     addEventListener() {},
+    setTimeout: programarTemporizador,
+    clearTimeout: cancelarTemporizador,
   },
   sessionStorage: { getItem: () => "jug-real", setItem() {} },
   fetch: fetchFalso, WebSocket: WebSocketFalso, Set, Map,
@@ -145,8 +168,10 @@ vm.createContext(sandbox);
   const raiz = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(raiz, "app", "templates", "sala.html"), "utf8");
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
-  ok(html.includes('/static/js/tablero_canvas.js?v=7e3'), "la plantilla carga el renderer Canvas oficial");
-  ok(html.includes('/static/js/sala.js?v=8b7'), "la plantilla carga la integración Canvas consolidada");
+  ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
+    "la plantilla invalida la caché del renderer Canvas animado");
+  ok(html.includes('/static/js/sala.js?v=8b8b'),
+    "la plantilla invalida la caché de la integración del movimiento animado");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 
@@ -165,6 +190,10 @@ vm.createContext(sandbox);
     turno_alias: "Jugador 1", turno_tipo: "humano", pnj_pensando_alias: null,
     es_mi_turno: true, activo_investigacion: true, mis_cartas: [], investigacion: [],
     jugada: { estado: "esperando_movimiento" },
+    movimiento_resuelto: {
+      movimiento_id: 40, personaje_id: "vera", origen_id: "picota",
+      destino_id: "parador", recorrido: ["parador"], tipo: "normal",
+    },
     posicion: jugadores[0].posicion,
     movimiento: { fase: "esperando_movimiento", puede_tirar: true, tirada: null, destinos: [] },
     resultado_final: null, ganador_alias: null,
@@ -190,6 +219,69 @@ vm.createContext(sandbox);
   ok(personajes.every((id) => metricas.representacionesPeones.some((p) =>
     p.personaje_id === id && p.drawSolicitado && p.drawEjecutado)),
   "el montaje integrado identifica y representa individualmente los seis personajes");
+  const posicionVisual = (personajeId) => vm.runInContext(
+    `rendererCanvas.metricas.representacionesPeones.find((p) => p.personaje_id === ${JSON.stringify(personajeId)}).posicion`,
+    sandbox
+  );
+  const enviarMovimiento = (movimiento, personajeId = movimiento.personaje_id) => {
+    const jugador = sala.jugadores.find((item) => item.personaje_id === personajeId);
+    jugador.posicion = { id: movimiento.destino_id, nombre: movimiento.destino_id, tipo: "casilla" };
+    if (personajeId === sala.personaje_id) sala.posicion = jugador.posicion;
+    sala.movimiento_resuelto = movimiento;
+    socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  };
+  const observarMovimiento = (movimiento) => {
+    enviarMovimiento(movimiento);
+    const observadas = [posicionVisual(movimiento.personaje_id)];
+    while (ejecutarSiguienteTemporizador()) observadas.push(posicionVisual(movimiento.personaje_id));
+    return observadas;
+  };
+  ok(posicionVisual("vera") === "parador" && temporizadoresPendientes() === 0,
+    "la primera hidrataciÃ³n muestra el estado lÃ³gico sin animar el movimiento histÃ³rico");
+
+  const paso1 = caminos[0].nodos[1];
+  const paso2 = caminos[0].nodos[2];
+  const paso3 = caminos[0].nodos[3];
+  let observadas = observarMovimiento({
+    movimiento_id: 41, personaje_id: "vera", origen_id: "parador",
+    destino_id: paso1, recorrido: [paso1], tipo: "normal",
+  });
+  ok(JSON.stringify(observadas.slice(0, 2)) === JSON.stringify(["parador", paso1]),
+    "un recorrido de un paso se presenta primero en origen y despuÃ©s en el nodo intermedio");
+
+  observadas = observarMovimiento({
+    movimiento_id: 42, personaje_id: "vera", origen_id: paso1,
+    destino_id: paso3, recorrido: [paso2, paso3], tipo: "normal",
+  });
+  ok(JSON.stringify(observadas.slice(0, 3)) === JSON.stringify([paso1, paso2, paso3]),
+    "un recorrido de dos pasos respeta exactamente el orden canÃ³nico");
+
+  observadas = observarMovimiento({
+    movimiento_id: 43, personaje_id: "vera", origen_id: paso3,
+    destino_id: "iglesia-san-agustin", recorrido: [paso2, paso1, "iglesia-san-agustin"], tipo: "normal",
+  });
+  ok(JSON.stringify(observadas.slice(0, 4)) === JSON.stringify([paso3, paso2, paso1, "iglesia-san-agustin"]),
+    "el flujo parte de un nodo intermedio y completa literalmente el recorrido hasta una ubicaciÃ³n");
+
+  const temporizadoresAntes = temporizadoresPendientes();
+  enviarMovimiento(sala.movimiento_resuelto);
+  ok(temporizadoresPendientes() === temporizadoresAntes && posicionVisual("vera") === "iglesia-san-agustin",
+    "un movimiento_id repetido no vuelve a animarse");
+
+  enviarMovimiento({
+    movimiento_id: 44, personaje_id: "vera", origen_id: "iglesia-san-agustin",
+    destino_id: "nuestra-senora-torre", recorrido: ["nuestra-senora-torre"], tipo: "pasadizo",
+  });
+  ok(posicionVisual("vera") === "nuestra-senora-torre" && temporizadoresPendientes() === 0,
+    "un pasadizo salta directamente al destino sin temporizadores");
+
+  const brunoOrigen = sala.jugadores.find((item) => item.personaje_id === "bruno").posicion.id;
+  observadas = observarMovimiento({
+    movimiento_id: 45, personaje_id: "bruno", origen_id: brunoOrigen,
+    destino_id: paso2, recorrido: [paso1, paso2], tipo: "normal",
+  });
+  ok(JSON.stringify(observadas.slice(0, 3)) === JSON.stringify([brunoOrigen, paso1, paso2]),
+    "un PNJ utiliza el mismo flujo visual de origen y recorrido");
   const accesibles = registro["tablero-canvas-accesible"].children;
   const botonesInfo = accesibles.filter((n) => n.tag === "button" && n.textContent.startsWith("Ver carta de "));
   ok(botonesInfo.length === 9, "la capa HTML mantiene las 9 ubicaciones consultables");

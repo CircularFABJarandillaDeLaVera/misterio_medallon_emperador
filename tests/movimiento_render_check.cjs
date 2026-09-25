@@ -149,6 +149,13 @@ sandbox.pintarMovimiento(esperandoDestino);
 sandbox.pintarPanel(esperandoDestino);
 ok($("destinos-movimiento").children.length === 2, "tras tirar se renderizan los destinos server-side");
 ok($("resultado-dado").textContent === "HAS SACADO: 2", "la tirada se mantiene visible");
+enviados.length = 0;
+$("destinos-movimiento").children[0].click();
+ok(
+  enviados.length === 1 && enviados[0].accion === "mover" &&
+    enviados[0].destino_id === "camino-1",
+  "el botón lateral usa la acción normal compartida mover"
+);
 ok(
   $("vista-contextual").textContent === "Elige una ubicación disponible.",
   "tras tirar el panel pide elegir una ubicación"

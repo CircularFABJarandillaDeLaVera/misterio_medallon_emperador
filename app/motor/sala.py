@@ -156,6 +156,11 @@ class Sala:
         self.posiciones = PosicionesParticipantes(TABLERO)
         self.tirada_pendiente: int | None = None
         self.rutas_pendientes: dict[str, tuple[str, ...]] = {}
+        # Descripción pública del último desplazamiento resuelto. El
+        # contador permite al cliente distinguir un movimiento nuevo de una
+        # redifusión posterior del mismo estado.
+        self.secuencia_movimiento = 0
+        self.movimiento_resuelto: dict | None = None
 
     def jugador_por_id(self, jugador_id: str) -> dict | None:
         for j in self.jugadores:
@@ -402,6 +407,9 @@ class Sala:
         ):
             raise ValueError("Destino de movimiento no válido.")
         self.posiciones.asignar(jugador_id, destino_id)
+        self._registrar_movimiento(
+            jugador_id, "normal", origen, destino_id, ruta
+        )
         self.tirada_pendiente = None
         self.rutas_pendientes = {}
         if TABLERO.es_ubicacion(destino_id):
@@ -425,8 +433,31 @@ class Sala:
             raise ValueError("No hay un pasadizo disponible desde esta ubicación.")
         destino = TABLERO.usar_pasadizo(origen, destinos[0])
         self.posiciones.asignar(jugador_id, destino)
+        self._registrar_movimiento(
+            jugador_id, "pasadizo", origen, destino, (destino,)
+        )
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         return destino
+
+    def _registrar_movimiento(
+        self,
+        jugador_id: str,
+        tipo: str,
+        origen_id: str,
+        destino_id: str,
+        recorrido: tuple[str, ...],
+    ) -> None:
+        """Conserva el recorrido exacto ya resuelto, sin recalcular reglas."""
+        jugador = self.jugador_por_id(jugador_id)
+        self.secuencia_movimiento += 1
+        self.movimiento_resuelto = {
+            "movimiento_id": self.secuencia_movimiento,
+            "personaje_id": jugador["personaje_id"],
+            "origen_id": origen_id,
+            "destino_id": destino_id,
+            "recorrido": list(recorrido),
+            "tipo": tipo,
+        }
 
     def usar_pasadizo(self, jugador_id: str) -> str:
         jugador = self._participante_en_turno_para_mover(jugador_id)
@@ -972,6 +1003,10 @@ class Sala:
                 self.jugador_por_id(self.pnj_pensando_id)["alias"]
                 if self.pnj_pensando_id else None
             ),
+            "movimiento_resuelto": (
+                dict(self.movimiento_resuelto)
+                if self.movimiento_resuelto is not None else None
+            ),
             "fase_tablero": self.estado_jugada if self.modo == MODO_TABLERO else None,
             "tirada": self.tirada_pendiente,
             "jugada": self.jugada_publica(),
@@ -1020,6 +1055,7 @@ class Sala:
             "turno_alias": publico["turno_alias"],
             "turno_tipo": publico["turno_tipo"],
             "pnj_pensando_alias": publico["pnj_pensando_alias"],
+            "movimiento_resuelto": publico["movimiento_resuelto"],
             "jugada": self.jugada_privada(jugador_id),
             "posicion": self.describir_posicion(
                 self.posiciones.obtener(jugador_id)
