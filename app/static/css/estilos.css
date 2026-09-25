@@ -604,9 +604,46 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 
 .selector-cartas-sospecha {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 170px));
+  justify-content: center;
   gap: 7px;
-  margin: 5px 0 10px;
+  margin: 3px 0 6px;
+}
+
+#modal-ubicacion-caja:has(#modal-contextual-detalle.modo-sospecha-compacta) {
+  width: min(92vw, 1100px);
+  max-width: 1100px;
+}
+
+.carta-sospecha-compacta {
+  padding: 2px;
+  border-radius: 5px;
+}
+
+.carta-sospecha-compacta img {
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #101727;
+}
+
+.selector-cartas-sospecha[data-categoria="sospechoso"] .carta-sospecha-compacta img {
+  height: 125px;
+}
+
+.selector-cartas-sospecha[data-categoria="objeto"] .carta-sospecha-compacta img {
+  height: 115px;
+}
+
+#modal-contextual-detalle.modo-sospecha-compacta > label {
+  margin: 4px 0 2px;
+}
+
+#modal-contextual-detalle.modo-sospecha-compacta > button {
+  min-height: 28px;
+  margin-top: 4px;
+  padding: 5px 14px;
 }
 
 .carta-selector-sospecha {
@@ -796,6 +833,11 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 @media (max-width: 620px) {
   .selector-cartas-sospecha {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .carta-sospecha-compacta img {
+    height: auto !important;
+    aspect-ratio: 3 / 4;
   }
 
   .hoja-grid-cartas {

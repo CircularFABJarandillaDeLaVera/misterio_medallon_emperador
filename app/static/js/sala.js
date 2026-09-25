@@ -390,6 +390,7 @@ function abrirCartaUbicacion(nodo, activador) {
   btnCerrarUbicacion.hidden = false;
   modalContextualTitulo.textContent = nodo.nombre;
   modalContextualDetalle.innerHTML = "";
+  modalContextualDetalle.classList.remove("modo-sospecha-compacta");
   modalUbicacionCaja.setAttribute("aria-label", `Información de ${nodo.nombre}`);
   const cabecera = document.createElement("p");
   cabecera.textContent = "PERSONAJES AQUÍ";
@@ -449,6 +450,7 @@ function cerrarCartaUbicacion() {
   modalUbicacion.hidden = true;
   modalContextualTitulo.textContent = "";
   modalContextualDetalle.innerHTML = "";
+  modalContextualDetalle.classList.remove("modo-sospecha-compacta");
   imagenUbicacion.src = "";
   imagenUbicacion.alt = "";
   imagenUbicacion.hidden = false;
@@ -749,6 +751,7 @@ function verPersonaje(personajeId, activador) {
   const nombre = (jugador && jugador.personaje) || datos.nombre || personajeId;
   modalContextualTitulo.textContent = nombre;
   modalContextualDetalle.innerHTML = "";
+  modalContextualDetalle.classList.remove("modo-sospecha-compacta");
   imagenUbicacion.src = (RECURSOS_VISUALES[personajeId] || {}).principal || "";
   imagenUbicacion.alt = nombre;
   imagenUbicacion.hidden = false;
@@ -857,6 +860,7 @@ function pintarVistaSospecha(sala, ubicacionId) {
   modalContextualTitulo.textContent = aqui
     ? `SOSPECHA EN ${aqui.toUpperCase()}` : "FORMULAR SOSPECHA";
   modalContextualDetalle.innerHTML = "";
+  modalContextualDetalle.classList.add("modo-sospecha-compacta");
   imagenUbicacion.src = "";
   imagenUbicacion.alt = "";
   imagenUbicacion.hidden = true;
@@ -873,11 +877,12 @@ function pintarVistaSospecha(sala, ubicacionId) {
   function crearGrupoSelector(categoria) {
     const grupo = document.createElement("div");
     grupo.className = "selector-cartas-sospecha";
+    grupo.dataset.categoria = categoria;
     grupo.setAttribute("role", "group");
     cartas.filter((carta) => carta.categoria === categoria).forEach((carta) => {
       const esPropia = cartasPropias.has(carta.id);
       const fueVista = carta.estado === "vista";
-      const boton = crearCartaVisual(carta, { esPropia, fueVista, alPulsar: () => {
+      const boton = crearCartaVisual(carta, { esPropia, fueVista, mostrarNombre: false, alPulsar: () => {
         Array.from(grupo.children).forEach((opcion) => {
           opcion.classList.remove("seleccionada");
           opcion.setAttribute("aria-pressed", "false");
@@ -888,19 +893,20 @@ function pintarVistaSospecha(sala, ubicacionId) {
         else objetoSeleccionado = carta.id;
         confirmar.disabled = !sospechosoSeleccionado || !objetoSeleccionado;
       } });
+      boton.classList.add("carta-sospecha-compacta");
       grupo.appendChild(boton);
     });
     return grupo;
   }
 
   const etiquetaS = document.createElement("label");
-  etiquetaS.textContent = "¿DE QUIÉN SOSPECHAS?";
+  etiquetaS.textContent = "¿QUIÉN ESCONDIÓ EL MEDALLÓN?";
   modalContextualDetalle.appendChild(etiquetaS);
   const grupoSospechosos = crearGrupoSelector("sospechoso");
   grupoSospechosos.setAttribute("aria-label", "Selecciona un sospechoso");
   modalContextualDetalle.appendChild(grupoSospechosos);
   const etiquetaO = document.createElement("label");
-  etiquetaO.textContent = "¿CON QUÉ OBJETO?";
+  etiquetaO.textContent = "¿DÓNDE ESCONDIÓ EL MEDALLÓN?";
   modalContextualDetalle.appendChild(etiquetaO);
   const grupoObjetos = crearGrupoSelector("objeto");
   grupoObjetos.setAttribute("aria-label", "Selecciona un objeto");

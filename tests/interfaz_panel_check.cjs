@@ -299,11 +299,16 @@ ok(
 ok(gruposCartas[0].children.length === 6, "selector visual muestra los 6 personajes");
 ok(gruposCartas[1].children.length === 6, "selector visual muestra los 6 objetos");
 ok(gruposCartas.every((grupo) => grupo.children.every((carta) =>
+  carta.classList.contains("carta-sospecha-compacta") &&
   !carta.classList.contains("carta-visual-compacta"))),
-"FORMULAR SOSPECHA conserva cartas de tamaño normal");
+"FORMULAR SOSPECHA usa su variante compacta sin alterar Investigación");
 ok(gruposCartas.every((grupo) => grupo.children.every((carta) =>
-  carta.children.some((hijo) => hijo.className === "carta-selector-nombre"))),
-"FORMULAR SOSPECHA conserva los nombres visibles de 8B.9");
+  !carta.children.some((hijo) => hijo.className === "carta-selector-nombre") &&
+  String(carta.getAttribute("aria-label") || "").length > 0)),
+"FORMULAR SOSPECHA elimina nombres inferiores y conserva nombres accesibles");
+ok($("modal-contextual-detalle").textContent.includes("¿QUIÉN ESCONDIÓ EL MEDALLÓN?") &&
+  $("modal-contextual-detalle").textContent.includes("¿DÓNDE ESCONDIÓ EL MEDALLÓN?"),
+"sospecha utiliza la narrativa visible del Medallón");
 const veraVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "vera");
 const brunoVisual = gruposCartas[0].children.find((b) => b.dataset.cartaId === "bruno");
 const baulVisual = gruposCartas[1].children.find((b) => b.dataset.cartaId === "baul-imperial");

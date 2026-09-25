@@ -133,8 +133,10 @@ ok(/nth-child\(1\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css) &&
   /nth-child\(2\)[^}]*repeat\(9, minmax\(0, 1fr\)\)/s.test(css) &&
   /nth-child\(3\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css),
   "grids de Investigación distribuyen 6/9/6 sin overflow horizontal");
-ok(/\.selector-cartas-sospecha\s*\{[^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css),
-  "el selector de sospecha conserva sus 6 columnas y tamaño normal");
+ok(/\.selector-cartas-sospecha\s*\{[^}]*repeat\(6, minmax\(0, 170px\)\)/s.test(css) &&
+  /data-categoria="sospechoso"[^}]*height:\s*125px/s.test(css) &&
+  /data-categoria="objeto"[^}]*height:\s*115px/s.test(css),
+  "el selector de sospecha usa 6 columnas grandes controladas");
 ok(/nth-child\(1\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*80px/s.test(css) &&
   /nth-child\(2\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*84px/s.test(css) &&
   /nth-child\(3\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*78px/s.test(css),
