@@ -9,7 +9,7 @@ import asyncio
 import time
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -274,12 +274,9 @@ def inicio(request: Request):
 def ver_sala(request: Request, codigo: str):
     sala = gestor.obtener(codigo)
     if sala is None:
-        return plantillas.TemplateResponse(
-            request,
-            "inicio.html",
-            {"error": "La sala no existe. Revisa el código."},
-            status_code=404,
-        )
+        # Sala caducada o inexistente: portada limpia sin error inicial.
+        # El error solo aparece tras pulsar UNIRSE con un código fallido.
+        return RedirectResponse(url="/", status_code=303)
     return plantillas.TemplateResponse(
         request, "sala.html", {"codigo": sala.codigo}
     )

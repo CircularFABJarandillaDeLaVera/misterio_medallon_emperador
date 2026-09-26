@@ -58,7 +58,7 @@ $("btn-unirse").addEventListener("click", async () => {
     return;
   }
   if (!codigo) {
-    $("error").textContent = "Escribe el código de la sala.";
+    $("error").textContent = "INTRODUCE UN CÓDIGO DE SALA.";
     return;
   }
   const respuesta = await fetch(`/api/partidas/${encodeURIComponent(codigo)}/unirse`, {
@@ -67,7 +67,9 @@ $("btn-unirse").addEventListener("click", async () => {
     body: JSON.stringify({ alias }),
   });
   if (!respuesta.ok) {
-    $("error").textContent = await leerError(respuesta);
+    $("error").textContent = respuesta.status === 404
+      ? "LA SALA NO EXISTE. REVISA EL CÓDIGO."
+      : await leerError(respuesta);
     return;
   }
   const datos = await respuesta.json();
