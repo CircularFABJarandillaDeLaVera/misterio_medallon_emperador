@@ -1085,9 +1085,15 @@ img {
 
 /* Layout Desktop (min-width: 900px) */
 @media (min-width: 900px) {
+  /* Token único: la retícula lateral y el control global ⛶ comparten
+     el ancho de la columna derecha (8B.19). */
+  body.en-partida {
+    --columna-derecha: 320px;
+  }
+
   #zona-juego {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(260px, 320px);
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, var(--columna-derecha, 320px));
     gap: 16px;
     align-items: stretch;
     margin: 0;
@@ -1448,6 +1454,71 @@ select.portada-campo option {
    su encuadre y el fondo quedan intactos. Los formularios
    permanentes desaparecen: los campos viven en los modales.
    ============================================================ */
+
+/* ============================================================
+   FASE 8B.19 — Control global de pantalla completa.
+   Pertenece al CONTENEDOR (marco canónico de cada vista), no al
+   flujo: se posiciona respecto a su marco en la esquina inferior
+   derecha (patrón reproductor), sin reservar altura ni alterar la
+   geometría aprobada.
+   Selector con doble clase para ganar a `.medallon { position }`.
+   ============================================================ */
+
+/* Marcos canónicos: el control se apoya en ellos. */
+body.portada .portada-escena,
+body:not(.portada) .tarjeta {
+  position: relative;
+}
+
+.medallon.control-pantalla-completa {
+  position: absolute;
+  bottom: 10px;
+  /* Token único de layout: 0 por defecto; en partida con panel lateral
+     vale el ancho de la columna derecha, más el padding del marco y
+     una holgura, para no tapar sus controles. */
+  right: calc(var(--columna-derecha, 0px) + 24px);
+  z-index: 40;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
+
+.control-pantalla-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: rgba(232, 199, 102, 0.9);
+}
+
+.control-pantalla-icono[hidden] {
+  display: none;
+}
+
+.control-pantalla-icono svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* En pantallas estrechas sigue dentro del marco, con zona táctil fija. */
+@media (max-width: 480px) {
+  .medallon.control-pantalla-completa {
+    bottom: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .control-pantalla-icono {
+    width: 18px;
+    height: 18px;
+  }
+}
 
 /* ============================================================
    FASE 8B.18 — Ajuste visual final de Inicio: una única composición

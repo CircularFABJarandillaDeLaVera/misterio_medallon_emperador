@@ -172,8 +172,10 @@ vm.createContext(sandbox);
     "la plantilla invalida la caché del renderer Canvas animado");
   ok(html.includes('/static/js/sala.js?v=8b17g'),
     "la plantilla invalida la caché de la confirmación visual de resolución");
-  ok(html.includes('/static/css/estilos.css?v=8b17g'),
+  ok(html.includes('/static/css/estilos.css?v=8b19'),
     "la plantilla invalida la caché de los estilos de confirmación");
+  ok(html.includes('/static/js/pantalla_completa.js?v=8b19'),
+    "la plantilla incluye el control global de pantalla completa");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 

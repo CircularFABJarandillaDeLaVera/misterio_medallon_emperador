@@ -29,6 +29,27 @@ def test_1_layout_escritorio_tablero_mas_panel():
     )
 
 
+def test_control_global_de_pantalla_completa_en_portada_y_sala():
+    """8B.19: un único control global compartido por ambas pantallas."""
+    inicio = (RAIZ / "app" / "templates" / "inicio.html").read_text(encoding="utf-8")
+    script = "/static/js/pantalla_completa.js?v=8b19"
+    assert script in inicio
+    assert script in SALA_HTML
+    control = (
+        RAIZ / "app" / "static" / "js" / "pantalla_completa.js"
+    ).read_text(encoding="utf-8")
+    # Fullscreen API estándar, sincronía por evento y degradación sin soporte.
+    assert "requestFullscreen" in control
+    assert "fullscreenchange" in control
+    assert "Pantalla completa" in control
+    assert "Salir de pantalla completa" in control
+    # Un solo módulo: no se reimplementa dentro de inicio.js ni sala.js.
+    assert "requestFullscreen" not in SALA_JS
+    assert "requestFullscreen" not in (
+        RAIZ / "app" / "static" / "js" / "inicio.js"
+    ).read_text(encoding="utf-8")
+
+
 def test_2_movil_vertical_sin_overflow():
     assert re.search(r"@media\s*\(min-width:\s*900px\)", CSS)
     assert "min-height: 44px" in CSS
