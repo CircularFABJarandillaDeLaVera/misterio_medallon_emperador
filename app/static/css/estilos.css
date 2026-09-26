@@ -1630,10 +1630,10 @@ body:not(.portada) .tarjeta {
   }
 }
 
-/* Móvil/vertical: el panel se apila a ancho completo y llega al borde
+/* Móvil vertical: el panel se apila a ancho completo y llega al borde
    inferior del marco, de modo que la esquina interior está ocupada
    (medido: solapa con RESOLVER). Ahí el control se ancla al viewport,
-   whose free space keeps it accessible sin tocar el layout. */
+   cuyo espacio libre lo mantiene accesible sin tocar el layout. */
 @media (max-width: 899px) {
   body.en-partida .medallon.control-pantalla-completa {
     position: fixed;
@@ -1641,7 +1641,125 @@ body:not(.portada) .tarjeta {
 }
 
 /* ============================================================
-   FASE 8B.20 — Tablero protagonista (apaisado).
+   FASE 8B.23 — Partida en móvil horizontal (landscape).
+   Mismo patrón que escritorio: VIEWPORT → CONTENEDOR LIMITADO →
+   CONTROLES → PROTAGONISTA (tablero) ocupa el resto. Solo cambia
+   la MEDIA QUERY: el móvil vertical conserva su composición.
+   Detección por CSS: apaisado y bajo (orientation + height).
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 560px) {
+  body.en-partida {
+    /* Caja cerrada del viewport, con padding landscape y sin scroll. */
+    display: block;
+    height: 100dvh;
+    min-height: 0;
+    padding: 4px calc(6px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom))
+      calc(6px + env(safe-area-inset-left));
+    overflow: hidden;
+  }
+
+  body.en-partida .contenedor {
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  body.en-partida .tarjeta {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 6px;
+  }
+
+  body.en-partida #partida {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TABLERO | PANEL, como en escritorio, también en apaisado.
+     La pista del tablero es `auto` y se dimensiona con cqh de esta
+     misma zona (altura ya computable): sin medidas mágicas y sin
+     dependencia circular del ancho. */
+  body.en-partida #zona-juego {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    container-type: size;
+  }
+
+  body.en-partida #zona-juego > #tablero-visual {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body.en-partida #zona-juego > #panel-contextual {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* Registro de la última jugada: a ancho completo, sin robrows. */
+  body.en-partida #zona-juego > #jugada {
+    grid-column: 1 / -1;
+  }
+
+  body.en-partida .tablero-visual {
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    /* A ≥900px de ancho también aplica el bloque de escritorio, que
+       deja container-type:size; con contain:size la pista `auto` no
+       puede tomar el tamaño intrínseco del tablero (colapsa a 0). */
+    container-type: normal;
+  }
+
+  /* Cuadrado exacto desde la altura disponible; el ancho sale de la
+     proporción. Sin container query anidado (circular con pista auto). */
+  @supports (width: 1cqh) {
+    body.en-partida .tablero-canvas-contenedor {
+      width: 100cqh;
+      height: 100cqh;
+      margin: auto;
+    }
+  }
+
+  body.en-partida .tablero-canvas-contenedor {
+    aspect-ratio: 1;
+    margin: auto;
+  }
+
+  /* Panel: mismo ancho restante, hugging de contenido (no columna forzada).
+     Con muchas acciones (p. ej. 8 destinos) el scroll es INTERNO del
+     panel: el documento de juego no se mueve. */
+  body.en-partida .panel-contextual {
+    align-self: start;
+    height: auto;
+    max-height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  body.en-partida #tablero-ayuda {
+    display: none;
+  }
+
+  /* El control ⛶ vuelve al marco: ya no hay panel a ancho completo. */
+  body.en-partida .medallon.control-pantalla-completa {
+    position: absolute;
+    bottom: calc(4px + env(safe-area-inset-bottom));
+    right: calc(4px + env(safe-area-inset-right));
+  }
+}
+
 /* ============================================================
    FASE 8B.18 — Ajuste visual final de Inicio: una única composición
    centrada (cartel + acciones), escala comparable al lobby.

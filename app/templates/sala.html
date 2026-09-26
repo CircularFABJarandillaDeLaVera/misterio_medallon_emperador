@@ -21,7 +21,7 @@
         <div id="bloque-codigo">
           <p class="lobby-sala-linea">SALA · <span class="codigo-sala codigo-sala-compacto" id="codigo">{{ codigo }}</span>
           <span id="contador-jugadores" class="lobby-contador">👥 1/6</span>
-          <button id="btn-copiar-codigo" type="button" class="secundario discreto">COPIAR CÓDIGO</button></p>
+          <button id="btn-copiar-codigo" type="button" class="medallon medallon-fantasma medallon-compacto">COPIAR CÓDIGO</button></p>
         </div>
       </header>
 
@@ -53,7 +53,7 @@
               <div id="destinos-movimiento"></div>
             </div>
             <div id="vista-contextual" class="grupo-cartas" hidden></div>
-            <button id="btn-sospecha" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
+            <button id="btn-sospecha" class="medallon medallon-primario medallon-compacto" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
             <div id="final-partida" class="grupo-cartas" hidden></div>
             <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
               <button id="btn-ver-cartas" type="button" class="medallon medallon-secundario medallon-compacto" title="Mis cartas" hidden>CARTAS</button>
@@ -79,8 +79,8 @@
           <div id="resolver-grupo-lugar" class="selector-cartas-resolver" data-categoria="lugar" role="group" aria-label="Selecciona un lugar"></div>
           <p class="resolver-pregunta">¿DÓNDE LO ESCONDIÓ?</p>
           <div id="resolver-grupo-objeto" class="selector-cartas-resolver" data-categoria="objeto" role="group" aria-label="Selecciona un escondite"></div>
-          <button id="btn-confirmar-resolver" type="button">CONTINUAR</button>
-          <button id="btn-cancelar-resolver" type="button" class="secundario">CANCELAR</button>
+          <button id="btn-confirmar-resolver" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
+          <button id="btn-cancelar-resolver" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
         </div>
       </div>
       <div id="modal-confirmar-resolver" class="modal" hidden>
@@ -88,8 +88,8 @@
           <h2>🏆 ¿RESOLVER EL MISTERIO?</h2>
           <div id="conf-resolver-cartas" class="conf-resolver-cartas" role="group" aria-label="Tu acusación definitiva"></div>
           <p class="nota-privada">Si la acusación es incorrecta quedarás eliminado como investigador.</p>
-          <button id="btn-enviar-resolver" type="button">RESOLVER EL MISTERIO</button>
-          <button id="btn-cancelar-confirmar-resolver" type="button" class="secundario">CANCELAR</button>
+          <button id="btn-enviar-resolver" class="medallon medallon-primario medallon-compacto" type="button">RESOLVER EL MISTERIO</button>
+          <button id="btn-cancelar-confirmar-resolver" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
         </div>
       </div>
       <div id="modal-sospecha" class="modal" hidden>
@@ -99,7 +99,7 @@
           <label>LUGAR<select id="sospecha-lugar"></select></label>
           <label>OBJETO<select id="sospecha-objeto"></select></label>
           <button id="btn-confirmar-sospecha" type="button">CONFIRMAR SOSPECHA</button>
-          <button id="btn-cancelar-sospecha" type="button" class="secundario">CANCELAR</button>
+          <button id="btn-cancelar-sospecha" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
         </div>
       </div>
       <div id="modal-refutacion" class="modal" hidden>
@@ -117,7 +117,7 @@
           <img id="revelacion-carta-imagen" alt="" />
           <p id="revelacion-carta-nombre"></p>
           <p class="nota-privada">Esta carta queda anotada en tu investigación.</p>
-          <button id="btn-continuar-revelacion" type="button">CONTINUAR</button>
+          <button id="btn-continuar-revelacion" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
         </div>
       </div>
       <div id="modal-cartas" class="modal" hidden>
@@ -125,7 +125,7 @@
           <h2>MIS CARTAS</h2>
           <p class="nota-privada">Privadas: solo tú puedes verlas.</p>
           <div id="mis-cartas"></div>
-          <button id="btn-cerrar-cartas" type="button">VOLVER A LA PARTIDA</button>
+          <button id="btn-cerrar-cartas" class="medallon medallon-fantasma medallon-compacto" type="button">VOLVER A LA PARTIDA</button>
         </div>
       </div>
       <div id="modal-ubicacion" class="modal" hidden>
@@ -133,8 +133,8 @@
           <h2 id="modal-contextual-titulo"></h2>
           <img id="imagen-ubicacion" alt="" />
           <div id="modal-contextual-detalle"></div>
-          <button id="btn-mover-ubicacion-canvas" type="button" hidden>MOVER AQUÍ</button>
-          <button id="btn-cerrar-ubicacion" type="button">CERRAR</button>
+          <button id="btn-mover-ubicacion-canvas" class="medallon medallon-primario" type="button" hidden>MOVER AQUÍ</button>
+          <button id="btn-cerrar-ubicacion" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
         </div>
       </div>
       <div id="modal-hoja" class="modal" hidden>
@@ -142,7 +142,7 @@
           <h2>HOJA DE INVESTIGACIÓN</h2>
           <p class="nota-privada">Toca una carta para marcarla como descartada.</p>
           <div id="hoja"></div>
-          <button id="btn-cerrar-hoja" type="button">VOLVER A LA PARTIDA</button>
+          <button id="btn-cerrar-hoja" class="medallon medallon-fantasma medallon-compacto" type="button">VOLVER A LA PARTIDA</button>
           <p id="error-hoja" class="error"></p>
         </div>
       </div>

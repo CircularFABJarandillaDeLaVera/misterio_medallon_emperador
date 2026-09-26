@@ -414,6 +414,7 @@ function abrirCartaUbicacion(nodo, activador) {
   if (puedeSospecharAqui) {
     const sospechar = document.createElement("button");
     sospechar.type = "button";
+    sospechar.className = "medallon medallon-primario medallon-compacto";
     sospechar.textContent = "FORMULAR SOSPECHA";
     sospechar.addEventListener("click", () => verSospecha(nodo.id));
     modalContextualDetalle.appendChild(sospechar);
@@ -707,6 +708,7 @@ function pintarMovimiento(sala) {
   (movimiento.destinos || []).forEach((destino) => {
     const boton = document.createElement("button");
     boton.type = "button";
+    boton.className = "medallon medallon-primario medallon-compacto";
     boton.textContent = destino.nombre;
     boton.addEventListener("click", () => {
       boton.disabled = true;
@@ -753,6 +755,7 @@ function verPersonaje(personajeId, activador) {
   if (esPersonajePropio) {
     const investigacion = document.createElement("button");
     investigacion.type = "button";
+    investigacion.className = "medallon medallon-secundario medallon-compacto";
     investigacion.textContent = "INVESTIGACIÓN";
     investigacion.addEventListener("click", abrirHoja);
     modalContextualDetalle.appendChild(investigacion);
@@ -898,6 +901,7 @@ function pintarVistaSospecha(sala, ubicacionId) {
   modalContextualDetalle.appendChild(grupoObjetos);
   const confirmar = document.createElement("button");
   confirmar.type = "button";
+  confirmar.className = "medallon medallon-primario medallon-compacto";
   confirmar.textContent = "CONFIRMAR SOSPECHA";
   confirmar.disabled = true;
   confirmar.addEventListener("click", () => {
@@ -917,7 +921,7 @@ function pintarVistaSospecha(sala, ubicacionId) {
   modalContextualDetalle.appendChild(confirmar);
   const volver = document.createElement("button");
   volver.type = "button";
-  volver.className = "secundario";
+  volver.className = "medallon medallon-fantasma medallon-compacto";
   volver.textContent = "VOLVER";
   volver.addEventListener("click", () => {
     const ubicacion = nodoUbicacion(ubicacionContextualId);
