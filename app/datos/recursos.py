@@ -56,7 +56,7 @@ def _entrada(carta: dict, carpeta: str, extension: str) -> dict:
 RECURSOS_VISUALES = {
     **{c["id"]: _entrada(c, "personajes", "png") for c in SOSPECHOSOS},
     **{c["id"]: _entrada(c, "lugares", "jpeg") for c in LUGARES},
-    **{c["id"]: _entrada(c, "objetos", "jpeg") for c in OBJETOS},
+    **{c["id"]: _entrada(c, "objetos", "png") for c in OBJETOS},
 }
 
 RECURSO_TABLERO = f"{URL_IMG}/tablero/tablero.png"
