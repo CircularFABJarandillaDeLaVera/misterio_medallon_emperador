@@ -1085,8 +1085,7 @@ img {
 
 /* Layout Desktop (min-width: 900px) */
 @media (min-width: 900px) {
-  /* Token único: la retícula lateral y el control global ⛶ comparten
-     el ancho de la columna derecha (8B.19). */
+  /* Token único: la retícula lateral comparte su ancho. */
   body.en-partida {
     --columna-derecha: 320px;
   }
@@ -1472,11 +1471,11 @@ body:not(.portada) .tarjeta {
 
 .medallon.control-pantalla-completa {
   position: absolute;
+  /* Esquina inferior derecha interior del marco (patrón reproductor).
+     Una sola posición para todas las vistas: desde 8B.21 el panel ya
+     no ocupa el fondo, así que no hace falta desplazarlo. */
   bottom: 10px;
-  /* Token único de layout: 0 por defecto; en partida con panel lateral
-     vale el ancho de la columna derecha, más el padding del marco y
-     una holgura, para no tapar sus controles. */
-  right: calc(var(--columna-derecha, 0px) + 24px);
+  right: 10px;
   z-index: 40;
   width: 44px;
   height: 44px;
@@ -1520,6 +1519,129 @@ body:not(.portada) .tarjeta {
   }
 }
 
+/* ============================================================
+   FASE 8B.21 — Panel derecho de partida (apaisado).
+   Sin HTML nuevo ni alturas mágicas: el panel es una columna flex
+   que se adapta a su alto. El bloque de turno (estado + acción)
+   se centra en el espacio libre, así el vacío se reparte arriba y
+   abajo en lugar de acumularse en el centro; el pie de herramientas
+   sigue anclado abajo. Si la lista de destinos crece, el bloque
+   encoge y hace scroll interno: nunca crece el documento.
+   Jerarquía heredada: oro = acción del turno, transparente = herramientas.
+   ============================================================ */
+@media (min-width: 900px) {
+  /* El panel deja de ser una columna vacía: su alto es el de su
+     contenido en cada fase (antes de tirar, con destinos, sospecha
+     o final). El tablero queda como protagonista del espacio. */
+  body.en-partida .panel-contextual {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-self: start;
+    /* La base fija height:100%; aquí el alto lo dicta el contenido. */
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Zonas de contenido: pueden encogerse y desplazarse dentro. */
+  body.en-partida .panel-contextual > #movimiento,
+  body.en-partida .panel-contextual > #vista-contextual,
+  body.en-partida .panel-contextual > #btn-sospecha,
+  body.en-partida .panel-contextual > #final-partida {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  /* Pie de herramientas siempre visible, ya sin anclaje al fondo. */
+  body.en-partida .panel-contextual > #barra-herramientas {
+    flex: 0 0 auto;
+    margin-top: 0;
+  }
+
+  /* Acción inmediata del turno: manda en jerarquía (8B.21). */
+  body.en-partida .panel-contextual #movimiento button {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   FASE 8B.20 — Tablero protagonista (apaisado).
+   Patrón de la skill: VIEWPORT → CONTENEDOR LIMITADO → CONTROLES
+   → PROTAGONISTA (tablero) ocupa todo el resto. Sin alturas
+   mágicas: la altura se propaga desde el viewport y el tablero
+   cuadrado se ajusta al espacio disponible (sin crop ni deformación).
+   Solo desktop/apaisado; el responsive estrecho queda intacto.
+   ============================================================ */
+@media (min-width: 900px) {
+  body.en-partida {
+    height: 100dvh;
+    min-height: 0;
+    padding: 8px 12px;
+    align-items: stretch;
+    /* Salvaguarda: con la geometría inferior el contenido cabe
+       (verificado); nunca se oculta contenido que desborde. */
+    overflow: hidden;
+  }
+
+  body.en-partida .contenedor {
+    max-width: 1600px;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+  }
+
+  body.en-partida .tarjeta {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.en-partida #partida {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.en-partida #zona-juego {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  body.en-partida .tablero-visual {
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    /* Container de tamaño: el tablero cuadrado se ajusta al hueco real
+       (min de ancho y alto) sin alturas mágicas ni deformación. */
+    container-type: size;
+  }
+
+  @supports (width: 1cqh) {
+    body.en-partida .tablero-canvas-contenedor {
+      width: min(100cqw, 100cqh);
+      height: min(100cqw, 100cqh);
+      margin: auto;
+    }
+  }
+}
+
+/* Móvil/vertical: el panel se apila a ancho completo y llega al borde
+   inferior del marco, de modo que la esquina interior está ocupada
+   (medido: solapa con RESOLVER). Ahí el control se ancla al viewport,
+   whose free space keeps it accessible sin tocar el layout. */
+@media (max-width: 899px) {
+  body.en-partida .medallon.control-pantalla-completa {
+    position: fixed;
+  }
+}
+
+/* ============================================================
+   FASE 8B.20 — Tablero protagonista (apaisado).
 /* ============================================================
    FASE 8B.18 — Ajuste visual final de Inicio: una única composición
    centrada (cartel + acciones), escala comparable al lobby.
@@ -1612,6 +1734,13 @@ body.portada .portada-menu > .medallon:not(.medallon-compacto) {
   width: 22px;
   height: 22px;
   color: #e8c766;
+}
+
+/* El componente pinta con display:inline-flex, que anularía el [hidden]
+   del navegador. Esta línea conserva el ocultado por atributo en todas
+   las vistas (8B.21: los mismos botones se muestran y ocultan aquí). */
+.medallon[hidden] {
+  display: none;
 }
 
 /* Acción principal: oro metálico multicapa (reflejo / oro / bronce). */
