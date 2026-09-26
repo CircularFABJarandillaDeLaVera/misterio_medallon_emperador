@@ -129,18 +129,21 @@ vm.runInContext(fs.readFileSync(rutaSala, "utf8"), sandbox, {
 const pintarHoja = sandbox.pintarHoja;
 ok(typeof pintarHoja === "function", "pintarHoja existe en sala.js");
 const css = fs.readFileSync(path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
-ok(/nth-child\(1\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css) &&
+ok(/nth-child\(1\)[^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css) &&
   /nth-child\(2\)[^}]*repeat\(9, minmax\(0, 1fr\)\)/s.test(css) &&
-  /nth-child\(3\)[^}]*repeat\(6, minmax\(0, 108px\)\)/s.test(css),
+  /nth-child\(3\)[^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css),
   "grids de Investigación distribuyen 6/9/6 sin overflow horizontal");
+ok(/#modal-hoja \.modal-caja\s*\{[^}]*width:\s*calc\(100dvw - 12px\)[^}]*height:\s*calc\(100dvh - 12px\)[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto/s.test(css) &&
+  /#modal-hoja #hoja\s*\{[^}]*grid-template-rows:\s*repeat\(3, minmax\(0, 1fr\)\)/s.test(css),
+  "Investigación limita el contenedor por viewport y cede el resto a las tres zonas");
 ok(/\.selector-cartas-sospecha\s*\{[^}]*repeat\(6, minmax\(0, 170px\)\)/s.test(css) &&
   /data-categoria="sospechoso"[^}]*height:\s*125px/s.test(css) &&
   /data-categoria="objeto"[^}]*height:\s*115px/s.test(css),
   "el selector de sospecha usa 6 columnas grandes controladas");
-ok(/nth-child\(1\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*80px/s.test(css) &&
-  /nth-child\(2\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*84px/s.test(css) &&
-  /nth-child\(3\)[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*78px/s.test(css),
-  "Investigación controla la altura 80/84/78 de sus tres categorías");
+ok(/\.carta-visual-compacta\s*\{[^}]*height:\s*100%/s.test(css) &&
+  /\.carta-visual-compacta img\s*\{[^}]*height:\s*100%/s.test(css) &&
+  !/#hoja[^}]*\.carta-visual-compacta img\s*\{[^}]*height:\s*(?:80|84|78)px/s.test(css),
+  "Investigación deja crecer las cartas con su zona sin alturas fijas por categoría");
 ok(/\.carta-visual-compacta img\s*\{[^}]*aspect-ratio:\s*auto[^}]*object-fit:\s*contain/s.test(css),
   "miniaturas compactas no se deforman ni heredan la proporción alta");
 

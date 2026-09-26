@@ -172,7 +172,7 @@ vm.createContext(sandbox);
     "la plantilla invalida la caché del renderer Canvas animado");
   ok(html.includes('/static/js/sala.js?v=8b26b'),
     "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/css/estilos.css?v=8b26b'),
+  ok(html.includes('/static/css/estilos.css?v=8b27'),
     "la plantilla invalida la caché del popup contextual visual");
   ok(html.includes('/static/js/pantalla_completa.js?v=8b19'),
     "la plantilla incluye el control global de pantalla completa");
