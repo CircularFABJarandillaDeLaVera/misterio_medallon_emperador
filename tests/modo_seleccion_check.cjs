@@ -1,4 +1,5 @@
-/* Harness del flujo real de la portada: selector -> fetch POST /api/partidas.
+/* Harness del flujo real de la portada 8B.15: NUEVA PARTIDA abre popup,
+   CREAR PARTIDA hace fetch POST /api/partidas con alias + modo.
    Uso: node tests/modo_seleccion_check.cjs */
 "use strict";
 
@@ -12,22 +13,34 @@ function ok(condicion, nombre) {
   if (!condicion) fallos += 1;
 }
 
-function elemento() {
+function elemento(id) {
   return {
+    id,
     value: "",
     textContent: "",
+    hidden: id === "modal-nueva" || id === "modal-unirse" || id === "envoltorio-modo",
+    disabled: false,
     _oyentes: {},
     addEventListener(evento, fn) {
       this._oyentes[evento] = fn;
+    },
+    focus() {},
+    click() {
+      if (this._oyentes.click) return this._oyentes.click();
     },
   };
 }
 
 const elementos = {};
 const documentStub = {
+  activeElement: null,
+  _global: {},
   getElementById(id) {
-    if (!elementos[id]) elementos[id] = elemento();
+    if (!elementos[id]) elementos[id] = elemento(id);
     return elementos[id];
+  },
+  addEventListener(evento, fn) {
+    this._global[evento] = fn;
   },
 };
 
@@ -57,13 +70,19 @@ vm.runInContext(
 );
 
 async function crearCon(modo) {
+  // Flujo 8B.15: NUEVA PARTIDA abre el popup, CREAR PARTIDA envía el POST.
+  await elementos["btn-nueva"].click();
   documentStub.getElementById("alias").value = "Host";
   documentStub.getElementById("modo").value = modo;
-  await elementos["btn-nueva"]._oyentes.click();
+  await elementos["btn-crear"].click();
   return peticiones.at(-1);
 }
 
 (async () => {
+  ok(elementos["btn-nueva"] && elementos["btn-unirse"], "portada expone NUEVA y UNIRSE");
+  await elementos["btn-nueva"].click();
+  ok(elementos["modal-nueva"].hidden === false, "NUEVA PARTIDA abre su popup");
+
   const rapido = await crearCon("rapido");
   const tablero = await crearCon("tablero");
 
@@ -82,6 +101,14 @@ async function crearCon(modo) {
   ok(
     JSON.parse(tablero.opciones.body).alias === "Host",
     "el payload conserva el alias junto al modo"
+  );
+
+  // CANCELAR no hace fetch.
+  const antes = peticiones.length;
+  await elementos["btn-cancelar-nueva"].click();
+  ok(
+    peticiones.length === antes && elementos["modal-nueva"].hidden === true,
+    "CANCELAR cierra sin crear partida"
   );
 
   if (fallos) process.exitCode = 1;

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
   <title>El misterio del medallón — Juego de misterio y deducción</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b14" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b15b" />
 </head>
 <body class="portada">
   <!-- FONDO DEFINITIVO PENDIENTE: esta capa queda preparada para recibir la
@@ -25,41 +25,65 @@
     </header>
 
     <section class="portada-menu" aria-label="Menú principal">
-      {% if error %}<p class="error">{{ error }}</p>{% endif %}
-
-      <label class="portada-etiqueta" for="alias">Tu alias</label>
-      <input id="alias" class="portada-campo" type="text" maxlength="20" autocomplete="off"
-             placeholder="Ej. Paco" />
-
-      <div class="portada-columnas">
-        <div class="portada-bloque">
-          <div id="envoltorio-modo" hidden>
-            <label class="portada-etiqueta" for="modo">Modo de partida</label>
-            <select id="modo" class="portada-campo">
-              <option value="tablero" selected>MODO TABLERO</option>
-              <option value="rapido">MODO RÁPIDO</option>
-            </select>
-          </div>
-          <button id="btn-nueva" class="portada-btn portada-btn-primario" type="button">
-            <span class="portada-glyph" aria-hidden="true">▶</span> NUEVA PARTIDA
-          </button>
-        </div>
-
-        <p class="portada-o" aria-hidden="true"><span>o</span></p>
-
-        <div class="portada-bloque">
-          <label class="portada-etiqueta" for="codigo">Código de sala</label>
-          <input id="codigo" class="portada-campo portada-codigo" type="text" autocomplete="off"
-                 placeholder="JARA-XXXX" style="text-transform: uppercase" />
-          <button id="btn-unirse" class="portada-btn portada-btn-secundario" type="button">
-            ÚNETE CON UN CÓDIGO
-          </button>
-        </div>
-      </div>
-
-      <p id="error" class="error" role="alert"></p>
+      <button id="btn-nueva" class="medallon medallon-primario" type="button">
+        <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="12" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.7" />
+          <path d="M12 7.2l1.5 2.9 3.2.5-2.3 2.2.5 3.2-2.9-1.5-2.9 1.5.5-3.2-2.3-2.2 3.2-.5z"
+                fill="currentColor" opacity="0.9" />
+        </svg>
+        <span>NUEVA PARTIDA</span>
+      </button>
+      <button id="btn-unirse" class="medallon medallon-secundario" type="button">
+        <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="8" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12.5 12H21M18 12v3.2M21 12v2.2" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <span>UNIRSE A PARTIDA</span>
+      </button>
     </section>
   </main>
-  <script src="/static/js/inicio.js?v=8b14"></script>
+
+  <div id="modal-nueva" class="modal portada-modal" hidden>
+    <div class="modal-caja portada-modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-nueva">
+      <h2 id="titulo-nueva">NUEVA PARTIDA</h2>
+      <label class="portada-etiqueta" for="alias">TU ALIAS</label>
+      <input id="alias" class="portada-campo" type="text" maxlength="20" autocomplete="off"
+             placeholder="Ej. Paco" />
+      <div id="envoltorio-modo" hidden>
+        <label class="portada-etiqueta" for="modo">Modo de partida</label>
+        <select id="modo" class="portada-campo">
+          <option value="tablero" selected>MODO TABLERO</option>
+          <option value="rapido">MODO RÁPIDO</option>
+        </select>
+      </div>
+      <p class="portada-nota">LA PARTIDA REÚNE SIEMPRE 6 INVESTIGADORES.<br />PUEDE JUGAR DESDE 1 PERSONA Y COMPLETAR LAS PLAZAS RESTANTES CON PNJ.</p>
+      <p id="error-nueva" class="error" role="alert"></p>
+      <div class="portada-modal-acciones">
+        <button id="btn-crear" class="medallon medallon-primario medallon-compacto" type="button">CREAR PARTIDA</button>
+        <button id="btn-cancelar-nueva" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-unirse" class="modal portada-modal" hidden>
+    <div class="modal-caja portada-modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-unirse">
+      <h2 id="titulo-unirse">UNIRSE A PARTIDA</h2>
+      <label class="portada-etiqueta" for="codigo">CÓDIGO DE SALA</label>
+      <input id="codigo" class="portada-campo portada-codigo" type="text" autocomplete="off"
+             placeholder="JARA-XXXX" style="text-transform: uppercase" />
+      <label class="portada-etiqueta" for="alias-unirse">TU ALIAS</label>
+      <input id="alias-unirse" class="portada-campo" type="text" maxlength="20" autocomplete="off"
+             placeholder="Ej. Paco" />
+      <p id="error" class="error" role="alert"></p>
+      <div class="portada-modal-acciones">
+        <button id="btn-confirmar-unirse" class="medallon medallon-primario medallon-compacto" type="button">UNIRME</button>
+        <button id="btn-cancelar-unirse" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/inicio.js?v=8b15"></script>
 </body>
 </html>

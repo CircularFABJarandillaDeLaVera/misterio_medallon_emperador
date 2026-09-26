@@ -1387,46 +1387,6 @@ select.portada-campo option {
   background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.5), transparent);
 }
 
-.portada-btn {
-  width: 100%;
-  margin-top: 12px;
-  padding: 13px 16px;
-  min-height: 48px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  letter-spacing: 2px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: box-shadow 0.25s ease, background 0.25s ease, transform 0.15s ease;
-}
-
-.portada-btn-primario {
-  border: 1px solid var(--dorado-portada-claro);
-  background: linear-gradient(180deg, #dcbc55 0%, #c9a227 55%, #a37f1c 100%);
-  color: #141021;
-  box-shadow: 0 6px 26px rgba(201, 162, 39, 0.35);
-}
-
-.portada-btn-primario:hover {
-  box-shadow: 0 8px 34px rgba(201, 162, 39, 0.55);
-}
-
-.portada-btn-secundario {
-  background: transparent;
-  color: var(--dorado-portada-claro);
-  border: 1px solid rgba(201, 162, 39, 0.6);
-}
-
-.portada-btn-secundario:hover {
-  background: rgba(201, 162, 39, 0.12);
-  box-shadow: 0 4px 22px rgba(201, 162, 39, 0.25);
-}
-
-.portada-btn:active {
-  transform: scale(0.98);
-}
-
-.portada-btn:focus-visible,
 .portada-campo:focus-visible {
   outline: 2px solid var(--dorado-portada-claro);
   outline-offset: 2px;
@@ -1470,9 +1430,264 @@ select.portada-campo option {
   display: none;
 }
 
+/* ============================================================
+   FASE 8B.15 — Portada videojuego: dos botones + popups.
+   MICROFASE 8B.15A — Refinado medallón: chaflanes sutiles en
+   ::before, oro metálico multicapa, volumen reducido.
+   MICROAJUSTE 8B.15B — Chaflán 6px, alturas 62/50px.
+   Solo afecta a body.portada (pantalla inicial). El cartel,
+   su encuadre y el fondo quedan intactos. Los formularios
+   permanentes desaparecen: los campos viven en los modales.
+   ============================================================ */
+
+/* Menú inicial: solo dos acciones, centradas y con aire entre ellas. */
+body.portada .portada-menu {
+  gap: 22px;
+  padding: 24px 22px;
+}
+
+/* Familia reutilizable de controles "medallón": placa de juego
+   en azul noche / petróleo, oro envejecido y marfil. La silueta
+   con chaflanes sutiles vive en ::before (clip-path), de modo que
+   el botón conserva un contorno de foco rectangular y accesible.
+   Filetes, bisel y reflejos se construyen con degradados
+   multicapa + sombras interiores. Sin glow arcade. Sin PNG. */
+.medallon {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.95rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-align: center;
+  color: #f2ead8;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.18s ease;
+}
+
+.medallon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: polygon(
+    6px 0, calc(100% - 6px) 0, 100% 6px,
+    100% calc(100% - 6px), calc(100% - 6px) 100%,
+    6px 100%, 0 calc(100% - 6px), 0 6px
+  );
+  background:
+    linear-gradient(180deg, rgba(242, 234, 216, 0.1) 0%, rgba(242, 234, 216, 0) 20%, rgba(0, 0, 0, 0.3) 82%, rgba(0, 0, 0, 0.48) 100%),
+    linear-gradient(180deg, #1b4250 0%, #143441 35%, #0e2831 70%, #0a1f27 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 10, 0.9),
+    inset 0 0 0 3px rgba(201, 162, 39, 0.75),
+    inset 0 2px 2px rgba(242, 234, 216, 0.12),
+    inset 0 -5px 8px rgba(0, 0, 0, 0.5);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.medallon-icono {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: #e8c766;
+}
+
+/* Acción principal: oro metálico multicapa (reflejo / oro / bronce). */
+.medallon-primario {
+  color: #141021;
+}
+
+.medallon-primario::before {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 230, 0.55) 0%, rgba(255, 250, 230, 0.14) 22%, rgba(255, 250, 230, 0) 38%, rgba(90, 60, 5, 0.18) 72%, rgba(60, 40, 4, 0.38) 100%),
+    linear-gradient(180deg, #f3d46a 0%, #e2b93a 28%, #d6aa27 50%, #b98714 74%, #8f6810 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(43, 28, 4, 0.85),
+    inset 0 0 0 3px rgba(255, 244, 200, 0.6),
+    inset 0 2px 3px rgba(255, 255, 255, 0.5),
+    inset 0 -6px 10px rgba(70, 45, 5, 0.45);
+}
+
+.medallon-primario .medallon-icono {
+  color: #141021;
+}
+
+/* Acción secundaria: petróleo / azul noche, borde oro, texto claro. */
+.medallon-secundario {
+  color: #f2ead8;
+}
+
+.medallon:hover {
+  filter: drop-shadow(0 7px 14px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 8px rgba(201, 162, 39, 0.18));
+}
+
+.medallon:hover::before {
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 10, 0.9),
+    inset 0 0 0 3px rgba(232, 199, 102, 0.9),
+    inset 0 2px 3px rgba(242, 234, 216, 0.2),
+    inset 0 -5px 8px rgba(0, 0, 0, 0.5);
+}
+
+.medallon-primario:hover::before {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 240, 0.65) 0%, rgba(255, 250, 230, 0.2) 24%, rgba(255, 250, 230, 0) 40%, rgba(90, 60, 5, 0.16) 72%, rgba(60, 40, 4, 0.34) 100%),
+    linear-gradient(180deg, #f6da7d 0%, #e8c044 28%, #dcae2c 50%, #c08f16 74%, #967012 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(43, 28, 4, 0.85),
+    inset 0 0 0 3px rgba(255, 246, 210, 0.75),
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -6px 10px rgba(70, 45, 5, 0.4);
+}
+
+.medallon-secundario:hover::before {
+  background:
+    linear-gradient(180deg, rgba(242, 234, 216, 0.16) 0%, rgba(242, 234, 216, 0) 22%, rgba(0, 0, 0, 0.28) 82%, rgba(0, 0, 0, 0.44) 100%),
+    linear-gradient(180deg, #204a59 0%, #173b47 35%, #102d36 70%, #0c232c 100%);
+}
+
+.medallon:active {
+  transform: translateY(1px);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55));
+}
+
+.medallon:active::before {
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 10, 0.9),
+    inset 0 0 0 3px rgba(201, 162, 39, 0.6),
+    inset 0 2px 2px rgba(242, 234, 216, 0.08),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55);
+}
+
+.medallon-primario:active::before {
+  box-shadow:
+    inset 0 0 0 2px rgba(43, 28, 4, 0.85),
+    inset 0 0 0 3px rgba(255, 244, 200, 0.45),
+    inset 0 2px 3px rgba(255, 255, 255, 0.3),
+    inset 0 -4px 8px rgba(70, 45, 5, 0.5);
+}
+
+.medallon:focus-visible {
+  outline: 3px solid #e8c766;
+  outline-offset: 3px;
+}
+
+.medallon:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+/* CANCELAR: misma silueta, peso mínimo. Fondo oscuro, filete fino,
+   sin relieve, texto oro apagado. */
+.medallon-fantasma {
+  color: rgba(201, 162, 39, 0.75);
+}
+
+.medallon-fantasma::before {
+  background: rgba(6, 12, 22, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(2, 6, 10, 0.8),
+    inset 0 0 0 2px rgba(201, 162, 39, 0.35);
+}
+
+.medallon-fantasma:hover {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+}
+
+.medallon-fantasma:hover::before {
+  background: rgba(201, 162, 39, 0.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(2, 6, 10, 0.8),
+    inset 0 0 0 2px rgba(201, 162, 39, 0.5);
+}
+
+.medallon-fantasma:active::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(2, 6, 10, 0.8),
+    inset 0 0 0 2px rgba(201, 162, 39, 0.4);
+}
+
+/* Versión compacta para el interior de los modales (48–52 px). */
+.medallon-compacto {
+  min-height: 50px;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+}
+
+.medallon-compacto .medallon-icono {
+  width: 20px;
+  height: 20px;
+}
+
+/* Modales de portada: compactos, sin scroll en escritorio. */
+.portada-modal .portada-modal-caja {
+  max-width: 400px;
+  padding: 22px 20px 18px;
+  text-align: center;
+}
+
+.portada-modal-caja h2 {
+  margin: 0 0 4px;
+}
+
+.portada-modal-caja .portada-etiqueta:first-of-type {
+  margin-top: 6px;
+}
+
+.portada-nota {
+  margin: 12px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  letter-spacing: 1px;
+  color: rgba(242, 234, 216, 0.78);
+}
+
+.portada-modal-caja .error {
+  margin: 10px 0 0;
+}
+
+.portada-modal-caja .error:empty {
+  display: none;
+  margin: 0;
+}
+
+.portada-modal-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.portada-modal-acciones .medallon {
+  margin-top: 0;
+}
+
+/* El selector de desarrollo vive dentro del popup NUEVA PARTIDA. */
+body.portada #envoltorio-modo .portada-etiqueta {
+  margin-top: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  body.portada .portada-btn {
+  .medallon {
     transition: none;
+  }
+  .medallon:active {
+    transform: none;
   }
 }
 
