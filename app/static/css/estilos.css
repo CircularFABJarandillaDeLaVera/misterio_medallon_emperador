@@ -1691,3 +1691,132 @@ body.portada #envoltorio-modo .portada-etiqueta {
   }
 }
 
+/* ============================================================
+   FASE 8B.16 — Preparación de partida / lobby visual.
+   8B.16A — Horizontal-first apaisado: 6 cartas en fila, cabecera
+   compacta, zona inferior limpia. Reutiliza .medallon,
+   .modal/.modal-caja y .carta-selector-*. Sin tocar motor.
+   ============================================================ */
+
+/* El lobby es apaisado por diseño: aprovecha el ancho disponible. */
+body:not(.en-partida) .contenedor {
+  max-width: 920px;
+}
+
+body:not(.en-partida) .tarjeta {
+  padding: 10px 16px 12px;
+}
+
+#cabecera-juego h1 {
+  font-size: 1.2rem;
+}
+
+#cabecera-juego .cabecera-fila {
+  gap: 0;
+}
+
+#modo-partida {
+  display: none;
+}
+
+.lobby-sala-linea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 2px 0 2px;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+}
+
+.lobby-sala-linea .codigo-sala-compacto {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.lobby-sala-linea .secundario.discreto {
+  width: auto;
+  margin-top: 0;
+}
+
+#lobby-personajes > p {
+  margin: 4px 0 8px;
+  letter-spacing: 2px;
+}
+
+/* Canónico apaisado: las 6 cartas en una única fila. */
+#personajes.lobby-cartas {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lobby-cartas .carta-selector-sospecha img {
+  height: 104px;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #101727;
+}
+
+.lobby-cartas .carta-selector-sospecha.lobby-ocupada {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Franja inferior: JUGADORES y COMENZAR comparten fila en apaisado. */
+.lobby-acciones {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.lobby-acciones > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+#bloque-jugadores {
+  margin: 0;
+}
+
+#bloque-jugadores .medallon {
+  margin-top: 0;
+}
+
+body:not(.en-partida) #btn-comenzar {
+  margin-top: 0;
+}
+
+/* #estado solo existe cuando hay algo que decir: sin hueco en vacío. */
+#estado:empty {
+  display: none;
+}
+
+#modal-jugadores .lista-jugadores {
+  margin: 10px 0 4px;
+}
+
+#modal-jugadores .lista-jugadores li .etiqueta-anfitrion {
+  margin-left: 8px;
+}
+
+/* Solo cuando realmente no hay ancho: wrap progresivo. */
+@media (max-width: 700px) {
+  #personajes.lobby-cartas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .lobby-acciones {
+    flex-wrap: wrap;
+  }
+  .lobby-acciones > * {
+    flex: 1 1 220px;
+  }
+}
+
+@media (max-width: 400px) {
+  #personajes.lobby-cartas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

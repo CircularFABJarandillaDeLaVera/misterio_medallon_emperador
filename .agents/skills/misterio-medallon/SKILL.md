@@ -70,13 +70,23 @@ Detalle completo: código y tests. Esta lista no es exhaustiva.
 6. Validación visual humana antes del checkpoint. Un test verde no sustituye
    ver la pantalla cuando el cambio es visual.
 
-## 4. Microfases
+## 4. Horizontal-first en vistas de juego
+
+- Referencia canónica: desktop/tablet apaisado. Aprovechar el ancho antes
+  de crecer en alto; evitar scroll del documento en el viewport de juego.
+- Preferir filas/distribuciones horizontales con ancho suficiente.
+- El responsive puede hacer wrap en viewports estrechos, pero el móvil
+  vertical no condiciona la composición canónica.
+- No resolver layout empequeñeciendo toda la UI. Los modales pueden
+  gestionar su propio overflow.
+
+## 5. Microfases
 
 `INSPECCIONAR → CAMBIO MÍNIMO → TESTS → VALIDACIÓN HUMANA → CHECKPOINT GIT`.
 No mezclar mejoras independientes en una microfase; lo que aparezca de más
 se anota para después.
 
-## 5. Validación (herramientas existentes primero)
+## 6. Validación (herramientas existentes primero)
 
 - `python -m pytest tests/<zona>.py -q`, luego suite completa si corresponde.
 - `node tests/*.cjs` (harnesses del flujo real de portada/modo/tablero).
@@ -86,7 +96,7 @@ se anota para después.
   crea uno puntual, fuera del repo (p. ej. dir temporal) y eliminarlo después.
 - No dejar archivos temporales ni de análisis dentro del repositorio.
 
-## 6. Git seguro (obligatorio)
+## 7. Git seguro (obligatorio)
 
 - Prohibido `git add .` / `git add -A`. Staging explícito por archivo.
 - Antes de staging: `git status --short`, `git diff --check`, `git diff`.
@@ -96,7 +106,7 @@ se anota para después.
 - Sin commit/tag hasta validación humana cuando la fase lo exija.
 - Sin push salvo instrucción explícita.
 
-## 7. Economía de contexto
+## 8. Economía de contexto
 
 Búsquedas dirigidas (`grep`/`glob`), no lectura indiscriminada. Orden:
 instrucciones → archivos de la zona → referencias por búsqueda → tests.

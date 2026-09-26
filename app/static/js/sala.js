@@ -56,6 +56,9 @@ const bloqueCodigo = document.getElementById("bloque-codigo");
 const bloqueJugadores = document.getElementById("bloque-jugadores");
 const bloqueOrden = document.getElementById("bloque-orden");
 const btnCopiarCodigo = document.getElementById("btn-copiar-codigo");
+const btnJugadores = document.getElementById("btn-jugadores");
+const modalJugadores = document.getElementById("modal-jugadores");
+const btnCerrarJugadores = document.getElementById("btn-cerrar-jugadores");
 const vistaContextual = document.getElementById("vista-contextual");
 const movimientoDiv = document.getElementById("movimiento");
 const posicionActual = document.getElementById("posicion-actual");
@@ -138,6 +141,9 @@ fetch("/api/recursos")
     if (ultimaSala) {
       pintarRevelacionPrivada(ultimaSala);
       pintarHoja(ultimaSala.investigacion || [], ultimaSala.mis_cartas || []);
+      // El lobby puede haberse pintado antes de que llegara el manifiesto:
+      // sin este repintado las cartas quedan con src vacío (imagen rota).
+      pintarPersonajes(ultimaSala);
     }
   });
 
@@ -253,36 +259,56 @@ function aliasDePersonaje(sala, personajeId) {
 function pintarPersonajes(sala) {
   personajesDiv.innerHTML = "";
   PERSONAJES.forEach((p) => {
-    const tarjeta = document.createElement("button");
-    tarjeta.type = "button";
-    tarjeta.className = "personaje";
     const ocupante = aliasDePersonaje(sala, p.id);
     const esMio = sala.personaje_id === p.id;
-
-    const nombre = document.createElement("strong");
-    nombre.textContent = p.nombre;
-    tarjeta.appendChild(nombre);
-    const detalle = document.createElement("span");
-    detalle.textContent = `${p.color} · ${p.simbolo}`;
-    tarjeta.appendChild(detalle);
-
-    const situacion = document.createElement("span");
+    const carta = { id: p.id, nombre: p.nombre, categoria: "sospechoso" };
     if (esMio) {
-      tarjeta.classList.add("mio");
-      situacion.textContent = "TU PERSONAJE";
-    } else if (ocupante) {
-      tarjeta.classList.add("ocupado");
-      tarjeta.disabled = true;
-      situacion.textContent = `Elegido por ${ocupante}`;
-    } else {
-      situacion.textContent = "DISPONIBLE";
+      const tarjeta = crearCartaVisual(carta, { seleccionada: true, mostrarNombre: false });
+      tarjeta.appendChild(crearMarcaLobby("TU PERSONAJE"));
       tarjeta.addEventListener("click", () => {
         error.textContent = "";
-        ws.send(JSON.stringify({ accion: "elegir_personaje", personaje_id: p.id }));
       });
+      personajesDiv.appendChild(tarjeta);
+    } else if (ocupante) {
+      const tarjeta = crearCartaVisual(carta, { mostrarNombre: false });
+      tarjeta.classList.add("lobby-ocupada");
+      tarjeta.appendChild(crearMarcaLobby("ELEGIDO"));
+      personajesDiv.appendChild(tarjeta);
+    } else {
+      const tarjeta = crearCartaVisual(carta, {
+        mostrarNombre: false,
+        alPulsar: () => {
+          error.textContent = "";
+          ws.send(JSON.stringify({ accion: "elegir_personaje", personaje_id: p.id }));
+        },
+      });
+      personajesDiv.appendChild(tarjeta);
     }
-    tarjeta.appendChild(situacion);
-    personajesDiv.appendChild(tarjeta);
+  });
+}
+
+function crearMarcaLobby(texto) {
+  const marca = document.createElement("span");
+  marca.className = "carta-selector-marca";
+  marca.textContent = texto;
+  return marca;
+}
+
+if (btnJugadores) {
+  btnJugadores.addEventListener("click", () => {
+    modalJugadores.hidden = false;
+    if (btnCerrarJugadores && btnCerrarJugadores.focus) btnCerrarJugadores.focus();
+  });
+}
+if (btnCerrarJugadores) {
+  btnCerrarJugadores.addEventListener("click", () => {
+    modalJugadores.hidden = true;
+    if (btnJugadores && btnJugadores.focus) btnJugadores.focus();
+  });
+}
+if (modalJugadores) {
+  modalJugadores.addEventListener("click", (evento) => {
+    if (evento.target === modalJugadores) modalJugadores.hidden = true;
   });
 }
 
@@ -296,6 +322,8 @@ function pintarSala(sala) {
     let texto = j.alias;
     if (j.personaje) {
       texto += ` — ${j.personaje}`;
+    } else {
+      texto += " — SIN PERSONAJE";
     }
     if (sala.estado === "iniciada" || sala.estado === "terminada") {
       texto += ` · ${j.num_cartas} cartas`;
@@ -352,15 +380,16 @@ function pintarSala(sala) {
     btnComenzar.style.display = "";
     lobbyPersonajes.style.display = "";
     pintarPersonajes(sala);
-    btnComenzar.disabled = !sala.es_anfitrion;
+    const humanos = sala.jugadores.filter((j) => j.tipo !== "pnj").length;
+    if (btnJugadores) btnJugadores.textContent = `👥 JUGADORES ${humanos}/6`;
     const sinPersonaje = sala.jugadores.filter((j) => !j.personaje_id).length;
-    if (sinPersonaje > 0) {
-      estado.textContent =
-        "Todos los jugadores deben elegir un personaje antes de comenzar.";
-    } else if (!sala.es_anfitrion) {
+    btnComenzar.disabled = !sala.es_anfitrion || sinPersonaje > 0;
+    // Sin explicaciones permanentes: el botón deshabilitado ya comunica
+    // el estado al anfitrión. Solo se informa a quien espera sin poder actuar.
+    if (!sala.es_anfitrion) {
       estado.textContent = "Esperando a que el anfitrión comience…";
     } else {
-      estado.textContent = "Todo listo. ¡Puedes comenzar!";
+      estado.textContent = "";
     }
   }
 }

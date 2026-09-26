@@ -170,9 +170,9 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=8b13'),
+  ok(html.includes('/static/js/sala.js?v=8b16a'),
     "la plantilla invalida la caché de la confirmación visual de resolución");
-  ok(html.includes('/static/css/estilos.css?v=8b13'),
+  ok(html.includes('/static/css/estilos.css?v=8b16a'),
     "la plantilla invalida la caché de los estilos de confirmación");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
