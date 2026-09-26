@@ -147,7 +147,6 @@ const sala = salaBase();
 vm.runInContext(`ultimaSala = ${JSON.stringify(sala)};`, sandbox);
 sandbox.pintarSala(sala);
 ok($("partida").hidden === false, "la partida se muestra");
-ok($("bloque-jugadores").hidden === true, "jugadores no permanentes en partida");
 ok($("bloque-orden").hidden === true, "orden no permanente en partida");
 ok($("bloque-codigo").hidden === true, "código grande fuera de la vista principal");
 ok(
@@ -163,7 +162,8 @@ const salaLobby = {
 };
 sandbox.pintarSala(salaLobby);
 ok($("partida").hidden === true, "lobby oculta la partida");
-ok($("bloque-jugadores").hidden === false && $("bloque-orden").hidden === false, "lobby recupera listados");
+ok($("bloque-orden").hidden === false, "lobby recupera listados");
+ok($("contador-jugadores").textContent.includes("/6"), "lobby muestra contador de humanos");
 ok(!cuerpo.classList.contains("en-partida"), "lobby sin marca en-partida");
 sandbox.pintarSala(sala);
 

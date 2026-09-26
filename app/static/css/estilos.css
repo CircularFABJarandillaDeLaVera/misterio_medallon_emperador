@@ -182,31 +182,6 @@ button.discreto {
   margin: 4px 0;
 }
 
-.lista-jugadores {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0;
-  text-align: left;
-}
-
-.lista-jugadores li {
-  padding: 6px 10px;
-  margin: 4px 0;
-  border-radius: 6px;
-  background: #262140;
-  border: 1px solid #4a4266;
-  font-size: 0.85rem;
-}
-
-.etiqueta-anfitrion {
-  float: right;
-  font-size: 0.72rem;
-  color: var(--dorado-claro);
-  border: 1px solid var(--dorado);
-  border-radius: 16px;
-  padding: 1px 6px;
-}
-
 .estado {
   font-style: italic;
   color: var(--texto-tenue);
@@ -1166,9 +1141,14 @@ body.portada {
   --noche-profunda: #04090f;
   --dorado-portada: #c9a227;
   --dorado-portada-claro: #e8c766;
-  display: block;
-  padding: 0;
-  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 0;
   background: var(--noche-profunda);
   overflow-x: hidden;
 }
@@ -1399,30 +1379,59 @@ select.portada-campo option {
 
 /* Escritorio: cartel y acceso en dos columnas, sin scroll. */
 @media (min-width: 900px) {
+  /* 8B.18E — De fuera hacia dentro: viewport → panel → escena →
+     identidad → cartel → img. Alturas cerradas, min-height:0 para
+     que nada imponga su intrínseco. Sin vh en la imagen. */
   .portada-escena {
-    max-width: 1180px;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
-    gap: 56px;
-    padding: 20px 40px;
+    gap: 48px;
+    padding: 28px 48px;
+    height: calc(100svh - 48px);
+    height: calc(100dvh - 48px);
+    min-height: 0;
   }
 
   .portada-identidad {
-    flex: 0 1 auto;
+    flex: 1.55 1 0;
+    min-width: 0;
+    min-height: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
     text-align: center;
   }
 
+  .portada-cartel {
+    height: calc(100% - 2px);
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 1px;
+    margin-bottom: 1px;
+  }
+
   .portada-cartel img {
-    width: auto;
-    max-width: 52vw;
-    height: min(62vh, 560px);
-    height: min(62svh, 560px);
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    object-fit: cover;
+    object-position: center top;
+    align-self: center;
   }
 
   .portada-menu {
-    flex: 0 1 380px;
+    flex: 1 1 380px;
+    max-width: 420px;
+    align-self: center;
   }
 }
 
@@ -1440,10 +1449,38 @@ select.portada-campo option {
    permanentes desaparecen: los campos viven en los modales.
    ============================================================ */
 
-/* Menú inicial: solo dos acciones, centradas y con aire entre ellas. */
+/* ============================================================
+   FASE 8B.18 — Ajuste visual final de Inicio: una única composición
+   centrada (cartel + acciones), escala comparable al lobby.
+   Reutiliza el lenguaje de panel/marco existente. Sin tocar
+   funcionalidad, popups (salvo escala) ni recursos del cartel.
+   ============================================================ */
+body.portada .portada-escena {
+  width: min(92vw, 1200px);
+  max-width: 1200px;
+  min-height: calc(100svh - 54px);
+  margin: 0 auto;
+  padding: 28px 40px;
+  background: linear-gradient(180deg, rgba(10, 18, 30, 0.72) 0%, rgba(4, 9, 15, 0.78) 100%);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(232, 199, 102, 0.12);
+}
+
+/* Dentro de la composición única no hay caja dentro de caja. */
 body.portada .portada-menu {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
   gap: 22px;
-  padding: 24px 22px;
+}
+
+/* Botones principales acompañan la escala; los de popup no cambian. */
+body.portada .portada-menu > .medallon:not(.medallon-compacto) {
+  min-height: 68px;
+  font-size: 1rem;
 }
 
 /* Familia reutilizable de controles "medallón": placa de juego
@@ -1634,9 +1671,9 @@ body.portada .portada-menu {
   height: 20px;
 }
 
-/* Modales de portada: compactos, sin scroll en escritorio. */
+/* Modales de portada: escala coherente con la composición 8B.18. */
 .portada-modal .portada-modal-caja {
-  max-width: 400px;
+  max-width: 440px;
   padding: 22px 20px 18px;
   text-align: center;
 }
@@ -1719,12 +1756,31 @@ body:not(.en-partida) .tarjeta {
   display: none;
 }
 
+/* Franja única de cabecera en apaisado (8B.17B). */
+.lobby-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.lobby-cabecera .cabecera-fila {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lobby-cabecera #bloque-codigo {
+  flex: 0 0 auto;
+}
+
 .lobby-sala-linea {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin: 2px 0 2px;
+  margin: 0;
   font-size: 0.85rem;
   letter-spacing: 2px;
   color: var(--dorado-claro);
@@ -1745,14 +1801,16 @@ body:not(.en-partida) .tarjeta {
   letter-spacing: 2px;
 }
 
-/* Canónico apaisado: las 6 cartas en una única fila. */
+/* Canónico apaisado 8B.17C: 3×2 centrado; el espacio va a las cartas. */
 #personajes.lobby-cartas {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 860px;
+  margin: 10px auto 0;
 }
 
 .lobby-cartas .carta-selector-sospecha img {
-  height: 104px;
+  height: clamp(200px, 32vh, 300px);
   aspect-ratio: auto;
   object-fit: contain;
   object-position: center;
@@ -1764,28 +1822,20 @@ body:not(.en-partida) .tarjeta {
   cursor: default;
 }
 
-/* Franja inferior: JUGADORES y COMENZAR comparten fila en apaisado. */
-.lobby-acciones {
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
+/* Contador compacto de humanos en cabecera (8B.17G). */
+.lobby-contador {
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--dorado-claro);
+  white-space: nowrap;
 }
 
-.lobby-acciones > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-#bloque-jugadores {
-  margin: 0;
-}
-
-#bloque-jugadores .medallon {
-  margin-top: 0;
-}
-
+/* COMENZAR PARTIDA: acción única inferior, centrada y contenida. */
 body:not(.en-partida) #btn-comenzar {
-  margin-top: 0;
+  display: block;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* #estado solo existe cuando hay algo que decir: sin hueco en vacío. */
@@ -1793,30 +1843,28 @@ body:not(.en-partida) #btn-comenzar {
   display: none;
 }
 
-#modal-jugadores .lista-jugadores {
-  margin: 10px 0 4px;
+/* Badges de estado del lobby (8B.17E): overlay absoluto, sin geometría. */
+.lobby-cartas .carta-selector-marca.marca-propia {
+  background: linear-gradient(180deg, #e8c766 0%, #c9a227 60%, #a37f1c 100%);
+  color: #141021;
 }
 
-#modal-jugadores .lista-jugadores li .etiqueta-anfitrion {
-  margin-left: 8px;
+.lobby-cartas .carta-selector-marca.marca-suave {
+  background: rgba(12, 19, 32, 0.72);
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  color: var(--dorado-claro);
 }
 
-/* Solo cuando realmente no hay ancho: wrap progresivo. */
+/* Solo cuando realmente no hay ancho: degradado progresivo. */
 @media (max-width: 700px) {
   #personajes.lobby-cartas {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .lobby-acciones {
-    flex-wrap: wrap;
-  }
-  .lobby-acciones > * {
-    flex: 1 1 220px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 400px) {
   #personajes.lobby-cartas {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

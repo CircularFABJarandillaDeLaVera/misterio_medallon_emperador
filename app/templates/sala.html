@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b16a" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b17g" />
 </head>
 <body>
   <main class="contenedor">
     <section class="tarjeta">
-      <header class="cabecera-juego" id="cabecera-juego">
+      <header class="cabecera-juego lobby-cabecera" id="cabecera-juego">
         <div class="cabecera-fila">
           <div class="cabecera-identidad">
             <h1>EL MISTERIO DEL MEDALLÓN</h1>
@@ -18,36 +18,21 @@
           <p class="turno" id="turno"></p>
           <p class="estado resumen-sala" id="resumen-sala" hidden></p>
         </div>
+        <div id="bloque-codigo">
+          <p class="lobby-sala-linea">SALA · <span class="codigo-sala codigo-sala-compacto" id="codigo">{{ codigo }}</span>
+          <span id="contador-jugadores" class="lobby-contador">👥 1/6</span>
+          <button id="btn-copiar-codigo" type="button" class="secundario discreto">COPIAR CÓDIGO</button></p>
+        </div>
       </header>
 
-      <div id="bloque-codigo">
-        <p class="lobby-sala-linea">SALA · <span class="codigo-sala codigo-sala-compacto" id="codigo">{{ codigo }}</span>
-        <button id="btn-copiar-codigo" type="button" class="secundario discreto">COPIAR CÓDIGO</button></p>
-      </div>
-
       <div id="lobby-personajes">
-        <p><strong>ELIGE TU PERSONAJE</strong></p>
+        <p class="solo-lectores"><strong>ELIGE TU PERSONAJE</strong></p>
         <div id="personajes" class="lobby-cartas"></div>
       </div>
 
-      <div class="lobby-acciones">
-        <div id="bloque-jugadores">
-          <button id="btn-jugadores" type="button" class="medallon medallon-secundario medallon-compacto">👥 JUGADORES 1/6</button>
-        </div>
-
-        <button id="btn-comenzar" type="button" class="medallon medallon-primario medallon-compacto">COMENZAR PARTIDA</button>
-      </div>
-
+      <button id="btn-comenzar" type="button" class="medallon medallon-primario medallon-compacto lobby-comenzar">COMENZAR PARTIDA</button>
       <p class="estado" id="estado"></p>
       <p id="error" class="error"></p>
-
-      <div id="modal-jugadores" class="modal" hidden>
-        <div class="modal-caja" role="dialog" aria-label="Jugadores conectados">
-          <h2>👥 JUGADORES</h2>
-          <ul class="lista-jugadores" id="jugadores"></ul>
-          <button id="btn-cerrar-jugadores" type="button">CERRAR</button>
-        </div>
-      </div>
 
       <div id="partida" hidden>
         <h2 hidden>EL MISTERIO COMIENZA</h2>
@@ -164,6 +149,6 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b16a"></script>
+  <script src="/static/js/sala.js?v=8b17g"></script>
 </body>
 </html>

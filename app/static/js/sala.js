@@ -7,7 +7,6 @@
 const codigo = document.getElementById("codigo").textContent.trim();
 const jugadorId = sessionStorage.getItem("jugador_id") || "";
 
-const lista = document.getElementById("jugadores");
 const estado = document.getElementById("estado");
 const error = document.getElementById("error");
 const btnComenzar = document.getElementById("btn-comenzar");
@@ -53,12 +52,9 @@ const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
 const resumenSala = document.getElementById("resumen-sala");
 const bloqueCodigo = document.getElementById("bloque-codigo");
-const bloqueJugadores = document.getElementById("bloque-jugadores");
 const bloqueOrden = document.getElementById("bloque-orden");
 const btnCopiarCodigo = document.getElementById("btn-copiar-codigo");
-const btnJugadores = document.getElementById("btn-jugadores");
-const modalJugadores = document.getElementById("modal-jugadores");
-const btnCerrarJugadores = document.getElementById("btn-cerrar-jugadores");
+const contadorJugadores = document.getElementById("contador-jugadores");
 const vistaContextual = document.getElementById("vista-contextual");
 const movimientoDiv = document.getElementById("movimiento");
 const posicionActual = document.getElementById("posicion-actual");
@@ -144,6 +140,7 @@ fetch("/api/recursos")
       // El lobby puede haberse pintado antes de que llegara el manifiesto:
       // sin este repintado las cartas quedan con src vacío (imagen rota).
       pintarPersonajes(ultimaSala);
+      pintarSala(ultimaSala);
     }
   });
 
@@ -264,7 +261,7 @@ function pintarPersonajes(sala) {
     const carta = { id: p.id, nombre: p.nombre, categoria: "sospechoso" };
     if (esMio) {
       const tarjeta = crearCartaVisual(carta, { seleccionada: true, mostrarNombre: false });
-      tarjeta.appendChild(crearMarcaLobby("TU PERSONAJE"));
+      tarjeta.appendChild(crearMarcaLobby("TU PERSONAJE", "marca-propia"));
       tarjeta.addEventListener("click", () => {
         error.textContent = "";
       });
@@ -282,63 +279,27 @@ function pintarPersonajes(sala) {
           ws.send(JSON.stringify({ accion: "elegir_personaje", personaje_id: p.id }));
         },
       });
+      tarjeta.appendChild(crearMarcaLobby("DISPONIBLE", "marca-suave"));
       personajesDiv.appendChild(tarjeta);
     }
   });
 }
 
-function crearMarcaLobby(texto) {
+function crearMarcaLobby(texto, modificador) {
   const marca = document.createElement("span");
-  marca.className = "carta-selector-marca";
+  marca.className = "carta-selector-marca" + (modificador ? ` ${modificador}` : "");
   marca.textContent = texto;
   return marca;
-}
-
-if (btnJugadores) {
-  btnJugadores.addEventListener("click", () => {
-    modalJugadores.hidden = false;
-    if (btnCerrarJugadores && btnCerrarJugadores.focus) btnCerrarJugadores.focus();
-  });
-}
-if (btnCerrarJugadores) {
-  btnCerrarJugadores.addEventListener("click", () => {
-    modalJugadores.hidden = true;
-    if (btnJugadores && btnJugadores.focus) btnJugadores.focus();
-  });
-}
-if (modalJugadores) {
-  modalJugadores.addEventListener("click", (evento) => {
-    if (evento.target === modalJugadores) modalJugadores.hidden = true;
-  });
 }
 
 function pintarSala(sala) {
   error.textContent = "";
   // Modo de partida
   modoPartida.textContent = sala.modo === "tablero" ? "MODO TABLERO" : "MODO RÁPIDO";
-  lista.innerHTML = "";
-  sala.jugadores.forEach((j) => {
-    const li = document.createElement("li");
-    let texto = j.alias;
-    if (j.personaje) {
-      texto += ` — ${j.personaje}`;
-    } else {
-      texto += " — SIN PERSONAJE";
-    }
-    if (sala.estado === "iniciada" || sala.estado === "terminada") {
-      texto += ` · ${j.num_cartas} cartas`;
-      texto += j.tipo === "pnj" ? " · PNJ" : " · HUMANO";
-      texto += j.activo ? " · ACTIVO" : " · ELIMINADO";
-    }
-    li.textContent = texto;
-    if (j.es_anfitrion) {
-      const etiqueta = document.createElement("span");
-      etiqueta.className = "etiqueta-anfitrion";
-      etiqueta.textContent = "anfitrión";
-      li.appendChild(etiqueta);
-    }
-    lista.appendChild(li);
-  });
+  if (contadorJugadores) {
+    const humanos = sala.jugadores.filter((j) => j.tipo !== "pnj").length;
+    contadorJugadores.textContent = `👥 ${humanos}/6`;
+  }
 
   if (sala.estado === "iniciada" || sala.estado === "terminada") {
     estado.textContent = "";
@@ -350,7 +311,6 @@ function pintarSala(sala) {
     }
     // Cabecera compacta: el detalle técnico deja la vista principal.
     if (bloqueCodigo) bloqueCodigo.hidden = true;
-    if (bloqueJugadores) bloqueJugadores.hidden = true;
     if (bloqueOrden) bloqueOrden.hidden = true;
     total.hidden = true;
     if (resumenSala) {
@@ -372,7 +332,6 @@ function pintarSala(sala) {
       document.body.classList.remove("en-partida");
     }
     if (bloqueCodigo) bloqueCodigo.hidden = false;
-    if (bloqueJugadores) bloqueJugadores.hidden = false;
     if (bloqueOrden) bloqueOrden.hidden = false;
     total.hidden = false;
     if (resumenSala) resumenSala.hidden = true;
@@ -380,8 +339,6 @@ function pintarSala(sala) {
     btnComenzar.style.display = "";
     lobbyPersonajes.style.display = "";
     pintarPersonajes(sala);
-    const humanos = sala.jugadores.filter((j) => j.tipo !== "pnj").length;
-    if (btnJugadores) btnJugadores.textContent = `👥 JUGADORES ${humanos}/6`;
     const sinPersonaje = sala.jugadores.filter((j) => !j.personaje_id).length;
     btnComenzar.disabled = !sala.es_anfitrion || sinPersonaje > 0;
     // Sin explicaciones permanentes: el botón deshabilitado ya comunica

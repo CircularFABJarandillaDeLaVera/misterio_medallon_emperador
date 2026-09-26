@@ -74,6 +74,17 @@ Detalle completo: código y tests. Esta lista no es exhaustiva.
 
 - Referencia canónica: desktop/tablet apaisado. Aprovechar el ancho antes
   de crecer en alto; evitar scroll del documento en el viewport de juego.
+- En vistas inmersivas/protagonistas resolver la geometría de fuera hacia
+  dentro: **viewport → contenedor limitado → controles con su mínimo →
+  protagonista ocupando todo el espacio restante**. Aplica a portada, tablero
+  y futuro fullscreen: el mismo patrón, con más viewport.
+- El viewport limita al contenedor, nunca el tamaño intrínseco del contenido.
+  Usar alturas computables en padres y revisar `min-height: 0` / `min-width: 0`
+  en flex/grid; no compensar con alturas mágicas del protagonista.
+- En desktop/apaisado, evitar scroll del documento sin esconder una geometría
+  incorrecta con `overflow: hidden`. En móvil/vertical se puede reorganizar y
+  admitir scroll natural.
+- Si una medición headless contradice la captura, validar en navegador real.
 - Preferir filas/distribuciones horizontales con ancho suficiente.
 - El responsive puede hacer wrap en viewports estrechos, pero el móvil
   vertical no condiciona la composición canónica.

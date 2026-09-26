@@ -38,7 +38,7 @@ def test_2_movil_vertical_sin_overflow():
 
 def test_3_listados_tecnicos_no_permanentes_y_4_sala_modo_discretos():
     for aguja in (
-        'id="bloque-jugadores"',
+        'id="contador-jugadores"',
         'id="bloque-orden"',
         'id="bloque-codigo"',
         'id="resumen-sala"',
@@ -47,7 +47,7 @@ def test_3_listados_tecnicos_no_permanentes_y_4_sala_modo_discretos():
         assert aguja in SALA_HTML
     # Los datos siguen en el estado interno (payload intacto).
     assert '"jugadores"' in SALA_JS or "sala.jugadores" in SALA_JS
-    assert "bloqueJugadores.hidden = true" in SALA_JS
+    assert "contadorJugadores" in SALA_JS
     assert "bloqueOrden.hidden = true" in SALA_JS
     assert "resumenSala" in SALA_JS and "Modo" in SALA_JS
 
