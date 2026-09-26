@@ -199,11 +199,23 @@ ok(
   $("modal-confirmar-resolver").hidden === false,
   "CONTINUAR abre la confirmación integrada"
 );
+const figuras = $("conf-resolver-cartas").children;
+ok(figuras.length === 3, "la confirmación muestra exactamente 3 cartas");
 ok(
-  $("conf-resolver-sospechoso").textContent.includes("Vera") &&
-    $("conf-resolver-lugar").textContent.includes("Parador") &&
-    $("conf-resolver-objeto").textContent.includes("Baúl"),
-  "la confirmación muestra sospechoso/lugar/objeto"
+  figuras.every((f) => f.tag === "div"),
+  "las cartas de confirmación no son seleccionables"
+);
+ok(
+  figuras[0].getAttribute("aria-label") === "Vera" &&
+    figuras[1].getAttribute("aria-label") === "Parador" &&
+    figuras[2].getAttribute("aria-label") === "Baúl Imperial",
+  "las cartas corresponden a los tres IDs en orden sospechoso/lugar/escondite"
+);
+ok(
+  !$("conf-resolver-cartas").textContent.includes("TU CARTA") &&
+    !$("conf-resolver-cartas").textContent.includes("VISTA") &&
+    !$("conf-resolver-cartas").textContent.includes("DESCARTADA"),
+  "la confirmación no muestra insignias de conocimiento"
 );
 
 // 2. Un solo envío aunque haya doble clic.

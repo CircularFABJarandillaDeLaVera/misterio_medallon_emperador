@@ -47,9 +47,7 @@ const grupoResolverObjeto = document.getElementById("resolver-grupo-objeto");
 const btnConfirmarResolver = document.getElementById("btn-confirmar-resolver");
 const modalConfirmarResolver = document.getElementById("modal-confirmar-resolver");
 const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
-const confResolverSospechoso = document.getElementById("conf-resolver-sospechoso");
-const confResolverLugar = document.getElementById("conf-resolver-lugar");
-const confResolverObjeto = document.getElementById("conf-resolver-objeto");
+const confResolverCartas = document.getElementById("conf-resolver-cartas");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
@@ -1185,9 +1183,27 @@ document.getElementById("btn-confirmar-sospecha").addEventListener("click", () =
 
 const resolverSeleccion = { sospechoso: "", lugar: "", objeto: "" };
 
-function nombreCartaResolver(cartas, cartaId) {
-  const carta = (cartas || []).find((entrada) => entrada.id === cartaId);
-  return carta ? carta.nombre : "";
+function pintarConfirmacionResolver(cartas) {
+  confResolverCartas.innerHTML = "";
+  // Solo lectura: las figuras son <div> sin oyentes; para cambiar la
+  // acusación hay que CANCELAR y volver al selector.
+  [
+    { categoria: "sospechoso", id: resolverSeleccion.sospechoso },
+    { categoria: "lugar", id: resolverSeleccion.lugar },
+    { categoria: "objeto", id: resolverSeleccion.objeto },
+  ].forEach(({ categoria, id }) => {
+    const carta = (cartas || []).find(
+      (entrada) => entrada.id === id && entrada.categoria === categoria
+    );
+    if (!carta) return;
+    const boton = crearCartaVisual(carta, { mostrarNombre: false });
+    const figura = document.createElement("div");
+    figura.className = `${boton.className} carta-confirmacion-resolver carta-confirmacion-${categoria}`;
+    figura.setAttribute("aria-label", carta.nombre);
+    figura.title = carta.nombre;
+    while (boton.firstChild) figura.appendChild(boton.firstChild);
+    confResolverCartas.appendChild(figura);
+  });
 }
 
 function pintarGrupoResolver(contenedor, cartas, categoria, clave) {
@@ -1237,9 +1253,7 @@ document.getElementById("btn-confirmar-resolver").addEventListener("click", () =
     error.textContent = "Selecciona sospechoso, lugar y objeto.";
     return;
   }
-  confResolverSospechoso.textContent = `Sospechoso: ${nombreCartaResolver(cartas, resolverSeleccion.sospechoso)}`;
-  confResolverLugar.textContent = `Lugar: ${nombreCartaResolver(cartas, resolverSeleccion.lugar)}`;
-  confResolverObjeto.textContent = `Objeto: ${nombreCartaResolver(cartas, resolverSeleccion.objeto)}`;
+  pintarConfirmacionResolver(cartas);
   modalResolver.hidden = true;
   // Rearme para un único envío: CANCELAR no envía nada y volver a
   // confirmar reactiva el botón.

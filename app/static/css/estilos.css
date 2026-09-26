@@ -713,6 +713,48 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   font-size: 0.46rem;
 }
 
+/* Segunda confirmación de Resolver: las tres cartas de la acusación
+   en una fila, solo lectura y sin insignias de conocimiento
+   (Microfase 8B.13). */
+#modal-confirmar-resolver .modal-caja {
+  width: min(94vw, 640px);
+  max-width: 640px;
+}
+
+.conf-resolver-cartas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 172px));
+  gap: 10px;
+  justify-content: center;
+  margin: 4px 0 8px;
+}
+
+.conf-resolver-cartas .carta-selector-sospecha {
+  padding: 3px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.conf-resolver-cartas .carta-selector-sospecha img {
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #101727;
+}
+
+.conf-resolver-cartas .carta-confirmacion-sospechoso img {
+  height: 160px;
+}
+
+.conf-resolver-cartas .carta-confirmacion-lugar img {
+  height: 160px;
+}
+
+.conf-resolver-cartas .carta-confirmacion-objeto img {
+  height: 150px;
+}
+
 .carta-selector-sospecha {
   position: relative;
   min-width: 0;
@@ -914,6 +956,15 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   }
 
   .selector-cartas-resolver .carta-selector-sospecha img {
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+
+  .conf-resolver-cartas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .conf-resolver-cartas .carta-selector-sospecha img {
     height: auto;
     aspect-ratio: 3 / 4;
   }

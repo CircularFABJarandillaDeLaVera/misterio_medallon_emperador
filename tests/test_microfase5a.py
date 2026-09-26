@@ -71,9 +71,7 @@ def test_confirmacion_resolver_sin_nativos():
     html = pagina.text
     for aguja in (
         'id="modal-confirmar-resolver"',
-        'id="conf-resolver-sospechoso"',
-        'id="conf-resolver-lugar"',
-        'id="conf-resolver-objeto"',
+        'id="conf-resolver-cartas"',
         'id="btn-enviar-resolver"',
         'id="btn-cancelar-confirmar-resolver"',
         "¿RESOLVER EL MISTERIO?",

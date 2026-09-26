@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b12" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b13" />
 </head>
 <body>
   <main class="contenedor">
@@ -94,11 +94,7 @@
       <div id="modal-confirmar-resolver" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Confirmar resolución">
           <h2>🏆 ¿RESOLVER EL MISTERIO?</h2>
-          <div class="grupo-cartas">
-            <p id="conf-resolver-sospechoso"></p>
-            <p id="conf-resolver-lugar"></p>
-            <p id="conf-resolver-objeto"></p>
-          </div>
+          <div id="conf-resolver-cartas" class="conf-resolver-cartas" role="group" aria-label="Tu acusación definitiva"></div>
           <p class="nota-privada">Si la acusación es incorrecta quedarás eliminado como investigador.</p>
           <button id="btn-enviar-resolver" type="button">RESOLVER EL MISTERIO</button>
           <button id="btn-cancelar-confirmar-resolver" type="button" class="secundario">CANCELAR</button>
@@ -161,6 +157,6 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b12"></script>
+  <script src="/static/js/sala.js?v=8b13"></script>
 </body>
 </html>
