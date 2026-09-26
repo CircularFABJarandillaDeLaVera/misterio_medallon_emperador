@@ -44,7 +44,7 @@ def sala_tablero_controlada():
 
 
 def test_creacion_api_rapido_por_defecto_y_tablero_explicito():
-    assert "/static/js/inicio.js?v=6b-modo-sala" in cliente.get("/").text
+    assert "/static/js/inicio.js?v=8b14" in cliente.get("/").text
     rapido = cliente.post(
         "/api/partidas", json={"alias": "R", "modo": "rapido"}
     ).json()

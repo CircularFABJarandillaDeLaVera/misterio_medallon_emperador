@@ -3,6 +3,21 @@
 
 const $ = (id) => document.getElementById(id);
 
+// Herramienta temporal de desarrollo: Ctrl+Alt+D muestra el selector
+// de modo de partida (oculto por defecto). Solo memoria de la página:
+// al recargar vuelve a estar oculto. No intercepta ninguna otra tecla.
+let modoDesbloqueado = false;
+if (document.addEventListener) {
+  document.addEventListener("keydown", (evento) => {
+    if (!evento.ctrlKey || !evento.altKey) return;
+    if (evento.key !== "d" && evento.key !== "D") return;
+    if (evento.preventDefault) evento.preventDefault();
+    modoDesbloqueado = !modoDesbloqueado;
+    const envoltorio = $("envoltorio-modo");
+    if (envoltorio) envoltorio.hidden = !modoDesbloqueado;
+  });
+}
+
 async function leerError(respuesta) {
   try {
     const datos = await respuesta.json();
