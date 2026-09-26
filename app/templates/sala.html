@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b21b" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b26b" />
 </head>
 <body>
   <main class="contenedor">
@@ -133,8 +133,11 @@
           <h2 id="modal-contextual-titulo"></h2>
           <img id="imagen-ubicacion" alt="" />
           <div id="modal-contextual-detalle"></div>
-          <button id="btn-mover-ubicacion-canvas" class="medallon medallon-primario" type="button" hidden>MOVER AQUÍ</button>
-          <button id="btn-cerrar-ubicacion" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
+          <div class="acciones-contextuales">
+            <button id="btn-sospecha-ubicacion" class="medallon medallon-primario medallon-compacto" type="button" hidden>FORMULAR SOSPECHA</button>
+            <button id="btn-mover-ubicacion-canvas" class="medallon medallon-primario medallon-compacto" type="button" hidden>MOVER AQUÍ</button>
+            <button id="btn-cerrar-ubicacion" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
+          </div>
         </div>
       </div>
       <div id="modal-hoja" class="modal" hidden>
@@ -149,7 +152,7 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b17g"></script>
+  <script src="/static/js/sala.js?v=8b26b"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>
 </html>

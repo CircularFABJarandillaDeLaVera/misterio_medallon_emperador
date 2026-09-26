@@ -84,6 +84,7 @@ vm.runInContext(
 );
 
 const $ = (id) => documentStub.getElementById(id);
+const css = fs.readFileSync(path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
 
 function salaBase(modo = "tablero") {
   return {
@@ -120,6 +121,11 @@ function salaBase(modo = "tablero") {
     turno_alias: "Yo", turno_tipo: "humano", pnj_pensando_alias: null,
     jugada: { estado: "esperando_movimiento" },
     posicion: { id: "parador", nombre: "Parador", tipo: "ubicacion" },
+    posiciones_objetos: {
+      "baul-imperial": "parador",
+      "cantaro-barro": "parador",
+      "saco-pimenton": "plaza-constitucion",
+    },
     movimiento: { fase: "esperando_movimiento", puede_tirar: true, tirada: null },
     resultado_final: null, ganador_alias: null,
   };
@@ -185,27 +191,74 @@ ok(copiado === "JARA-TEST" && $("btn-copiar-codigo").textContent === "¡COPIADO!
 sandbox.verUbicacion("parador");
 const vista = $("modal-contextual-titulo").textContent + $("modal-contextual-detalle").textContent;
 ok(vista.includes("Parador"), "ubicación muestra su nombre");
+ok($("modal-ubicacion-caja").classList.contains("modo-ubicacion"), "ubicación activa la composición visual canónica");
 ok(
   $("imagen-ubicacion").src === "/static/img/lugares/parador.jpeg",
   "ubicación muestra su tarjeta"
 );
-const botones = [];
-(function recogeBotones(nodo) {
-  if (nodo.tag === "button") botones.push(nodo.textContent);
-  nodo.children.forEach(recogeBotones);
-})($("modal-contextual-detalle"));
-ok(botones.includes("Yo") && botones.includes("Rival"), "ocupantes reales desde posiciones");
+function descendientes(nodo) {
+  return [nodo, ...nodo.children.flatMap(descendientes)];
+}
+const detalleUbicacion = $("modal-contextual-detalle");
+const tarjetasPersonajes = descendientes(detalleUbicacion)
+  .filter((elemento) => elemento.tag === "button" && elemento.className.includes("ficha-contextual"));
+const tarjetasObjetos = descendientes(detalleUbicacion)
+  .filter((elemento) => elemento.tag === "div" && elemento.className.includes("ficha-contextual"));
+ok(
+  tarjetasPersonajes.length === 2 &&
+    tarjetasPersonajes.some((ficha) => ficha.textContent.includes("Yo")) &&
+    tarjetasPersonajes.every((ficha) => ficha.children.some((hijo) => hijo.tag === "img" && hijo.src)) &&
+    tarjetasPersonajes.every((ficha) => !ficha.children.some((hijo) => hijo.className === "ficha-contextual-nombre")),
+  "personajes usa mini cartas reales sin nombres repetidos y con alias humano secundario"
+);
+ok(
+  tarjetasObjetos.length === 2 &&
+    tarjetasObjetos.every((ficha) => ficha.children.some((hijo) => hijo.tag === "img" && hijo.src.includes("/objetos/"))) &&
+    tarjetasObjetos.every((ficha) => ficha.textContent === ""),
+  "objetos usa las posiciones físicas y solo sus imágenes canónicas"
+);
+ok(
+  /\.modo-ubicacion[\s\S]*grid-template-columns:\s*minmax\(0, 0\.72fr\)\s+minmax\(0, 1\.45fr\)\s+minmax\(0, 0\.72fr\)/.test(css) &&
+    /\.fichas-contextuales[\s\S]*grid-template-columns:\s*repeat\(2,[^;]+;[\s\S]*grid-template-rows:\s*repeat\(3,/.test(css),
+  "composición horizontal reserva el centro y distribuye hasta seis piezas en 2x3"
+);
+const unPersonajeSinObjeto = {
+  ...sala,
+  jugadores: [sala.jugadores[0]],
+  posiciones_objetos: {},
+};
+vm.runInContext(`ultimaSala = ${JSON.stringify(unPersonajeSinObjeto)};`, sandbox);
+sandbox.verUbicacion("parador");
+ok(
+  descendientes($("modal-contextual-detalle")).filter((elemento) =>
+    elemento.tag === "button" && elemento.className.includes("ficha-contextual")).length === 1 &&
+    !$("modal-contextual-detalle").textContent.includes("NINGÚN OBJETO"),
+  "un personaje y cero objetos deja limpia la zona vacía"
+);
+const unPersonajeUnObjeto = {
+  ...unPersonajeSinObjeto,
+  posiciones_objetos: { "baul-imperial": "parador" },
+};
+vm.runInContext(`ultimaSala = ${JSON.stringify(unPersonajeUnObjeto)};`, sandbox);
+sandbox.verUbicacion("parador");
+ok(
+  descendientes($("modal-contextual-detalle")).filter((elemento) =>
+    elemento.className.split(/\s+/).includes("ficha-contextual")).length === 2,
+  "un personaje y un objeto se representan como mini cartas paralelas"
+);
+vm.runInContext(`ultimaSala = ${JSON.stringify(sala)};`, sandbox);
+sandbox.verUbicacion("parador");
 ok($("btn-mover-ubicacion-canvas").hidden, "sin destino legal no hay MOVER AQUÍ");
-ok(!botones.includes("FORMULAR SOSPECHA"), "sin permiso del servidor no hay sospecha");
+ok($("btn-sospecha-ubicacion").hidden, "sin permiso del servidor no hay sospecha");
 sandbox.verUbicacion("plaza-constitucion");
-ok($("modal-contextual-detalle").textContent.includes("No hay personajes aquí."), "ubicación vacía discreta");
+ok($("modal-contextual-detalle").textContent === "", "ubicación vacía no añade rótulos ni mensajes redundantes");
 
 // 13. Ocupante abre su personaje (solo público).
 sandbox.verUbicacion("parador");
-$("modal-contextual-detalle").children
-  .find((h) => h.tag === "div").children
-  .find((b) => b.textContent === "Rival").click();
+descendientes($("modal-contextual-detalle"))
+  .find((elemento) => elemento.tag === "button" && elemento.getAttribute("aria-label").includes("Bruno")).click();
 ok($("modal-contextual-titulo").textContent.includes("Bruno, el cantero"), "ocupante abre su personaje");
+ok(!$("modal-ubicacion-caja").classList.contains("modo-ubicacion"), "personaje conserva la vista contextual preexistente");
 ok(
   $("imagen-ubicacion").src === "/static/img/personajes/bruno.png",
   "personaje muestra su carta pública"
@@ -266,6 +319,7 @@ const btnMover = $("btn-mover-ubicacion-canvas");
 ok(!btnMover.hidden, "destino legal ofrece MOVER AQUÍ");
 btnMover.click();
 ok(enviados.length === 1 && enviados[0].accion === "mover" && enviados[0].destino_id === "plaza-constitucion", "MOVER AQUÍ envía el destino legal");
+ok($("modal-ubicacion").hidden === true, "MOVER AQUÍ cierra el popup para mostrar la animación");
 enviados.length = 0;
 sandbox.verUbicacion("parador");
 ok(enviados.length === 0, "consultar no mueve");
@@ -275,18 +329,18 @@ const conPermiso = { ...sala, movimiento: { ...sala.movimiento, puede_sospechar:
 vm.runInContext(`ultimaSala = ${JSON.stringify(conPermiso)};`, sandbox);
 sandbox.pintarSala(conPermiso);
 sandbox.verUbicacion("parador");
-ok($("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"), "entrar permite sospechar");
+ok(!$("btn-sospecha-ubicacion").hidden, "entrar permite sospechar");
 const sinPermiso = { ...sala, movimiento: { ...sala.movimiento } };
 vm.runInContext(`ultimaSala = ${JSON.stringify(sinPermiso)};`, sandbox);
 sandbox.pintarSala(sinPermiso);
 sandbox.verUbicacion("parador");
-ok(!$("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"), "empezar en ubicación no ofrece sospecha");
+ok($("btn-sospecha-ubicacion").hidden, "empezar en ubicación no ofrece sospecha");
 
 // 20. Sospecha en tablero: selector visual privado de sospechoso y objeto.
 vm.runInContext(`ultimaSala = ${JSON.stringify(conPermiso)};`, sandbox);
 sandbox.pintarSala(conPermiso);
 sandbox.verUbicacion("parador");
-$("modal-contextual-detalle").children.find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
+$("btn-sospecha-ubicacion").click();
 const gruposCartas = $("modal-contextual-detalle").children
   .filter((h) => h.className === "selector-cartas-sospecha");
 ok(
@@ -320,8 +374,7 @@ ok(brunoVisual.textContent.includes("VISTA") && libroVisual.textContent.includes
 ok(veraVisual.children[0].src.includes("vera-nombre.png") && baulVisual.children[0].src.includes("objetos/baul-imperial.jpeg"),
   "personajes y objetos reutilizan el manifiesto de recursos");
 ok(
-  $("vista-contextual").textContent ===
-    "Has llegado. Pulsa la ubicación para ver tus opciones.",
+  $("vista-contextual").textContent === "Has llegado.",
   "sospecha no sustituye el panel derecho"
 );
 ok(
@@ -338,11 +391,10 @@ ok(
   "VOLVER recupera el popup de la misma ubicación"
 );
 ok(
-  $("modal-contextual-detalle").textContent.includes("FORMULAR SOSPECHA"),
+  !$("btn-sospecha-ubicacion").hidden,
   "VOLVER no consume el derecho a sospechar"
 );
-$("modal-contextual-detalle").children
-  .find((h) => h.tag === "button" && h.textContent === "FORMULAR SOSPECHA").click();
+$("btn-sospecha-ubicacion").click();
 const gruposConfirmacion = $("modal-contextual-detalle").children
   .filter((h) => h.className === "selector-cartas-sospecha");
 const brunoConfirmacion = gruposConfirmacion[0].children.find((b) => b.dataset.cartaId === "bruno");

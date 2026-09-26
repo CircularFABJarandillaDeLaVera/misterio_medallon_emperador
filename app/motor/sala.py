@@ -154,6 +154,9 @@ class Sala:
         # Conocimiento privado deducido sin consultar el misterio.
         self.soluciones_deducidas: dict[str, dict] = {}
         self.posiciones = PosicionesParticipantes(TABLERO)
+        # Piezas físicas públicas, independientes de cartas, manos y misterio.
+        # Solo existen en modo tablero: objeto_id -> ubicacion_id.
+        self.posiciones_objetos: dict[str, str] = {}
         self.tirada_pendiente: int | None = None
         self.rutas_pendientes: dict[str, tuple[str, ...]] = {}
         # Descripción pública del último desplazamiento resuelto. El
@@ -314,6 +317,15 @@ class Sala:
         self.soluciones_deducidas.clear()
         self.tirada_pendiente = None
         self.rutas_pendientes = {}
+        self.posiciones_objetos = {}
+        if self.modo == MODO_TABLERO:
+            ubicaciones_objetos = random.sample(
+                list(TABLERO.ubicaciones), len(OBJETOS)
+            )
+            self.posiciones_objetos = {
+                objeto["id"]: ubicacion
+                for objeto, ubicacion in zip(OBJETOS, ubicaciones_objetos)
+            }
         for j in self.jugadores:
             self.descartes.setdefault(j["id"], set())
             self.vistas.setdefault(j["id"], set())
@@ -745,6 +757,7 @@ class Sala:
             posicion = self.posiciones.obtener(jugador_id)
             if not TABLERO.es_ubicacion(posicion) or sospecha["lugar_id"] != posicion:
                 raise ValueError("La sospecha debe realizarse en tu ubicación actual.")
+            self.posiciones_objetos[sospecha["objeto_id"]] = sospecha["lugar_id"]
         # Consumir la alternativa inicial antes de entrar en refutación
         # impide dado o pasadizo incluso tras recargar/reconectar.
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
@@ -1007,6 +1020,10 @@ class Sala:
                 dict(self.movimiento_resuelto)
                 if self.movimiento_resuelto is not None else None
             ),
+            **(
+                {"posiciones_objetos": dict(self.posiciones_objetos)}
+                if self.modo == MODO_TABLERO else {}
+            ),
             "fase_tablero": self.estado_jugada if self.modo == MODO_TABLERO else None,
             "tirada": self.tirada_pendiente,
             "jugada": self.jugada_publica(),
@@ -1056,6 +1073,10 @@ class Sala:
             "turno_tipo": publico["turno_tipo"],
             "pnj_pensando_alias": publico["pnj_pensando_alias"],
             "movimiento_resuelto": publico["movimiento_resuelto"],
+            **(
+                {"posiciones_objetos": publico["posiciones_objetos"]}
+                if "posiciones_objetos" in publico else {}
+            ),
             "jugada": self.jugada_privada(jugador_id),
             "posicion": self.describir_posicion(
                 self.posiciones.obtener(jugador_id)

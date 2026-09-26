@@ -146,6 +146,7 @@ const esperandoDestino = {
     ],
   },
 };
+vm.runInContext(`ultimaSala = ${JSON.stringify(esperandoDestino)}`, sandbox);
 sandbox.pintarMovimiento(esperandoDestino);
 sandbox.pintarPanel(esperandoDestino);
 ok($("destinos-movimiento").children.length === 2, "tras tirar se renderizan los destinos server-side");
@@ -171,9 +172,8 @@ sandbox.pintarMovimiento(llegada);
 sandbox.pintarPanel(llegada);
 ok($("posicion-actual").textContent === "Cristo del Humilladero", "la llegada muestra la ubicación");
 ok(
-  $("vista-contextual").textContent ===
-    "Has llegado. Pulsa la ubicación para ver tus opciones.",
-  "la llegada explica el siguiente paso"
+  $("vista-contextual").textContent === "Has llegado.",
+  "la llegada no pide volver a pulsar la ubicación"
 );
 
 vm.runInContext(`ultimaSala = {

@@ -74,6 +74,7 @@ const modalContextualDetalle = document.getElementById("modal-contextual-detalle
 const imagenUbicacion = document.getElementById("imagen-ubicacion");
 const btnCerrarUbicacion = document.getElementById("btn-cerrar-ubicacion");
 const btnMoverUbicacionCanvas = document.getElementById("btn-mover-ubicacion-canvas");
+const btnSospechaUbicacion = document.getElementById("btn-sospecha-ubicacion");
 let focoAntesDeUbicacion = null;
 let destinoUbicacionModal = null;
 let rendererCanvas = null;
@@ -182,6 +183,7 @@ function continuarAnimacionMovimiento(personajeId, recorrido, indice, token) {
   animacionesMovimiento.delete(personajeId);
   posicionesVisuales.delete(personajeId);
   if (ultimaSala) pintarTablero(ultimaSala);
+  abrirLlegadaContextual(animacion.movimiento);
 }
 
 function iniciarAnimacionMovimiento(movimiento) {
@@ -189,7 +191,7 @@ function iniciarAnimacionMovimiento(movimiento) {
   cancelarAnimacionMovimiento(personajeId);
   posicionesVisuales.set(personajeId, movimiento.origen_id);
   const token = ++secuenciaAnimacion;
-  const animacion = { token, temporizador: null };
+  const animacion = { token, temporizador: null, movimiento };
   animacionesMovimiento.set(personajeId, animacion);
   animacion.temporizador = window.setTimeout(
     () => continuarAnimacionMovimiento(personajeId, movimiento.recorrido, 0, token),
@@ -229,6 +231,9 @@ function presentarEstadoPrivado(sala) {
   }
   ultimaSala = sala;
   pintarSala(sala);
+  if (esMovimientoNuevo && movimiento && movimiento.tipo === "pasadizo") {
+    abrirLlegadaContextual(movimiento);
+  }
 }
 
 ws.onclose = () => {
@@ -360,6 +365,7 @@ function enviarDestinoTablero(destinoId, boton) {
   if (!autorizados.has(destinoId)) return;
   boton.disabled = true;
   ws.send(JSON.stringify({ accion: "mover", destino_id: destinoId }));
+  if (!modalUbicacion.hidden) cerrarCartaUbicacion();
 }
 
 function abrirCartaUbicacion(nodo, activador) {
@@ -376,30 +382,47 @@ function abrirCartaUbicacion(nodo, activador) {
   modalContextualTitulo.textContent = nodo.nombre;
   modalContextualDetalle.innerHTML = "";
   modalContextualDetalle.classList.remove("modo-sospecha-compacta");
+  modalUbicacionCaja.classList.add("modo-ubicacion");
   modalUbicacionCaja.setAttribute("aria-label", `Información de ${nodo.nombre}`);
-  const cabecera = document.createElement("p");
-  cabecera.textContent = "PERSONAJES AQUÍ";
-  modalContextualDetalle.appendChild(cabecera);
+  const franja = document.createElement("div");
+  franja.className = "presencias-contextuales";
+  const zonaPersonajes = document.createElement("section");
+  zonaPersonajes.className = "presencia-contextual";
+  const grupoPersonajes = document.createElement("div");
+  grupoPersonajes.className = "fichas-contextuales ocupantes";
+  zonaPersonajes.appendChild(grupoPersonajes);
+  franja.appendChild(zonaPersonajes);
   const ocupantes = ((ultimaSala || {}).jugadores || []).filter(
     (j) => j.posicion && j.posicion.id === nodo.id
   );
-  if (ocupantes.length === 0) {
-    const vacio = document.createElement("p");
-    vacio.className = "estado";
-    vacio.textContent = "No hay personajes aquí.";
-    modalContextualDetalle.appendChild(vacio);
-  } else {
-    const grupo = document.createElement("div");
-    grupo.className = "ocupantes";
+  if (ocupantes.length > 0) {
     ocupantes.forEach((j) => {
-      const boton = document.createElement("button");
-      boton.type = "button";
-      boton.textContent = j.alias;
-      boton.addEventListener("click", () => verPersonaje(j.personaje_id));
-      grupo.appendChild(boton);
+      grupoPersonajes.appendChild(crearFichaContextual({
+        id: j.personaje_id,
+        nombre: j.personaje || j.personaje_id,
+      }, {
+        alias: j.tipo === "humano" ? j.alias : "",
+        alPulsar: () => verPersonaje(j.personaje_id),
+      }));
     });
-    modalContextualDetalle.appendChild(grupo);
   }
+  const zonaObjetos = document.createElement("section");
+  zonaObjetos.className = "presencia-contextual";
+  const grupoObjetos = document.createElement("div");
+  grupoObjetos.className = "fichas-contextuales objetos-contextuales";
+  zonaObjetos.appendChild(grupoObjetos);
+  franja.appendChild(zonaObjetos);
+  const posicionesObjetos = (ultimaSala && ultimaSala.posiciones_objetos) || {};
+  const objetosAqui = Object.entries(posicionesObjetos)
+    .filter(([, ubicacionId]) => ubicacionId === nodo.id)
+    .map(([objetoId]) =>
+      ((ultimaSala && ultimaSala.investigacion) || []).find((carta) => carta.id === objetoId) ||
+      { id: objetoId, nombre: objetoId }
+    );
+  if (objetosAqui.length > 0) {
+    objetosAqui.forEach((objeto) => grupoObjetos.appendChild(crearFichaContextual(objeto)));
+  }
+  modalContextualDetalle.appendChild(franja);
   const destinos = new Set(
     (((ultimaSala || {}).movimiento || {}).destinos || []).map((d) => d.id)
   );
@@ -411,17 +434,21 @@ function abrirCartaUbicacion(nodo, activador) {
   }
   const puedeSospecharAqui = puedeSospecharServidor(ultimaSala) &&
     ultimaSala.posicion && ultimaSala.posicion.id === nodo.id;
-  if (puedeSospecharAqui) {
-    const sospechar = document.createElement("button");
-    sospechar.type = "button";
-    sospechar.className = "medallon medallon-primario medallon-compacto";
-    sospechar.textContent = "FORMULAR SOSPECHA";
-    sospechar.addEventListener("click", () => verSospecha(nodo.id));
-    modalContextualDetalle.appendChild(sospechar);
-  }
+  btnSospechaUbicacion.hidden = !puedeSospecharAqui;
   if (ultimaSala) pintarPanel(ultimaSala);
   modalUbicacion.hidden = false;
   if (btnCerrarUbicacion.focus) btnCerrarUbicacion.focus();
+}
+
+function abrirLlegadaContextual(movimiento) {
+  if (!ultimaSala || !movimiento || movimiento.personaje_id !== ultimaSala.personaje_id ||
+      !ultimaSala.posicion || ultimaSala.posicion.id !== movimiento.destino_id) return;
+  const jugadorLocal = (ultimaSala.jugadores || []).find(
+    (jugador) => jugador.personaje_id === ultimaSala.personaje_id
+  );
+  if (!jugadorLocal || jugadorLocal.tipo === "pnj") return;
+  const destino = nodoUbicacion(movimiento.destino_id);
+  if (destino) abrirCartaUbicacion(destino, null);
 }
 
 function consultarUbicacion(nodo, activador) {
@@ -437,12 +464,14 @@ function cerrarCartaUbicacion() {
   modalContextualTitulo.textContent = "";
   modalContextualDetalle.innerHTML = "";
   modalContextualDetalle.classList.remove("modo-sospecha-compacta");
+  modalUbicacionCaja.classList.remove("modo-ubicacion");
   imagenUbicacion.src = "";
   imagenUbicacion.alt = "";
   imagenUbicacion.hidden = false;
   ubicacionContextualId = null;
   destinoUbicacionModal = null;
   btnMoverUbicacionCanvas.hidden = true;
+  btnSospechaUbicacion.hidden = true;
   btnCerrarUbicacion.hidden = false;
   if (ultimaSala) pintarPanel(ultimaSala);
   if (focoAntesDeUbicacion && focoAntesDeUbicacion.focus) {
@@ -514,6 +543,9 @@ function pintarTablero(sala) {
 }
 
 btnCerrarUbicacion.addEventListener("click", cerrarCartaUbicacion);
+btnSospechaUbicacion.addEventListener("click", () => {
+  if (ubicacionContextualId) verSospecha(ubicacionContextualId);
+});
 btnMoverUbicacionCanvas.addEventListener("click", () => {
   if (!destinoUbicacionModal) return;
   enviarDestinoTablero(destinoUbicacionModal, btnMoverUbicacionCanvas);
@@ -710,10 +742,7 @@ function pintarMovimiento(sala) {
     boton.type = "button";
     boton.className = "medallon medallon-primario medallon-compacto";
     boton.textContent = destino.nombre;
-    boton.addEventListener("click", () => {
-      boton.disabled = true;
-      ws.send(JSON.stringify({ accion: "mover", destino_id: destino.id }));
-    });
+    boton.addEventListener("click", () => enviarDestinoTablero(destino.id, boton));
     destinosMovimiento.appendChild(boton);
   });
 }
@@ -739,6 +768,7 @@ function verPersonaje(personajeId, activador) {
   modalContextualTitulo.textContent = nombre;
   modalContextualDetalle.innerHTML = "";
   modalContextualDetalle.classList.remove("modo-sospecha-compacta");
+  modalUbicacionCaja.classList.remove("modo-ubicacion");
   imagenUbicacion.src = (RECURSOS_VISUALES[personajeId] || {}).principal || "";
   imagenUbicacion.alt = nombre;
   imagenUbicacion.hidden = false;
@@ -816,6 +846,30 @@ function crearCartaVisual(carta, opciones = {}) {
   return boton;
 }
 
+function crearFichaContextual(carta, opciones = {}) {
+  const interactiva = typeof opciones.alPulsar === "function";
+  const ficha = document.createElement(interactiva ? "button" : "div");
+  if (interactiva) ficha.type = "button";
+  ficha.className = `ficha-contextual${interactiva ? " ficha-contextual-interactiva" : ""}`;
+  ficha.setAttribute("aria-label", opciones.alias
+    ? `${carta.nombre || carta.id}, ${opciones.alias}`
+    : (carta.nombre || carta.id));
+  const recurso = RECURSOS_VISUALES[carta.id] || {};
+  const imagen = document.createElement("img");
+  imagen.src = recurso.nombre || recurso.principal || "";
+  imagen.alt = carta.nombre || carta.id;
+  imagen.hidden = !imagen.src;
+  ficha.appendChild(imagen);
+  if (opciones.alias) {
+    const alias = document.createElement("small");
+    alias.className = "ficha-contextual-alias";
+    alias.textContent = opciones.alias;
+    ficha.appendChild(alias);
+  }
+  if (interactiva) ficha.addEventListener("click", opciones.alPulsar);
+  return ficha;
+}
+
 function pintarVistaInfo(sala) {
   const linea = document.createElement("p");
   if (sala.estado === "terminada") {
@@ -826,7 +880,7 @@ function pintarVistaInfo(sala) {
         (movimiento.destinos || []).length > 0) {
       linea.textContent = "Elige una ubicación disponible.";
     } else if (movimiento.puede_sospechar) {
-      linea.textContent = "Has llegado. Pulsa la ubicación para ver tus opciones.";
+      linea.textContent = "Has llegado.";
     } else if (movimiento.puede_tirar && movimiento.pasadizo) {
       linea.textContent = "Tira el dado o usa el pasadizo disponible.";
     } else if (movimiento.puede_tirar) {
@@ -849,10 +903,12 @@ function pintarVistaSospecha(sala, ubicacionId) {
     ? `SOSPECHA EN ${aqui.toUpperCase()}` : "FORMULAR SOSPECHA";
   modalContextualDetalle.innerHTML = "";
   modalContextualDetalle.classList.add("modo-sospecha-compacta");
+  modalUbicacionCaja.classList.remove("modo-ubicacion");
   imagenUbicacion.src = "";
   imagenUbicacion.alt = "";
   imagenUbicacion.hidden = true;
   btnMoverUbicacionCanvas.hidden = true;
+  btnSospechaUbicacion.hidden = true;
   btnCerrarUbicacion.hidden = true;
   modalUbicacionCaja.setAttribute("aria-label", modalContextualTitulo.textContent);
   // La ubicación la fija el servidor (lugar de entrada): solo se piden

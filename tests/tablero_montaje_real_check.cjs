@@ -170,10 +170,10 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=8b17g'),
-    "la plantilla invalida la caché de la confirmación visual de resolución");
-  ok(html.includes('/static/css/estilos.css?v=8b21b'),
-    "la plantilla invalida la caché de los estilos de confirmación");
+  ok(html.includes('/static/js/sala.js?v=8b26b'),
+    "la plantilla invalida la caché del popup contextual visual");
+  ok(html.includes('/static/css/estilos.css?v=8b26b'),
+    "la plantilla invalida la caché del popup contextual visual");
   ok(html.includes('/static/js/pantalla_completa.js?v=8b19'),
     "la plantilla incluye el control global de pantalla completa");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
@@ -242,6 +242,12 @@ vm.createContext(sandbox);
   };
   ok(posicionVisual("vera") === "parador" && temporizadoresPendientes() === 0,
     "la primera hidrataciÃ³n muestra el estado lÃ³gico sin animar el movimiento histÃ³rico");
+  ok(registro["modal-ubicacion"].hidden === true,
+    "recargar dentro de una ubicación no abre el popup histórico");
+
+  socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  ok(registro["modal-ubicacion"].hidden === true,
+    "iniciar o actualizar el turno dentro de una ubicación no abre el popup");
 
   const paso1 = caminos[0].nodos[1];
   const paso2 = caminos[0].nodos[2];
@@ -252,6 +258,8 @@ vm.createContext(sandbox);
   });
   ok(JSON.stringify(observadas.slice(0, 2)) === JSON.stringify(["parador", paso1]),
     "un recorrido de un paso se presenta primero en origen y despuÃ©s en el nodo intermedio");
+  ok(registro["modal-ubicacion"].hidden === true,
+    "un movimiento humano a nodo intermedio no abre popup");
 
   observadas = observarMovimiento({
     movimiento_id: 42, personaje_id: "vera", origen_id: paso1,
@@ -260,12 +268,25 @@ vm.createContext(sandbox);
   ok(JSON.stringify(observadas.slice(0, 3)) === JSON.stringify([paso1, paso2, paso3]),
     "un recorrido de dos pasos respeta exactamente el orden canÃ³nico");
 
-  observadas = observarMovimiento({
+  const movimientoLlegada = {
     movimiento_id: 43, personaje_id: "vera", origen_id: paso3,
     destino_id: "iglesia-san-agustin", recorrido: [paso2, paso1, "iglesia-san-agustin"], tipo: "normal",
-  });
+  };
+  enviarMovimiento(movimientoLlegada);
+  ok(registro["modal-ubicacion"].hidden === true,
+    "la llegada humana no abre el popup antes de terminar la animación");
+  observadas = [posicionVisual(movimientoLlegada.personaje_id)];
+  while (ejecutarSiguienteTemporizador()) observadas.push(posicionVisual(movimientoLlegada.personaje_id));
   ok(JSON.stringify(observadas.slice(0, 4)) === JSON.stringify([paso3, paso2, paso1, "iglesia-san-agustin"]),
     "el flujo parte de un nodo intermedio y completa literalmente el recorrido hasta una ubicaciÃ³n");
+  ok(registro["modal-ubicacion"].hidden === false &&
+    registro["modal-contextual-titulo"].textContent === "iglesia-san-agustin",
+  "la llegada humana abre el popup existente después de terminar la animación");
+  const estadoTrasLlegada = JSON.stringify(sala.movimiento_resuelto);
+  registro["btn-cerrar-ubicacion"].click();
+  ok(registro["modal-ubicacion"].hidden === true &&
+    JSON.stringify(sala.movimiento_resuelto) === estadoTrasLlegada,
+  "cerrar el popup vuelve al tablero sin alterar el estado");
 
   const temporizadoresAntes = temporizadoresPendientes();
   enviarMovimiento(sala.movimiento_resuelto);
@@ -278,6 +299,10 @@ vm.createContext(sandbox);
   });
   ok(posicionVisual("vera") === "nuestra-senora-torre" && temporizadoresPendientes() === 0,
     "un pasadizo salta directamente al destino sin temporizadores");
+  ok(registro["modal-ubicacion"].hidden === false &&
+    registro["modal-contextual-titulo"].textContent === "nuestra-senora-torre",
+  "un pasadizo humano confirmado abre el popup al completar el salto");
+  registro["btn-cerrar-ubicacion"].click();
 
   const brunoOrigen = sala.jugadores.find((item) => item.personaje_id === "bruno").posicion.id;
   observadas = observarMovimiento({
@@ -286,6 +311,8 @@ vm.createContext(sandbox);
   });
   ok(JSON.stringify(observadas.slice(0, 3)) === JSON.stringify([brunoOrigen, paso1, paso2]),
     "un PNJ utiliza el mismo flujo visual de origen y recorrido");
+  ok(registro["modal-ubicacion"].hidden === true,
+    "el movimiento de un PNJ no abre el popup al jugador local");
   const accesibles = registro["tablero-canvas-accesible"].children;
   const botonesInfo = accesibles.filter((n) => n.tag === "button" && n.textContent.startsWith("Ver carta de "));
   ok(botonesInfo.length === 9, "la capa HTML mantiene las 9 ubicaciones consultables");
