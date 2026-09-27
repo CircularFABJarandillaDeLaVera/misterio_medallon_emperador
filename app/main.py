@@ -28,6 +28,7 @@ from app.motor.sala import (
     JUGADA_ESPERANDO_MOVIMIENTO,
     JUGADA_ESPERANDO_REFUTADOR,
     JUGADA_ESPERANDO_SOSPECHA,
+    JUGADA_PRESENTANDO_SOSPECHA,
     TIPO_PNJ,
     MODO_TABLERO,
     GestorSalas,
@@ -116,10 +117,11 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
             if sala.estado == ESTADO_TERMINADA:
                 cancelar_timeout_refutacion(codigo)
                 return
-            # La jugada PNJ también puede dejar una refutación pendiente
-            # de un humano eliminado: programa el watchdog con el deadline
-            # ya creado (nunca lo reinicia). Sin esto, el timeout real no
-            # se disparaba cuando el investigador era un PNJ.
+            if sala.estado_jugada == JUGADA_PRESENTANDO_SOSPECHA:
+                programar_presentacion_sospecha(codigo)
+                return
+            # La jugada PNJ también puede dejar una refutación humana
+            # pendiente: programa el watchdog con el deadline ya creado.
             programar_timeout_refutacion(codigo)
     finally:
         if tareas_pnj.get(codigo) is tarea_actual:
@@ -141,7 +143,7 @@ tareas_refutacion: dict[str, asyncio.Task] = {}
 
 
 def _necesita_timeout_refutacion(sala) -> bool:
-    """Solo HUMANO + ELIMINADO + VARIAS coincidencias pendientes."""
+    """Toda refutación humana pendiente tiene un único timeout."""
     if (
         sala.estado_jugada != JUGADA_ESPERANDO_REFUTADOR
         or not sala.sospecha_pendiente
@@ -153,12 +155,10 @@ def _necesita_timeout_refutacion(sala) -> bool:
     return (
         refutador is not None
         and refutador["tipo"] != TIPO_PNJ
-        and not refutador["activo_investigacion"]
-        and len(sala.sospecha_pendiente["coincidencias"]) > 1
     )
 
 
-async def _vigilar_refutacion_eliminado(codigo: str) -> None:
+async def _vigilar_refutacion_humana(codigo: str) -> None:
     """Espera al deadline y resuelve automáticamente si sigue pendiente.
 
     La carrera manual/timeout se gana bajo el cerrojo de la sala: quien
@@ -181,10 +181,12 @@ async def _vigilar_refutacion_eliminado(codigo: str) -> None:
             sala = gestor.obtener(codigo)
             if sala is None or sala.refutacion_deadline != deadline:
                 return  # rancia: otra jugada manda o ya se resolvió
-            if sala.resolver_refutacion_eliminado_auto() is None:
+            if sala.resolver_refutacion_auto() is None:
                 return  # la elección manual ganó la carrera
         await difundir(codigo)
         programar_turno_pnj(codigo)
+        # 8B.31C: el timeout también abre el resultado público.
+        programar_presentacion_sospecha(codigo)
     finally:
         if tareas_refutacion.get(codigo) is tarea_actual:
             tareas_refutacion.pop(codigo, None)
@@ -202,13 +204,84 @@ def programar_timeout_refutacion(codigo: str) -> None:
     existente = tareas_refutacion.get(codigo)
     if existente is None or existente.done():
         tareas_refutacion[codigo] = asyncio.create_task(
-            _vigilar_refutacion_eliminado(codigo)
+            _vigilar_refutacion_humana(codigo)
         )
 
 
 def cancelar_timeout_refutacion(codigo: str) -> None:
     tarea = tareas_refutacion.pop(codigo, None)
     if tarea:
+        tarea.cancel()
+
+
+# Watchdog autoritativo de la presentación sincronizada (Microfase 8B.30).
+tareas_presentacion: dict[str, asyncio.Task] = {}
+
+
+async def _vigilar_presentacion_sospecha(codigo: str) -> None:
+    tarea_actual = asyncio.current_task()
+    try:
+        while True:
+            sala = gestor.obtener(codigo)
+            presentacion = getattr(sala, "presentacion_sospecha", None) if sala else None
+            if sala is None or presentacion is None:
+                return
+            presentacion_id = presentacion["id"]
+            pendientes = [
+                estado["deadline"]
+                for estado in presentacion["participantes"].values()
+                if not estado["listo"]
+            ]
+            if not pendientes:
+                retraso = 0
+            else:
+                retraso = max(0.0, min(pendientes) - time.monotonic())
+            if retraso:
+                await asyncio.sleep(retraso)
+            async with cerrojos.setdefault(codigo, asyncio.Lock()):
+                sala = gestor.obtener(codigo)
+                actual = getattr(sala, "presentacion_sospecha", None) if sala else None
+                if actual is None or actual["id"] != presentacion_id:
+                    return
+                completada = sala.actualizar_presentacion_sospecha()
+            await difundir(codigo)
+            if completada:
+                programar_timeout_refutacion(codigo)
+                programar_turno_pnj(codigo)
+                # 8B.31C: resolver la refutación abre la presentación PÚBLICA
+                # de resultado. Se sigue vigilando en la MISMA tarea (identidad
+                # y plazo viven en la sala): nunca un watchdog duplicado.
+                if getattr(gestor.obtener(codigo), "presentacion_sospecha", None):
+                    continue
+                return
+    finally:
+        if tareas_presentacion.get(codigo) is tarea_actual:
+            tareas_presentacion.pop(codigo, None)
+
+
+def programar_presentacion_sospecha(codigo: str) -> None:
+    sala = gestor.obtener(codigo)
+    if (
+        sala is None
+        or sala.estado == ESTADO_TERMINADA
+        or sala.estado_jugada != JUGADA_PRESENTANDO_SOSPECHA
+        or sala.presentacion_sospecha is None
+    ):
+        return
+    existente = tareas_presentacion.get(codigo)
+    if existente is None or existente.done():
+        tareas_presentacion[codigo] = asyncio.create_task(
+            _vigilar_presentacion_sospecha(codigo)
+        )
+
+
+def cancelar_presentacion_sospecha(codigo: str) -> None:
+    tarea = tareas_presentacion.pop(codigo, None)
+    try:
+        actual = asyncio.current_task()
+    except RuntimeError:
+        actual = None
+    if tarea and tarea is not actual:
         tarea.cancel()
 
 
@@ -361,6 +434,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     # Reconexión con refutación pendiente: rearma el watchdog con el
     # deadline existente de la sala, sin reiniciar el plazo.
     programar_timeout_refutacion(sala.codigo)
+    programar_presentacion_sospecha(sala.codigo)
     try:
         while True:
             datos = await ws.receive_json()
@@ -374,6 +448,21 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+            elif accion == "confirmar_presentacion_sospecha":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        completada = sala.confirmar_presentacion_sospecha(
+                            jugador_id, datos.get("presentacion_id")
+                        )
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                if completada:
+                    cancelar_presentacion_sospecha(sala.codigo)
+                await difundir(sala.codigo)
+                if completada:
+                    programar_timeout_refutacion(sala.codigo)
+                    programar_turno_pnj(sala.codigo)
             elif accion == "elegir_personaje":
                 try:
                     sala.elegir_personaje(jugador_id, datos.get("personaje_id", ""))
@@ -395,7 +484,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
-                programar_turno_pnj(sala.codigo)
+                programar_presentacion_sospecha(sala.codigo)
             elif accion == "tirar_dado":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -439,6 +528,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     if tarea and tarea is not asyncio.current_task():
                         tarea.cancel()
                     cancelar_timeout_refutacion(sala.codigo)
+                    cancelar_presentacion_sospecha(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
             elif accion == "mostrar_carta":
@@ -450,8 +540,25 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 # La elección manual ganó: el watchdog pendiente es no-op.
                 cancelar_timeout_refutacion(sala.codigo)
+                cancelar_presentacion_sospecha(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+                # 8B.31C: la refutación abre el resultado público.
+                programar_presentacion_sospecha(sala.codigo)
+            elif accion == "continuar_refutacion":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.continuar_refutacion(jugador_id)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                # El servidor completa la refutación: el watchdog es no-op.
+                cancelar_timeout_refutacion(sala.codigo)
+                cancelar_presentacion_sospecha(sala.codigo)
+                await difundir(sala.codigo)
+                programar_turno_pnj(sala.codigo)
+                # 8B.31C: la refutación abre el resultado público.
+                programar_presentacion_sospecha(sala.codigo)
             elif accion == "marcar_investigacion":
                 try:
                     sala.marcar_investigacion(
@@ -482,6 +589,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 if tarea:
                     tarea.cancel()
                 cancelar_timeout_refutacion(sala.codigo)
+                cancelar_presentacion_sospecha(sala.codigo)
             else:
                 await difundir(sala.codigo)
         # En partida iniciada el jugador y su mano se conservan

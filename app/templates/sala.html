@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b29" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b31i" />
 </head>
 <body>
   <main class="contenedor">
@@ -103,6 +103,14 @@
           <button id="btn-continuar-resolucion-fallida" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
         </div>
       </div>
+      <div id="modal-presentacion-sospecha" class="modal" hidden>
+        <div class="modal-caja modal-resolucion-fallida-caja modal-presentacion-sospecha-caja" role="dialog" aria-modal="true" aria-label="Presentación de sospecha">
+          <h2 id="presentacion-sospecha-titulo">SOSPECHA</h2>
+          <p id="presentacion-resultado-texto" class="presentacion-resultado-texto" hidden></p>
+          <div id="presentacion-sospecha-cartas" class="conf-resolver-cartas resolucion-fallida-cartas" role="group" aria-label="Cartas de la sospecha"></div>
+          <button id="btn-continuar-presentacion-sospecha" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
+        </div>
+      </div>
       <div id="modal-sospecha" class="modal" hidden>
         <div class="modal-caja" role="dialog" aria-label="Formular sospecha">
           <h2>FORMULAR SOSPECHA</h2>
@@ -114,12 +122,12 @@
         </div>
       </div>
       <div id="modal-refutacion" class="modal" hidden>
-        <div class="modal-caja" role="dialog" aria-label="Refutar sospecha">
-          <h2>PUEDES REFUTAR LA SOSPECHA</h2>
-          <p>ELIGE UNA CARTA PARA MOSTRAR:</p>
-          <div id="opciones-refutacion"></div>
+        <div class="modal-caja modal-refutacion-caja" role="dialog" aria-modal="true" aria-label="Refutar sospecha">
+          <h2 id="refutacion-titulo">PUEDES REFUTAR</h2>
+          <div id="opciones-refutacion" role="group" aria-label="Cartas con las que puedes refutar"></div>
           <p id="aviso-timeout-refutacion" class="nota-privada" hidden></p>
-          <p class="nota-privada">Solo el investigador verá la carta que elijas.</p>
+          <button id="btn-confirmar-refutacion" class="medallon medallon-primario medallon-compacto" type="button">REFUTAR</button>
+          <button id="btn-continuar-refutacion" class="medallon medallon-fantasma medallon-compacto" type="button" hidden>CONTINUAR</button>
         </div>
       </div>
       <div id="modal-revelacion-refutacion" class="modal" hidden>
@@ -163,7 +171,7 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b29"></script>
+  <script src="/static/js/sala.js?v=8b31i"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>
 </html>

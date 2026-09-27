@@ -16,6 +16,16 @@ from app.motor.sala import (
 )
 from app.motor.tablero import TABLERO
 
+def cerrar_resultado(sala):
+    """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
+
+    No-op si no hay resultado publico pendiente: las aserciones intermedias
+    siguen viendo el turno sin avanzar.
+    """
+    presentacion = getattr(sala, "presentacion_sospecha", None)
+    if presentacion and presentacion.get("tipo") == "resultado":
+        assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+
 
 class RngPNJ:
     def __init__(self, accion="tirar", dado=1, indice_destino=0):
@@ -74,6 +84,7 @@ def test_pnj_ubicacion_inicial_no_sospecha_sin_mover():
 def test_pnj_puede_usar_pasadizo_y_sospecha_en_destino():
     sala, pnj, _, _ = sala_pnj_tablero()
     sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.posiciones.obtener(pnj["id"]) == "nuestra-senora-torre"
     assert sala.ultima_jugada["sospecha"]["lugar_id"] == "nuestra-senora-torre"
     assert sala.ultima_jugada["movimiento_pnj"]["accion"] == "pasadizo"
@@ -84,6 +95,7 @@ def test_pnj_desde_ubicacion_sin_pasadizo_tira_obligatoriamente():
     rng = RngPNJ("tirar", dado=4)
     legales = TABLERO.destinos_alcanzables("iglesia-san-agustin", 4)
     sala.ejecutar_turno_pnj(rng)
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=rng)
     assert rng.pesos_accion is None
     assert sala.posiciones.obtener(pnj["id"]) in legales
     assert TABLERO.es_ubicacion(sala.posiciones.obtener(pnj["id"]))
@@ -112,6 +124,7 @@ def test_pnj_prefiere_ubicacion_frente_a_intermedia_si_es_alcanzable():
     assert any(TABLERO.es_ubicacion(r.destino) for r in rutas)
     assert any(not TABLERO.es_ubicacion(r.destino) for r in rutas)
     sala.ejecutar_turno_pnj(RngPNJ(dado=2))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert TABLERO.es_ubicacion(sala.posiciones.obtener(pnj["id"]))
     assert sala.ultima_jugada["sospecha"]["lugar_id"] == sala.posiciones.obtener(pnj["id"])
 
@@ -135,7 +148,9 @@ def test_pnj_tablero_refutacion_pnj_automatica_y_humana_detiene_turno():
     sala.orden_turnos = [pnj["id"], segundo["id"], humano["id"]]
     sala.manos[segundo["id"]] = [CARTA_POR_ID["vera"]]
     sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert "vera" in sala.vistas[pnj["id"]]
+    cerrar_resultado(sala)  # 8B.31C
     assert sala.jugador_en_turno()["id"] == segundo["id"]
 
     sala, pnj, humano, _ = sala_pnj_tablero()
@@ -144,9 +159,11 @@ def test_pnj_tablero_refutacion_pnj_automatica_y_humana_detiene_turno():
         CARTA_POR_ID["baul-imperial"],
     ]
     sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.estado_jugada == JUGADA_ESPERANDO_REFUTADOR
     assert sala.jugador_en_turno()["id"] == pnj["id"]
-    assert sala.refutacion_deadline is None
+    assert sala.refutacion_deadline is not None
+    assert main._necesita_timeout_refutacion(sala)
 
 
 def test_pnj_tablero_humano_eliminado_multimatch_crea_timeout():
@@ -157,6 +174,7 @@ def test_pnj_tablero_humano_eliminado_multimatch_crea_timeout():
         CARTA_POR_ID["baul-imperial"],
     ]
     sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.estado_jugada == JUGADA_ESPERANDO_REFUTADOR
     assert sala.refutacion_deadline is not None
     assert main._necesita_timeout_refutacion(sala)
@@ -178,7 +196,9 @@ def test_pnj_eliminado_no_recibe_turno_pero_sigue_refutando():
     sala.estado_jugada = JUGADA_ESPERANDO_MOVIMIENTO
     sala.manos[eliminado["id"]] = [CARTA_POR_ID["vera"]]
     sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert "vera" in sala.vistas[pnj["id"]]
+    cerrar_resultado(sala)  # 8B.31C
     assert sala.jugador_en_turno()["id"] == humano["id"]
     assert sala.posiciones.obtener(eliminado["id"]) == posicion_eliminado
 
@@ -211,6 +231,7 @@ def test_trampa_mismo_conocimiento_y_tablero_distinto_misterio_misma_decision():
             "objeto": CARTA_POR_ID["cantaro-barro"],
         }
         sala.ejecutar_turno_pnj(RngPNJ("pasadizo"))
+        sala.actualizar_presentacion_sospecha(ahora=float("inf"))
         resultados.append(
             (
                 sala.posiciones.obtener(pnj["id"]),
@@ -236,7 +257,11 @@ def test_cadena_tablero_cinco_pnj_alcanza_humano_sin_bloqueo(monkeypatch):
         monkeypatch.setattr(main, "PAUSA_TURNO_PNJ_SEGUNDOS", 0)
         monkeypatch.setattr(main, "PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS", 0)
         try:
-            await main._cadena_turnos_pnj(sala.codigo)
+            for _ in pnjs:
+                await main._cadena_turnos_pnj(sala.codigo)
+                main.cancelar_presentacion_sospecha(sala.codigo)
+                sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+                cerrar_resultado(sala)  # 8B.31C: cierra el resultado público
             assert sala.jugador_en_turno()["id"] == humano["id"]
             assert all(sala.posiciones.obtener(j["id"]) for j in pnjs)
         finally:
@@ -269,7 +294,8 @@ def test_programar_dos_veces_en_tablero_no_duplica_tarea_ni_accion(monkeypatch):
             assert main.tareas_pnj[sala.codigo] is primera
             await primera
             assert llamadas == 1
-            assert sala.jugador_en_turno()["id"] != pnj["id"]
+            assert sala.jugador_en_turno()["id"] == pnj["id"]
+            assert sala.presentacion_sospecha is not None
         finally:
             main.gestor.salas.pop(sala.codigo, None)
             main.cerrojos.pop(sala.codigo, None)

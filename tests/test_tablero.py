@@ -185,4 +185,5 @@ def test_modo_rapido_no_depende_del_tablero():
     sala.orden_turnos = [j["id"] for j in jugadores]
     sala.manos = {j["id"]: [] for j in jugadores}
     sala.formular_sospecha(jugadores[0]["id"], "vera", "puente-parral", "libro-hueco")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.ultima_jugada["resultado"] == "sin_refutacion"

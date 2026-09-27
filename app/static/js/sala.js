@@ -30,6 +30,9 @@ const btnSospecha = document.getElementById("btn-sospecha");
 const modalSospecha = document.getElementById("modal-sospecha");
 const modalRefutacion = document.getElementById("modal-refutacion");
 const opcionesRefutacion = document.getElementById("opciones-refutacion");
+const refutacionTitulo = document.getElementById("refutacion-titulo");
+const btnConfirmarRefutacion = document.getElementById("btn-confirmar-refutacion");
+const btnContinuarRefutacion = document.getElementById("btn-continuar-refutacion");
 const modalRevelacionRefutacion = document.getElementById("modal-revelacion-refutacion");
 const revelacionRefutador = document.getElementById("revelacion-refutador");
 const revelacionCartaImagen = document.getElementById("revelacion-carta-imagen");
@@ -50,6 +53,11 @@ const confResolverCartas = document.getElementById("conf-resolver-cartas");
 const modalResolucionFallida = document.getElementById("modal-resolucion-fallida");
 const resolucionFallidaCartas = document.getElementById("resolucion-fallida-cartas");
 const btnContinuarResolucionFallida = document.getElementById("btn-continuar-resolucion-fallida");
+const modalPresentacionSospecha = document.getElementById("modal-presentacion-sospecha");
+const presentacionSospechaTitulo = document.getElementById("presentacion-sospecha-titulo");
+const presentacionSospechaCartas = document.getElementById("presentacion-sospecha-cartas");
+const presentacionResultadoTexto = document.getElementById("presentacion-resultado-texto");
+const btnContinuarPresentacionSospecha = document.getElementById("btn-continuar-presentacion-sospecha");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
@@ -110,6 +118,9 @@ let estadoVisualHidratado = false;
 let ultimoMovimientoId = null;
 let secuenciaAnimacion = 0;
 let resolucionPendienteLocal = null;
+let presentacionSospechaVisibleId = null;
+let presentacionSospechaDescartadaId = null;
+let cartaRefutacionSeleccionadaId = null;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -646,6 +657,17 @@ btnContinuarRevelacion.addEventListener("click", () => {
   modalRevelacionRefutacion.hidden = true;
 });
 
+// Con carta seleccionada la acción es REFUTAR. Sin selección, CONTINUAR
+// significa "no elijo yo": el servidor elige una coincidencia válida y
+// completa la refutación (misma ruta interna que el timeout). Nunca se
+// vuelve a pedir REFUTAR.
+function actualizarAccionesRefutacion(totalOpciones) {
+  const haySeleccion = Boolean(cartaRefutacionSeleccionadaId);
+  btnConfirmarRefutacion.disabled = !haySeleccion;
+  btnContinuarRefutacion.disabled = false;
+  btnContinuarRefutacion.hidden = haySeleccion || totalOpciones === 0;
+}
+
 function pintarJugada(sala) {
   const jugada = sala.jugada || {};
   jugadaDiv.innerHTML = "";
@@ -700,18 +722,40 @@ function pintarJugada(sala) {
   }
   jugadaDiv.appendChild(resultado);
   pintarRevelacionPrivada(sala);
+  pintarPresentacionSospecha(sala);
 
   const opciones = Array.isArray(jugada.opciones_refutacion)
     ? jugada.opciones_refutacion : [];
+  const seleccionPreviaValida = opciones.some(
+    (carta) => carta.id === cartaRefutacionSeleccionadaId
+  );
+  cartaRefutacionSeleccionadaId = opciones.length === 1
+    ? opciones[0].id
+    : seleccionPreviaValida ? cartaRefutacionSeleccionadaId : null;
   modalRefutacion.hidden = opciones.length === 0;
   opcionesRefutacion.innerHTML = "";
+  opcionesRefutacion.dataset.total = String(opciones.length);
+  refutacionTitulo.textContent = opciones.length === 1
+    ? "PUEDES REFUTAR"
+    : "ELIGE UNA CARTA PARA REFUTAR";
   opciones.forEach((carta) => {
-    const boton = document.createElement("button");
-    boton.type = "button";
-    boton.textContent = carta.nombre;
-    boton.addEventListener("click", () => {
-      boton.disabled = true;
-      ws.send(JSON.stringify({ accion: "mostrar_carta", carta_id: carta.id }));
+    // Patrón IDÉNTICO al selector de FORMULAR SOSPECHA (el que funciona):
+    // un listener por carta vía `alPulsar`, la pulsada se marca y las demás
+    // se desmarcan. Sin delegación ni eventos especiales.
+    const boton = crearCartaVisual(carta, {
+      esPropia: true,
+      mostrarNombre: false,
+      seleccionada: carta.id === cartaRefutacionSeleccionadaId,
+      alPulsar: () => {
+        Array.from(opcionesRefutacion.children).forEach((opcion) => {
+          opcion.classList.remove("seleccionada");
+          opcion.setAttribute("aria-pressed", "false");
+        });
+        boton.classList.add("seleccionada");
+        boton.setAttribute("aria-pressed", "true");
+        cartaRefutacionSeleccionadaId = carta.id;
+        actualizarAccionesRefutacion(opciones.length);
+      },
     });
     opcionesRefutacion.appendChild(boton);
   });
@@ -728,6 +772,79 @@ function pintarJugada(sala) {
       avisoTimeoutRefutacion.textContent = "";
     }
   }
+}
+
+btnConfirmarRefutacion.addEventListener("click", () => {
+  if (!cartaRefutacionSeleccionadaId || btnConfirmarRefutacion.disabled) return;
+  btnConfirmarRefutacion.disabled = true;
+  ws.send(JSON.stringify({
+    accion: "mostrar_carta",
+    carta_id: cartaRefutacionSeleccionadaId,
+  }));
+  modalRefutacion.hidden = true;
+  cartaRefutacionSeleccionadaId = null;
+});
+
+btnContinuarRefutacion.addEventListener("click", () => {
+  if (btnContinuarRefutacion.hidden || cartaRefutacionSeleccionadaId) return;
+  btnContinuarRefutacion.disabled = true;
+  ws.send(JSON.stringify({ accion: "continuar_refutacion" }));
+  modalRefutacion.hidden = true;
+  cartaRefutacionSeleccionadaId = null;
+});
+
+function pintarPresentacionSospecha(sala) {
+  const jugada = (sala && sala.jugada) || {};
+  const id = jugada.presentacion_id;
+  if (!jugada.presentacion_pendiente || !id || id === presentacionSospechaDescartadaId) {
+    modalPresentacionSospecha.hidden = true;
+    presentacionSospechaVisibleId = null;
+    if (jugada.estado !== "presentando_sospecha") {
+      presentacionSospechaDescartadaId = null;
+    }
+    return;
+  }
+  const sospecha = jugada.sospecha || {};
+  if (jugada.presentacion_tipo === "resultado") {
+    // 8B.31C · Cierre PÚBLICO. No se enseña ninguna carta: solo quién
+    // formuló, quién refutó y el resultado. La carta concreta sigue siendo
+    // privada del investigador (modal-revelacion-refutacion).
+    presentacionSospechaCartas.hidden = true;
+    presentacionSospechaCartas.innerHTML = "";
+    presentacionResultadoTexto.hidden = false;
+    const refutada = jugada.resultado === "refutada";
+    presentacionSospechaTitulo.textContent = refutada
+      ? "SOSPECHA REFUTADA"
+      : "NADIE HA PODIDO REFUTAR LA SOSPECHA";
+    presentacionResultadoTexto.textContent = refutada
+      ? `${(jugada.refutador_alias || "ALGUIEN").toUpperCase()} HA REFUTADO ` +
+        `LA SOSPECHA DE ${(jugada.investigador_alias || "INVESTIGADOR").toUpperCase()}.`
+      : "Ningún jugador ha mostrado una carta.";
+    presentacionSospechaVisibleId = id;
+    btnContinuarPresentacionSospecha.disabled = false;
+    modalPresentacionSospecha.hidden = false;
+    if (btnContinuarPresentacionSospecha.focus) btnContinuarPresentacionSospecha.focus();
+    return;
+  }
+  presentacionSospechaCartas.hidden = false;
+  presentacionResultadoTexto.hidden = true;
+  presentacionResultadoTexto.textContent = "";
+  const cartas = [
+    { ...sospecha.sospechoso_id, categoria: "sospechoso" },
+    { ...sospecha.lugar_id, categoria: "lugar" },
+    { ...sospecha.objeto_id, categoria: "objeto" },
+  ];
+  pintarCartasResolucion(presentacionSospechaCartas, cartas, {
+    sospechoso: cartas[0].id,
+    lugar: cartas[1].id,
+    objeto: cartas[2].id,
+  });
+  presentacionSospechaTitulo.textContent =
+    `SOSPECHA DE ${(jugada.investigador_alias || "INVESTIGADOR").toUpperCase()}`;
+  presentacionSospechaVisibleId = id;
+  btnContinuarPresentacionSospecha.disabled = false;
+  modalPresentacionSospecha.hidden = false;
+  if (btnContinuarPresentacionSospecha.focus) btnContinuarPresentacionSospecha.focus();
 }
 
 function pintarMovimiento(sala) {
@@ -924,6 +1041,12 @@ function pintarVistaSospecha(sala, ubicacionId) {
   const cartasPropias = new Set((sala.mis_cartas || []).map((carta) => carta.id));
   let sospechosoSeleccionado = "";
   let objetoSeleccionado = "";
+  // Aviso DENTRO del selector: `#error` vive en el lobby (oculto mientras se
+  // juega), así que un fallo de validación no le llegaba a ver a nadie y el
+  // botón quedaba muerto. Reutiliza la clase .error ya existente.
+  const aviso = document.createElement("p");
+  aviso.className = "error";
+  aviso.setAttribute("role", "alert");
 
   function crearGrupoSelector(categoria) {
     const grupo = document.createElement("div");
@@ -942,7 +1065,7 @@ function pintarVistaSospecha(sala, ubicacionId) {
         boton.setAttribute("aria-pressed", "true");
         if (categoria === "sospechoso") sospechosoSeleccionado = carta.id;
         else objetoSeleccionado = carta.id;
-        confirmar.disabled = !sospechosoSeleccionado || !objetoSeleccionado;
+        aviso.textContent = "";
       } });
       boton.classList.add("carta-sospecha-compacta");
       grupo.appendChild(boton);
@@ -962,16 +1085,24 @@ function pintarVistaSospecha(sala, ubicacionId) {
   const grupoObjetos = crearGrupoSelector("objeto");
   grupoObjetos.setAttribute("aria-label", "Selecciona un objeto");
   modalContextualDetalle.appendChild(grupoObjetos);
+  modalContextualDetalle.appendChild(aviso);
   const confirmar = document.createElement("button");
   confirmar.type = "button";
   confirmar.className = "medallon medallon-primario medallon-compacto";
   confirmar.textContent = "CONFIRMAR SOSPECHA";
-  confirmar.disabled = true;
+  // El botón no nace `disabled`: un control deshabilitado se traga el toque
+  // sin hacer nada. Valida al pulsar y explica qué falta, aquí mismo.
+  confirmar.disabled = false;
   confirmar.addEventListener("click", () => {
-    if (!sospechosoSeleccionado || !objetoSeleccionado || !sala.posicion) {
-      error.textContent = "Selecciona sospechoso y objeto.";
+    const falta = [];
+    if (!sospechosoSeleccionado) falta.push("un sospechoso");
+    if (!objetoSeleccionado) falta.push("dónde lo escondió");
+    if (!sala.posicion) falta.push("estar en una ubicación");
+    if (falta.length) {
+      aviso.textContent = `Para confirmar elige ${falta.join(" y ")}.`;
       return;
     }
+    aviso.textContent = "";
     confirmar.disabled = true;
     ws.send(JSON.stringify({
       accion: "formular_sospecha",
@@ -1364,4 +1495,16 @@ btnEnviarResolver.addEventListener("click", () => {
 
 btnContinuarResolucionFallida.addEventListener("click", () => {
   modalResolucionFallida.hidden = true;
+});
+
+btnContinuarPresentacionSospecha.addEventListener("click", () => {
+  if (!presentacionSospechaVisibleId || btnContinuarPresentacionSospecha.disabled) return;
+  btnContinuarPresentacionSospecha.disabled = true;
+  presentacionSospechaDescartadaId = presentacionSospechaVisibleId;
+  ws.send(JSON.stringify({
+    accion: "confirmar_presentacion_sospecha",
+    presentacion_id: presentacionSospechaVisibleId,
+  }));
+  modalPresentacionSospecha.hidden = true;
+  presentacionSospechaVisibleId = null;
 });

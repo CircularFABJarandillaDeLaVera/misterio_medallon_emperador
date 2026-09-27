@@ -4,12 +4,24 @@ import pytest
 
 from app.datos.jarandilla import CARTAS, CARTA_POR_ID
 from app.motor.sala import (
+
+
     ESTADO_INICIADA,
     ESTADO_TERMINADA,
     INV_VISTA,
     TIPO_PNJ,
     Sala,
 )
+
+def cerrar_resultado(sala):
+    """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
+
+    No-op si no hay resultado publico pendiente: las aserciones intermedias
+    siguen viendo el turno sin avanzar.
+    """
+    presentacion = getattr(sala, "presentacion_sospecha", None)
+    if presentacion and presentacion.get("tipo") == "resultado":
+        assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
 
 
 SOLUCION = {"sospechoso": CARTA_POR_ID["vera"], "lugar": CARTA_POR_ID["parador"], "objeto": CARTA_POR_ID["baul-imperial"]}
@@ -80,6 +92,13 @@ def test_humano_que_falla_conserva_mano_y_refuta_despues_con_una_coincidencia():
     assert sala.manos[a["id"]] == mano
 
     sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+    assert [
+        carta["id"]
+        for carta in sala.estado_privado(a["id"])["jugada"]["opciones_refutacion"]
+    ] == ["eulalia"]
+    assert sala.ultima_jugada is None
+    sala.mostrar_carta(a["id"], "eulalia")
     assert sala.ultima_jugada["refutador_id"] == a["id"]
     assert sala.ultima_jugada["carta_id"] == "eulalia"
     assert sala.estado_privado(b["id"])["jugada"]["carta_mostrada"]["id"] == "eulalia"
@@ -93,6 +112,7 @@ def test_humano_que_falla_conserva_eleccion_privada_si_puede_refutar_varias():
 
     assert acusar(sala, a, sospechoso="bruno") is False
     sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
 
     privada_a = sala.estado_privado(a["id"])["jugada"]
     assert {carta["id"] for carta in privada_a["opciones_refutacion"]} == {
@@ -137,9 +157,11 @@ def test_pnj_deduce_sospecha_propia_no_refutada_y_acusa_despues():
     sala.turno_actual = 2
     sala.manos = {j["id"]: [] for j in sala.jugadores}
     sala.formular_sospecha(pnj["id"], "vera", "parador", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.soluciones_deducidas[pnj["id"]] == {
         "sospechoso_id": "vera", "lugar_id": "parador", "objeto_id": "baul-imperial"
     }
+    cerrar_resultado(sala)  # 8B.31C: se cierra el resultado público
     sala.turno_actual = 2
     sala.ejecutar_turno_pnj()
     assert sala.estado == ESTADO_TERMINADA
@@ -218,6 +240,7 @@ def test_pnj_sin_deduccion_suficiente_sigue_formulando_sospecha():
 
     assert sala.deducir_solucion_pnj(pnj["id"]) is None
     sala.ejecutar_turno_pnj(rng=Primero())
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=Primero())
     assert sala.estado == ESTADO_INICIADA
     assert sala.ultima_jugada["resultado"] in {"refutada", "sin_refutacion"}
 

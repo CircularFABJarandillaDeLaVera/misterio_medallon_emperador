@@ -386,6 +386,77 @@ ok(
 );
 
 // 6. Revelación visual: solo aparece cuando el privado incluye carta_mostrada.
+enviados.length = 0;
+pintarJugada(salaBase({
+  estado: "esperando_eleccion_refutador",
+  opciones_refutacion: [{ id: "vera", nombre: "Vera", categoria: "sospechoso" }],
+}));
+ok($("modal-refutacion").hidden === false, "una coincidencia abre la refutacion visual");
+ok(
+  $("opciones-refutacion").children.length === 1 &&
+    $("opciones-refutacion").children[0].classList.contains("seleccionada"),
+  "la unica carta queda preseleccionada"
+);
+ok($("btn-confirmar-refutacion").disabled === false, "REFUTAR queda disponible con una carta");
+ok(enviados.length === 0, "una coincidencia humana no se envia automaticamente");
+$("opciones-refutacion").children[0].click();
+ok(
+  $("modal-refutacion").hidden === false &&
+    $("modal-revelacion-refutacion").hidden === true &&
+    $("opciones-refutacion").children.length === 1 && enviados.length === 0,
+  "pulsar la unica carta conserva el mismo popup y no abre una confirmacion"
+);
+$("btn-confirmar-refutacion").click();
+ok(
+  enviados.length === 1 && enviados[0].accion === "mostrar_carta" &&
+    enviados[0].carta_id === "vera",
+  "REFUTAR envia la unica carta una sola vez"
+);
+$("btn-confirmar-refutacion").click();
+ok(enviados.length === 1, "REFUTAR bloquea el doble envio");
+
+enviados.length = 0;
+const jugadaRefutacionMultiple = {
+  estado: "esperando_eleccion_refutador",
+  opciones_refutacion: [
+    { id: "vera", nombre: "Vera", categoria: "sospechoso" },
+    { id: "parador", nombre: "Parador", categoria: "lugar" },
+    { id: "cantaro-barro", nombre: "Cantaro", categoria: "objeto" },
+  ],
+};
+pintarJugada(salaBase(jugadaRefutacionMultiple));
+ok($("btn-confirmar-refutacion").disabled === true, "varias cartas exigen elegir una");
+$("opciones-refutacion").children[0].click();
+ok(
+  $("modal-refutacion").hidden === false &&
+    $("modal-revelacion-refutacion").hidden === true &&
+    $("opciones-refutacion").children.length === 3 &&
+    $("btn-confirmar-refutacion").disabled === false && enviados.length === 0,
+  "seleccionar mantiene todas las cartas en el unico popup y habilita REFUTAR"
+);
+pintarJugada(salaBase(jugadaRefutacionMultiple));
+ok(
+  $("opciones-refutacion").children[0].classList.contains("seleccionada") &&
+    $("btn-confirmar-refutacion").disabled === false,
+  "una redifusion conserva la seleccion local mientras siga siendo valida"
+);
+$("opciones-refutacion").children[2].click();
+ok(
+  !$("opciones-refutacion").children[0].classList.contains("seleccionada") &&
+    $("opciones-refutacion").children[2].classList.contains("seleccionada") &&
+    $("opciones-refutacion").children.length === 3 &&
+    $("modal-refutacion").hidden === false &&
+    $("modal-revelacion-refutacion").hidden === true && enviados.length === 0,
+  "la seleccion de refutacion es exclusiva"
+);
+$("btn-confirmar-refutacion").click();
+ok(
+  enviados.length === 1 && enviados[0].carta_id === "cantaro-barro",
+  "REFUTAR envia solo la carta elegida"
+);
+pintarJugada(salaBase({ estado: "presentando_sospecha", resultado: "pendiente" }));
+ok($("modal-refutacion").hidden === true, "8B.30 no abre la refutacion antes de tiempo");
+
 vm.runInContext(`RECURSOS_VISUALES = {
   vera: { principal: "/static/img/personajes/vera.png", nombre: "/static/img/personajes/vera-nombre.png" },
   parador: { principal: "/static/img/lugares/parador.jpeg" },
@@ -458,6 +529,47 @@ ok(
     $("revelacion-carta-imagen").src === "/static/img/objetos/cantaro-barro.jpeg",
   "PNJ produce la misma revelación privada con la imagen del objeto"
 );
+
+// 8B.30: presentación pública previa a la refutación, con confirmación
+// asociada inequívocamente al id canónico del servidor.
+function jugadaPresentacion(id, pendiente = true) {
+  return {
+    estado: "presentando_sospecha",
+    investigador_alias: "Bruno",
+    presentacion_id: id,
+    presentacion_pendiente: pendiente,
+    sospecha: {
+      sospechoso_id: { id: "vera", nombre: "Vera" },
+      lugar_id: { id: "parador", nombre: "Parador" },
+      objeto_id: { id: "baul-imperial", nombre: "Baúl Imperial" },
+    },
+  };
+}
+
+enviados.length = 0;
+pintarJugada(salaBase(jugadaPresentacion(41)));
+ok(
+  $("modal-presentacion-sospecha").hidden === false &&
+    $("presentacion-sospecha-titulo").textContent === "SOSPECHA DE BRUNO" &&
+    $("presentacion-sospecha-cartas").children.length === 3,
+  "humano ajeno ve autor y las tres cartas de la sospecha"
+);
+$("btn-continuar-presentacion-sospecha").click();
+$("btn-continuar-presentacion-sospecha").click();
+ok(
+  enviados.filter((m) => m.accion === "confirmar_presentacion_sospecha").length === 1 &&
+    enviados.at(-1).presentacion_id === 41 &&
+    $("modal-presentacion-sospecha").hidden,
+  "CONTINUAR envía una sola confirmación ligada a la presentación y cierra"
+);
+pintarJugada(salaBase(jugadaPresentacion(41)));
+ok($("modal-presentacion-sospecha").hidden, "una redifusión no reabre tras confirmar");
+pintarJugada(salaBase(jugadaPresentacion(42, false)));
+ok($("modal-presentacion-sospecha").hidden, "el autor o un humano ya listo no ve popup");
+pintarJugada(salaBase(jugadaPresentacion(43)));
+ok($("modal-presentacion-sospecha").hidden === false, "otra presentación tiene identidad independiente");
+pintarJugada(salaBase({ estado: "esperando_sospecha", resultado: "sin_refutacion" }));
+ok($("modal-presentacion-sospecha").hidden, "avance canónico o timeout retira el popup");
 
 if (fallos > 0) {
   console.log(`${fallos} FALLO(S)`);

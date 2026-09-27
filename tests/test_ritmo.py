@@ -5,6 +5,8 @@ import pathlib
 from app import main
 from app.datos.jarandilla import CARTA_POR_ID
 from app.motor.sala import (
+
+
     ESTADO_INICIADA,
     JUGADA_ESPERANDO_MOVIMIENTO,
     MODO_TABLERO,
@@ -12,6 +14,16 @@ from app.motor.sala import (
     TIPO_PNJ,
     Sala,
 )
+
+def cerrar_resultado(sala):
+    """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
+
+    No-op si no hay resultado publico pendiente: las aserciones intermedias
+    siguen viendo el turno sin avanzar.
+    """
+    presentacion = getattr(sala, "presentacion_sospecha", None)
+    if presentacion and presentacion.get("tipo") == "resultado":
+        assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
 
 
 def sala_ritmo():
@@ -114,7 +126,7 @@ def test_resultado_pnj_se_difunde_antes_de_esperar_cinco_sin_lock(monkeypatch):
             return original(RngSospechaPrimera())
 
         async def difundir(_codigo):
-            eventos.append(("difundir", sala.ultima_jugada["resultado"]))
+            eventos.append(("difundir", sala.estado_jugada))
 
         async def dormir(segundos):
             eventos.append(("esperar", segundos, lock.locked(), sala.ultima_jugada["resultado"] if sala.ultima_jugada else None))
@@ -126,9 +138,9 @@ def test_resultado_pnj_se_difunde_antes_de_esperar_cinco_sin_lock(monkeypatch):
             await main._cadena_turnos_pnj(sala.codigo)
             assert eventos[0] == ("esperar", 3.0, False, None)
             assert eventos[1] == "accion"
-            assert eventos[2][0] == "difundir"
-            assert eventos[3] == ("esperar", 5.0, False, "sin_refutacion")
-            assert eventos.count("accion") == 2
+            assert eventos[2] == ("difundir", "presentando_sospecha")
+            assert eventos.count("accion") == 1
+            main.cancelar_presentacion_sospecha(sala.codigo)
         finally:
             main.gestor.salas.pop(sala.codigo, None)
             main.cerrojos.pop(sala.codigo, None)
@@ -164,8 +176,13 @@ def test_eleccion_humana_pendiente_no_pausa_y_resuelta_si_activa_lectura(monkeyp
         try:
             await main._cadena_turnos_pnj(sala.codigo)
             assert esperas == [3.0]
+            assert sala.presentacion_sospecha is not None
+            main.cancelar_presentacion_sospecha(sala.codigo)
+            sala.actualizar_presentacion_sospecha(ahora=float("inf"))
             assert sala.sospecha_pendiente is not None
             sala.mostrar_carta(humano["id"], "vera")
+            # 8B.31C: el turno avanza al cerrarse el resultado público.
+            cerrar_resultado(sala)
             assert sala.jugador_en_turno()["id"] == p2["id"]
             assert main.pausa_antes_de_turno_pnj(sala) == 5.0
             assert sala.ultima_jugada["resultado"] == "refutada"
@@ -184,6 +201,7 @@ async def _async_none():
 def test_jugada_humana_real_conserva_ultima_jugada_para_la_pausa():
     sala, humano, _, _ = sala_ritmo()
     sala.formular_sospecha(humano["id"], "bruno", "parador", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.ultima_jugada is not None
     assert sala.ultima_jugada["investigador_id"] == humano["id"]
     assert main.pausa_antes_de_turno_pnj(sala) == 5.0

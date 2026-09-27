@@ -80,6 +80,7 @@ def test_objeto_se_mueve_aunque_la_sospecha_sea_refutada():
     sala.manos[refutador["id"]] = [CARTA_POR_ID["baul-imperial"]]
 
     sala.formular_sospecha(humano["id"], "bruno", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
 
     assert sala.ultima_jugada["resultado"] == "refutada"
     assert sala.posiciones_objetos["baul-imperial"] == "picota"
@@ -91,6 +92,7 @@ def test_objeto_se_mueve_si_nadie_refuta_y_persiste_tras_turnos():
     sala.manos = {jugador["id"]: [] for jugador in sala.jugadores}
 
     sala.formular_sospecha(humano["id"], "bruno", "ermita-sopetran", "libro-hueco")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.ultima_jugada["resultado"] == "sin_refutacion"
     assert sala.posiciones_objetos["libro-hueco"] == "ermita-sopetran"
     sala.avanzar_turno()

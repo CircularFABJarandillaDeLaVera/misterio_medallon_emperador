@@ -4,6 +4,8 @@ import pytest
 
 from app.datos.jarandilla import CARTA_POR_ID, SOSPECHOSOS
 from app.motor.sala import (
+
+
     ESTADO_INICIADA,
     JUGADA_ESPERANDO_REFUTADOR,
     PERFILES_PNJ,
@@ -11,6 +13,16 @@ from app.motor.sala import (
     TIPO_PNJ,
     Sala,
 )
+
+def cerrar_resultado(sala):
+    """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
+
+    No-op si no hay resultado publico pendiente: las aserciones intermedias
+    siguen viendo el turno sin avanzar.
+    """
+    presentacion = getattr(sala, "presentacion_sospecha", None)
+    if presentacion and presentacion.get("tipo") == "resultado":
+        assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
 
 
 def iniciar_mesa(num_humanos):
@@ -65,8 +77,12 @@ def test_pnj_puede_ser_primero_y_cadena_avanza_hasta_humano(monkeypatch):
     sala.manos = {j["id"]: [] for j in sala.jugadores}
     rng = RngPrimero()
     sala.ejecutar_turno_pnj(rng)
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=rng)
+    cerrar_resultado(sala)
     assert sala.turno_actual == 1
     sala.ejecutar_turno_pnj(rng)
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=rng)
+    cerrar_resultado(sala)
     assert sala.turno_actual == 2
     assert sala.jugador_en_turno()["id"] == humano["id"]
 
@@ -131,6 +147,8 @@ def sala_controlada():
 def test_pnj_refuta_automaticamente_varias_y_solo_investigador_aprende():
     sala, h, p1, p2 = sala_controlada()
     sala.formular_sospecha(h["id"], "bruno", "puente-parral", "baul-imperial", rng=RngPrimero())
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=RngPrimero())
+    cerrar_resultado(sala)
     assert sala.turno_actual == 1
     assert "puente-parral" in sala.vistas[h["id"]]
     assert "carta_mostrada" not in sala.estado_privado(p2["id"])["jugada"]
@@ -141,6 +159,7 @@ def test_humano_refuta_a_pnj_y_actualiza_vista_del_pnj():
     sala, h, p1, _ = sala_controlada()
     sala.turno_actual = 1
     sala.formular_sospecha(p1["id"], "vera", "parador", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.estado_jugada == JUGADA_ESPERANDO_REFUTADOR
     opciones = sala.estado_privado(h["id"])["jugada"]["opciones_refutacion"]
     assert {c["id"] for c in opciones} == {"vera", "parador"}
@@ -153,6 +172,7 @@ def test_pnj_contra_pnj_aprende_sin_filtrar_a_humano():
     sala, h, p1, p2 = sala_controlada()
     sala.turno_actual = 1
     sala.formular_sospecha(p1["id"], "lucia", "parador", "libro-hueco", rng=RngPrimero())
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=RngPrimero())
     assert "libro-hueco" in sala.vistas[p1["id"]]
     privado_h = repr(sala.estado_privado(h["id"]))
     assert "carta_mostrada" not in privado_h

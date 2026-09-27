@@ -38,6 +38,7 @@ JUGADA_ESPERANDO_SOSPECHA = "esperando_sospecha"
 JUGADA_ESPERANDO_REFUTADOR = "esperando_eleccion_refutador"
 JUGADA_ESPERANDO_MOVIMIENTO = "esperando_movimiento"
 JUGADA_ESPERANDO_DESTINO = "esperando_destino"
+JUGADA_PRESENTANDO_SOSPECHA = "presentando_sospecha"
 
 MODO_RAPIDO = "rapido"
 MODO_TABLERO = "tablero"
@@ -69,9 +70,10 @@ PERFILES_PNJ = {
     "eulalia": {"desconocida": 50, "sospechada": 40, "conocida": 10},
 }
 
-# Timeout server-side para refutación de humano eliminado (Microfase 5A).
-# Solo HUMANO + ELIMINADO + VARIAS coincidencias. Segundos aproximados.
-TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS = 3.0
+# Timeout server-side único para cualquier refutador humano.
+TIMEOUT_REFUTACION_HUMANO_SEGUNDOS = 10.0
+PAUSA_PRESENTACION_PNJ_SEGUNDOS = 3.0
+PAUSA_PRESENTACION_HUMANO_SEGUNDOS = 10.0
 
 # Hoja de investigación privada (Microfase 3B). Terminología de OBJETOS.
 INV_SIN_INFORMACION = "sin_informacion"
@@ -141,11 +143,12 @@ class Sala:
         self.vistas: dict[str, set[str]] = {}  # jugador_id -> carta_ids (Sprint 4)
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente: dict | None = None
+        self.presentacion_sospecha: dict | None = None
+        self.secuencia_presentacion = 0
         self.ultima_jugada: dict | None = None
-        # Deadline monotónico de la refutación pendiente de un humano
-        # eliminado (Microfase 5A). Vive en la sala: sobrevive a
-        # recargas y reconexiones porque nunca se reinicia salvo
-        # nueva sospecha o resolución.
+        # Deadline monotónico de la refutación humana pendiente. Vive en
+        # la sala y sobrevive a recargas/reconexiones: solo cambia con una
+        # nueva sospecha o al resolver la actual.
         self.refutacion_deadline: float | None = None
         self.cartas_sospechadas: set[str] = set()  # memoria exclusivamente publica
         self.pnj_pensando_id: str | None = None
@@ -369,6 +372,7 @@ class Sala:
                     self.turno_actual = indice
                     break
         self.sospecha_pendiente = None
+        self.presentacion_sospecha = None
         self.estado_jugada = (
             JUGADA_ESPERANDO_MOVIMIENTO
             if self.modo == MODO_TABLERO
@@ -596,7 +600,9 @@ class Sala:
         return elegidas
 
     def _adjuntar_movimiento_pnj(self, movimiento: dict) -> None:
-        if self.sospecha_pendiente is not None:
+        if self.presentacion_sospecha is not None:
+            self.presentacion_sospecha["movimiento_pnj"] = movimiento
+        elif self.sospecha_pendiente is not None:
             self.sospecha_pendiente["movimiento_pnj"] = movimiento
         elif self.ultima_jugada is not None:
             self.ultima_jugada["movimiento_pnj"] = movimiento
@@ -698,15 +704,63 @@ class Sala:
                 pendiente["movimiento_pnj"]
             )
         self.refutacion_deadline = None
-        self.avanzar_turno()
+        self._abrir_presentacion_resultado(
+            investigador_id=investigador_id,
+            investigador_alias=self.jugador_por_id(investigador_id)["alias"],
+            sospecha=pendiente["sospecha"],
+            resultado="refutada",
+            refutador_alias=self.jugador_por_id(pendiente["refutador_id"])["alias"],
+            movimiento_pnj=pendiente.get("movimiento_pnj"),
+        )
 
-    def resolver_refutacion_eliminado_auto(self, rng=None) -> str | None:
-        """Resolución automática server-side por timeout (Microfase 5A).
+    def _completar_refutacion_automatica(self, rng=None) -> str | None:
+        """Ruta interna única de "no elijo yo" (CONTINUAR y timeout).
 
-        Solo HUMANO + ELIMINADO + VARIAS coincidencias con plazo vencido.
-        La elección es random.choice(coincidencias), nunca la primera por
-        defecto, y sigue el mismo _resolver_refutacion autoritativo que
-        la elección manual (una sola resolución, un solo turno, un VISTA).
+        Elige una coincidencia válida al azar y completa la refutación con la
+        MISMA transición que la elección manual (`_resolver_refutacion`): un
+        solo VISTA, un solo avance de turno y ninguna vuelta a la elección.
+        Devuelve la carta elegida o None si no procede.
+        """
+        if self.estado_jugada != JUGADA_ESPERANDO_REFUTADOR:
+            return None
+        pendiente = self.sospecha_pendiente
+        if pendiente is None:
+            return None
+        coincidencias = list(pendiente["coincidencias"])
+        if not coincidencias:
+            return None
+        elegida = (
+            coincidencias[0]
+            if len(coincidencias) == 1
+            else (rng or random).choice(coincidencias)
+        )
+        self._resolver_refutacion(elegida)
+        return elegida
+
+    def continuar_refutacion(self, jugador_id: str, rng=None) -> str | None:
+        """CONTINUAR del refutador humano: renuncia a elegir carta.
+
+        El servidor elige una coincidencia válida al azar y completa la
+        refutación por la misma ruta interna que el timeout. No devuelve al
+        refutador a la elección ni pide una segunda confirmación. Devuelve la
+        carta elegida.
+        """
+        pendiente = self.sospecha_pendiente
+        if self.estado_jugada != JUGADA_ESPERANDO_REFUTADOR or pendiente is None:
+            raise ValueError("No hay una refutacion pendiente.")
+        if pendiente["refutador_id"] != jugador_id:
+            raise ValueError("No puedes resolver esta refutacion.")
+        elegida = self._completar_refutacion_automatica(rng=rng)
+        if elegida is None:
+            raise ValueError("No tienes ninguna carta valida para refutar.")
+        return elegida
+
+    def resolver_refutacion_auto(self, rng=None) -> str | None:
+        """Resolución automática server-side al vencer el plazo humano.
+
+        Con una coincidencia usa esa carta; con varias elige mediante
+        random.choice. Comparte la resolución autoritativa con la elección
+        manual: una sola carta, una sola transición y un solo VISTA.
         Devuelve la carta elegida o None si no procede.
         """
         if self.estado_jugada != JUGADA_ESPERANDO_REFUTADOR:
@@ -718,8 +772,6 @@ class Sala:
         if (
             refutador is None
             or refutador["tipo"] == TIPO_PNJ
-            or refutador["activo_investigacion"]
-            or len(pendiente["coincidencias"]) <= 1
         ):
             return None
         if (
@@ -727,9 +779,7 @@ class Sala:
             or time.monotonic() < self.refutacion_deadline
         ):
             return None
-        elegida = (rng or random).choice(list(pendiente["coincidencias"]))
-        self._resolver_refutacion(elegida)
-        return elegida
+        return self._completar_refutacion_automatica(rng=rng)
 
     def formular_sospecha(
         self,
@@ -738,6 +788,7 @@ class Sala:
         lugar_id: str,
         objeto_id: str,
         rng=None,
+        ahora: float | None = None,
     ) -> None:
         if self.estado != ESTADO_INICIADA:
             raise ValueError("La partida no esta iniciada.")
@@ -760,25 +811,161 @@ class Sala:
             self.posiciones_objetos[sospecha["objeto_id"]] = sospecha["lugar_id"]
         # Consumir la alternativa inicial antes de entrar en refutación
         # impide dado o pasadizo incluso tras recargar/reconectar.
-        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.estado_jugada = JUGADA_PRESENTANDO_SOSPECHA
         self.cartas_sospechadas.update(sospecha.values())
         self.pnj_pensando_id = None
         self.ultima_jugada = None
+        self.sospecha_pendiente = None
+        self.refutacion_deadline = None
+        inicio = time.monotonic() if ahora is None else ahora
+        self.secuencia_presentacion += 1
+        participantes = {}
+        for participante in self.jugadores:
+            es_autor = participante["id"] == jugador_id
+            espera = (
+                PAUSA_PRESENTACION_PNJ_SEGUNDOS
+                if participante["tipo"] == TIPO_PNJ
+                else PAUSA_PRESENTACION_HUMANO_SEGUNDOS
+            )
+            participantes[participante["id"]] = {
+                "listo": es_autor,
+                "deadline": inicio if es_autor else inicio + espera,
+            }
+        self.presentacion_sospecha = {
+            "id": self.secuencia_presentacion,
+            "inicio": inicio,
+            "investigador_id": jugador_id,
+            "investigador_alias": en_turno["alias"],
+            "sospecha": sospecha,
+            "participantes": participantes,
+        }
+
+    def confirmar_presentacion_sospecha(
+        self, jugador_id: str, presentacion_id: int, ahora: float | None = None
+    ) -> bool:
+        presentacion = self.presentacion_sospecha
+        if (
+            self.estado_jugada != JUGADA_PRESENTANDO_SOSPECHA
+            or presentacion is None
+            or presentacion["id"] != presentacion_id
+        ):
+            raise ValueError("La presentacion de sospecha ya no esta activa.")
+        participante = self.jugador_por_id(jugador_id)
+        if participante is None or participante["tipo"] == TIPO_PNJ:
+            raise ValueError("Solo un participante humano puede confirmar.")
+        estado = presentacion["participantes"].get(jugador_id)
+        if estado is None:
+            raise ValueError("No formas parte de esta presentacion.")
+        if jugador_id == presentacion["investigador_id"] and presentacion.get("tipo") != "resultado":
+            # El autor de 8B.30 ya está listo de salida. En el resultado
+            # público (8B.31C) TODOS los humanos, investigador incluido,
+            # ven el popup y su CONTINUAR cuenta igual que el de los demás.
+            return False
+        estado["listo"] = True
+        return self.actualizar_presentacion_sospecha(ahora=ahora)
+
+    def actualizar_presentacion_sospecha(
+        self, ahora: float | None = None, rng=None
+    ) -> bool:
+        presentacion = self.presentacion_sospecha
+        if self.estado_jugada != JUGADA_PRESENTANDO_SOSPECHA or presentacion is None:
+            return False
+        instante = time.monotonic() if ahora is None else ahora
+        for estado in presentacion["participantes"].values():
+            if not estado["listo"] and instante >= estado["deadline"]:
+                estado["listo"] = True
+        if not all(estado["listo"] for estado in presentacion["participantes"].values()):
+            return False
+        if presentacion.get("tipo") == "resultado":
+            # Cierre público de la sospecha: aquí avanza el turno, una sola vez.
+            self.avanzar_turno()
+            return True
+        self._comenzar_refutacion_presentada(rng=rng)
+        return True
+
+    def _abrir_presentacion_resultado(
+        self,
+        *,
+        investigador_id: str,
+        investigador_alias: str,
+        sospecha: dict,
+        resultado: str,
+        refutador_alias: str | None = None,
+        movimiento_pnj: dict | None = None,
+        ahora: float | None = None,
+    ) -> None:
+        """Cierre PÚBLICO y síncrono de la sospecha (8B.31C).
+
+        Reutiliza la presentación sincronizada de 8B.30 con
+        `tipo: "resultado"`: mismos participantes, mismo CONTINUAR, mismos
+        plazos y el mismo watchdog autoritativo. Solo se publica quién
+        formuló, quién refutó y que la sospecha quedó refutada: la carta
+        mostrada sigue siendo privada del investigador.
+
+        El turno NO avanza aquí: avanza al cerrarse la presentación, de modo
+        que el resultado forma parte del flujo canónico y avanza UNA sola vez.
+        """
+        inicio = time.monotonic() if ahora is None else ahora
+        # La refutación ya está resuelta: nadie puede volver a refutar.
+        self.sospecha_pendiente = None
+        self.refutacion_deadline = None
+        self.pnj_pensando_id = None
+        self.secuencia_presentacion += 1
+        participantes = {}
+        for participante in self.jugadores:
+            # Los PNJ no ven popup: quedan listos de inmediato.
+            listo = participante["tipo"] == TIPO_PNJ
+            participantes[participante["id"]] = {
+                "listo": listo,
+                "deadline": inicio if listo else inicio + PAUSA_PRESENTACION_HUMANO_SEGUNDOS,
+            }
+        self.presentacion_sospecha = {
+            "id": self.secuencia_presentacion,
+            "tipo": "resultado",
+            "inicio": inicio,
+            "investigador_id": investigador_id,
+            "investigador_alias": investigador_alias,
+            "sospecha": dict(sospecha),
+            "resultado": resultado,
+            "participantes": participantes,
+        }
+        if refutador_alias:
+            self.presentacion_sospecha["refutador_alias"] = refutador_alias
+        if movimiento_pnj:
+            self.presentacion_sospecha["movimiento_pnj"] = dict(movimiento_pnj)
+        self.estado_jugada = JUGADA_PRESENTANDO_SOSPECHA
+
+    def _comenzar_refutacion_presentada(self, rng=None) -> None:
+        presentacion = self.presentacion_sospecha
+        if presentacion is None:
+            raise ValueError("No hay una sospecha presentada.")
+        jugador_id = presentacion["investigador_id"]
+        sospecha = dict(presentacion["sospecha"])
+        movimiento_pnj = presentacion.get("movimiento_pnj")
+        self.presentacion_sospecha = None
         hallazgo = self.buscar_refutador(jugador_id, set(sospecha.values()))
         if hallazgo is None:
             self.ultima_jugada = {
                 "sospecha": sospecha,
                 "investigador_id": jugador_id,
-                "investigador_alias": en_turno["alias"],
+                "investigador_alias": presentacion["investigador_alias"],
                 "resultado": "sin_refutacion",
             }
+            if movimiento_pnj:
+                self.ultima_jugada["movimiento_pnj"] = dict(movimiento_pnj)
             investigador = self.jugador_por_id(jugador_id)
             if (
                 investigador["tipo"] == TIPO_PNJ
                 and not set(sospecha.values()).intersection(self.mano_ids(jugador_id))
             ):
                 self.soluciones_deducidas[jugador_id] = dict(sospecha)
-            self.avanzar_turno()
+            self._abrir_presentacion_resultado(
+                investigador_id=jugador_id,
+                investigador_alias=presentacion["investigador_alias"],
+                sospecha=sospecha,
+                resultado="sin_refutacion",
+                movimiento_pnj=movimiento_pnj,
+            )
             return
         refutador_id, coincidencias = hallazgo
         self.sospecha_pendiente = {
@@ -787,8 +974,10 @@ class Sala:
             "sospecha": sospecha,
             "coincidencias": coincidencias,
         }
+        if movimiento_pnj:
+            self.sospecha_pendiente["movimiento_pnj"] = dict(movimiento_pnj)
         refutador = self.jugador_por_id(refutador_id)
-        if len(coincidencias) == 1 or refutador["tipo"] == TIPO_PNJ:
+        if refutador["tipo"] == TIPO_PNJ:
             elegida = (
                 coincidencias[0]
                 if len(coincidencias) == 1
@@ -797,14 +986,11 @@ class Sala:
             self._resolver_refutacion(elegida)
         else:
             self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
-            # Timeout SOLO para humano eliminado con varias opciones: el
-            # plazo vive en la sala y no se reinicia por reconexiones.
-            if not refutador["activo_investigacion"]:
-                self.refutacion_deadline = (
-                    time.monotonic() + TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS
-                )
-            else:
-                self.refutacion_deadline = None
+            # Un único plazo canónico para todo humano. Vive en la sala y
+            # no cambia por selección local, redifusión ni reconexión.
+            self.refutacion_deadline = (
+                time.monotonic() + TIMEOUT_REFUTACION_HUMANO_SEGUNDOS
+            )
 
     def mostrar_carta(self, jugador_id: str, carta_id: str) -> None:
         pendiente = self.sospecha_pendiente
@@ -919,7 +1105,7 @@ class Sala:
 
     def jugada_publica(self) -> dict:
         """Estado visible de la jugada, sin opciones ni carta mostrada."""
-        fuente = self.sospecha_pendiente or self.ultima_jugada
+        fuente = self.presentacion_sospecha or self.sospecha_pendiente or self.ultima_jugada
         if fuente is None:
             return {"estado": self.estado_jugada}
         resultado = fuente.get("resultado", "pendiente")
@@ -951,10 +1137,31 @@ class Sala:
             publico["refutador_alias"] = fuente["refutador_alias"]
         if fuente.get("movimiento_pnj"):
             publico["movimiento_pnj"] = dict(fuente["movimiento_pnj"])
+        if fuente is self.presentacion_sospecha and fuente.get("tipo") == "resultado":
+            # El frontend distingue el cierre público de la presentación de
+            # 8B.30 (que no lleva `tipo`). No añade información privada.
+            publico["presentacion_tipo"] = "resultado"
         return publico
 
     def jugada_privada(self, jugador_id: str) -> dict:
         privada = dict(self.jugada_publica())
+        presentacion = self.presentacion_sospecha
+        if presentacion is not None:
+            participante = presentacion["participantes"].get(jugador_id)
+            privada["presentacion_id"] = presentacion["id"]
+            privada["presentacion_pendiente"] = bool(
+                participante
+                and not participante["listo"]
+                and (
+                    jugador_id != presentacion["investigador_id"]
+                    or presentacion.get("tipo") == "resultado"
+                )
+                and (self.jugador_por_id(jugador_id) or {}).get("tipo") == TIPO_HUMANO
+            )
+            if privada["presentacion_pendiente"]:
+                privada["presentacion_restante_seg"] = max(
+                    0.0, participante["deadline"] - time.monotonic()
+                )
         pendiente = self.sospecha_pendiente
         if pendiente and pendiente["investigador_id"] == jugador_id:
             privada["esperando_resolucion"] = True
@@ -962,12 +1169,10 @@ class Sala:
             privada["opciones_refutacion"] = [
                 dict(CARTA_POR_ID[cid]) for cid in pendiente["coincidencias"]
             ]
-            # Aviso server-side de plazo (solo humano eliminado con varias
-            # opciones): el cliente lo muestra, pero la autoridad es el
-            # servidor. Ninguna otra carta ni deadline viaja aquí.
+            # Aviso informativo; la autoridad y el deadline viven en servidor.
             if self.refutacion_deadline is not None:
                 privada["timeout_refutacion_seg"] = (
-                    TIMEOUT_REFUTACION_ELIMINADO_SEGUNDOS
+                    TIMEOUT_REFUTACION_HUMANO_SEGUNDOS
                 )
         ultima = self.ultima_jugada
         if ultima and ultima.get("carta_id") and ultima["investigador_id"] == jugador_id:

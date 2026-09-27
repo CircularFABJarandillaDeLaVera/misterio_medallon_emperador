@@ -16,6 +16,17 @@ from app.motor.sala import (
 )
 from app.motor.tablero import TABLERO
 
+def cerrar_resultado(sala):
+    """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
+
+    No-op si no hay resultado publico pendiente: las aserciones intermedias
+    siguen viendo el turno sin avanzar.
+    """
+    presentacion = getattr(sala, "presentacion_sospecha", None)
+    if presentacion and presentacion.get("tipo") == "resultado":
+        assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+
+
 cliente = TestClient(app)
 
 
@@ -82,6 +93,7 @@ def test_rapido_sin_posiciones_y_con_flujo_pnj_existente():
     sala.orden_turnos = [pnj["id"]]
     sala.manos = {pnj["id"]: []}
     sala.ejecutar_turno_pnj(rng=type("R", (), {"choices": lambda s, o, weights, k: [o[0]]})())
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.posiciones.obtener(pnj["id"]) is None
     assert sala.ultima_jugada is not None
 
@@ -149,6 +161,7 @@ def test_refutacion_tras_entrar_reconecta_sin_acciones_y_avanza_una_vez():
     destino = next(d for d in sala.rutas_pendientes if TABLERO.es_ubicacion(d))
     sala.mover(a["id"], destino)
     sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     movimiento = sala.estado_privado(a["id"])["movimiento"]
     assert movimiento["fase"] == "esperando_eleccion_refutador"
     assert not movimiento.get("puede_tirar", False)
@@ -159,6 +172,7 @@ def test_refutacion_tras_entrar_reconecta_sin_acciones_y_avanza_una_vez():
     with pytest.raises(ValueError):
         sala.usar_pasadizo(a["id"])
     sala.mostrar_carta(b["id"], "vera")
+    cerrar_resultado(sala)  # 8B.31C
     assert sala.jugador_en_turno()["id"] == b["id"]
 
 
@@ -169,6 +183,8 @@ def test_nuevo_turno_en_misma_ubicacion_no_regala_otra_sospecha():
     sala.usar_pasadizo(a["id"])
     destino = sala.posiciones.obtener(a["id"])
     sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+    cerrar_resultado(sala)  # 8B.31C
     while sala.jugador_en_turno()["id"] != a["id"]:
         sala.avanzar_turno()
     assert sala.posiciones.obtener(a["id"]) == destino
@@ -226,6 +242,7 @@ def test_llegada_ubicacion_habilita_sospecha_y_fija_lugar():
     with pytest.raises(ValueError):
         sala.formular_sospecha(a["id"], "vera", "picota", "libro-hueco")
     sala.formular_sospecha(a["id"], "vera", destino, "libro-hueco")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.ultima_jugada["sospecha"]["lugar_id"] == destino
 
 
@@ -241,6 +258,7 @@ def test_pasadizo_excluye_dado_llega_y_habilita_sospecha():
     sala.formular_sospecha(
         a["id"], "vera", "nuestra-senora-torre", "libro-hueco"
     )
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.ultima_jugada["sospecha"]["lugar_id"] == "nuestra-senora-torre"
     with pytest.raises(ValueError):
         sala.tirar_dado_tablero(a["id"], DadoFijo(2))
@@ -282,6 +300,8 @@ def test_pnj_tablero_se_detiene_y_rapido_no():
     sala.turno_actual = 2
     sala.manos = {j["id"]: [] for j in sala.jugadores}
     sala.ejecutar_turno_pnj(RngTablero("pasadizo"))
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+    cerrar_resultado(sala)  # 8B.31C
     assert sala.jugador_en_turno()["id"] != pnj["id"]
 
 

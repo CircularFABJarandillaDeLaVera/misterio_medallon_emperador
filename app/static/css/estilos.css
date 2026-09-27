@@ -1070,6 +1070,116 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 1px 0 0;
 }
 
+.modal-presentacion-sospecha-caja {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+/* 8B.31C · Cierre público de la sospecha: titular protagonista y una frase
+   clara. Reutiliza el mismo modal de 8B.30; no muestra ninguna carta. */
+.presentacion-resultado-texto {
+  align-self: center;
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1rem, 2.6vw, 1.35rem);
+  line-height: 1.35;
+  color: var(--texto);
+}
+
+
+.modal-refutacion-caja {
+  width: min(calc(100dvw - 24px), 940px);
+  max-width: 940px;
+  height: min(calc(100dvh - 24px), 760px);
+  min-height: 0;
+  max-height: 760px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 5px;
+  overflow: visible;
+  padding: 14px 18px;
+}
+
+#opciones-refutacion {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: center;
+  justify-items: center;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  gap: 10px;
+}
+
+#opciones-refutacion[data-total="1"] {
+  grid-template-columns: minmax(0, 460px);
+}
+
+#opciones-refutacion[data-total="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#opciones-refutacion .carta-selector-sospecha {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: 3 / 4;
+}
+
+#opciones-refutacion .carta-selector-sospecha img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#opciones-refutacion .carta-selector-sospecha.seleccionada {
+  border-width: 3px;
+  outline: 3px solid var(--dorado-claro);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(201, 162, 39, 0.42),
+    0 9px 20px rgba(201, 162, 39, 0.38);
+}
+
+.modal-refutacion-caja > .medallon {
+  justify-self: center;
+  width: min(100%, 260px);
+  margin: 0;
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .presentacion-resultado-texto {
+    font-size: clamp(0.8rem, 2.1vw, 1.05rem);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  #modal-refutacion {
+    padding: 6px;
+  }
+
+  .modal-refutacion-caja {
+    width: min(calc(100dvw - 12px), 940px);
+    height: calc(100dvh - 12px);
+    padding: 7px 12px;
+    gap: 2px;
+  }
+
+  .modal-refutacion-caja > h2 {
+    font-size: clamp(0.78rem, 2.2vw, 0.98rem);
+  }
+
+  .modal-refutacion-caja > .nota-privada {
+    margin: 0;
+    font-size: clamp(0.61rem, 1.55vw, 0.72rem);
+  }
+
+  .modal-refutacion-caja > .medallon {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 560px) {
   #modal-resolucion-fallida {
     padding: 6px;
