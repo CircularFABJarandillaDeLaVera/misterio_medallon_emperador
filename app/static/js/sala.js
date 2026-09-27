@@ -57,6 +57,7 @@ const modalPresentacionSospecha = document.getElementById("modal-presentacion-so
 const presentacionSospechaTitulo = document.getElementById("presentacion-sospecha-titulo");
 const presentacionSospechaCartas = document.getElementById("presentacion-sospecha-cartas");
 const presentacionResultadoTexto = document.getElementById("presentacion-resultado-texto");
+const presentacionResultadoCartas = document.getElementById("presentacion-resultado-cartas");
 const btnContinuarPresentacionSospecha = document.getElementById("btn-continuar-presentacion-sospecha");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const finalPartida = document.getElementById("final-partida");
@@ -793,6 +794,54 @@ btnContinuarRefutacion.addEventListener("click", () => {
   cartaRefutacionSeleccionadaId = null;
 });
 
+// 8B.31D · Las tres cartas sospechadas y, bajo cada una, lo que ESTE
+// cliente ya sabía de ella. Se deriva solo de `sala.investigacion` y
+// `sala.mis_cartas` (TU CARTA / VISTA / DESCARTADA / ?). Sin deducciones
+// automáticas y sin ninguna información nueva: la carta que mostró el
+// refutador NO se enseña ni se insinúa.
+function pintarResultadoConocimiento(sala, sospecha) {
+  if (!presentacionResultadoCartas) return;
+  presentacionResultadoCartas.innerHTML = "";
+  const cartasPropias = new Set((sala.mis_cartas || []).map((carta) => carta.id));
+  const investigacion = new Map(
+    (sala.investigacion || []).map((entrada) => [entrada.id, entrada])
+  );
+  [
+    { clave: "sospechoso_id", categoria: "sospechoso" },
+    { clave: "lugar_id", categoria: "lugar" },
+    { clave: "objeto_id", categoria: "objeto" },
+  ].forEach(({ clave, categoria }) => {
+    const carta = sospecha[clave];
+    if (!carta || !carta.id) return;
+    const entrada = investigacion.get(carta.id);
+    const esPropia = cartasPropias.has(carta.id);
+    const fueVista = Boolean(entrada && entrada.estado === "vista");
+    const descartada = Boolean(entrada && entrada.estado === "descartada");
+    const columna = document.createElement("div");
+    columna.className = "presentacion-resultado-columna";
+    // Informativas, no seleccionables: sin `alPulsar` (mismo criterio 8B.30).
+    columna.appendChild(
+      crearCartaVisual(
+        { id: carta.id, nombre: carta.nombre, categoria },
+        { esPropia, fueVista, descartada, compacta: true, mostrarNombre: false }
+      )
+    );
+    const estado = document.createElement("p");
+    estado.className =
+      "presentacion-resultado-estado " +
+      (esPropia ? "es-propia" : fueVista ? "es-vista" : descartada ? "es-descartada" : "es-desconocida");
+    estado.textContent = esPropia
+      ? "TU CARTA"
+      : fueVista
+        ? "VISTA"
+        : descartada
+          ? "DESCARTADA"
+          : "?";
+    columna.appendChild(estado);
+    presentacionResultadoCartas.appendChild(columna);
+  });
+}
+
 function pintarPresentacionSospecha(sala) {
   const jugada = (sala && sala.jugada) || {};
   const id = jugada.presentacion_id;
@@ -812,6 +861,8 @@ function pintarPresentacionSospecha(sala) {
     presentacionSospechaCartas.hidden = true;
     presentacionSospechaCartas.innerHTML = "";
     presentacionResultadoTexto.hidden = false;
+    presentacionResultadoCartas.hidden = false;
+    pintarResultadoConocimiento(sala, sospecha);
     const refutada = jugada.resultado === "refutada";
     presentacionSospechaTitulo.textContent = refutada
       ? "SOSPECHA REFUTADA"
@@ -827,6 +878,8 @@ function pintarPresentacionSospecha(sala) {
     return;
   }
   presentacionSospechaCartas.hidden = false;
+  presentacionResultadoCartas.hidden = true;
+  presentacionResultadoCartas.innerHTML = "";
   presentacionResultadoTexto.hidden = true;
   presentacionResultadoTexto.textContent = "";
   const cartas = [

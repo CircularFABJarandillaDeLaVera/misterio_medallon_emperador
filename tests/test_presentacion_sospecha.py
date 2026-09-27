@@ -1,6 +1,8 @@
 import pytest
+from fastapi.testclient import TestClient
 
 from app.datos.jarandilla import CARTA_POR_ID
+from app.main import app, gestor
 from app.motor.sala import (
 
 
@@ -9,6 +11,9 @@ from app.motor.sala import (
     TIPO_PNJ,
     Sala,
 )
+
+cliente = TestClient(app)
+
 
 def cerrar_resultado(sala):
     """8B.31C: el turno avanza al cerrarse la presentacion del resultado.
@@ -103,7 +108,7 @@ def test_recarga_reconstruye_popup_sin_reiniciar_deadline_y_confirmado_no_reapar
     assert sala.presentacion_sospecha["participantes"][humano["id"]]["deadline"] == deadline
     assert sala.confirmar_presentacion_sospecha(humano["id"], pid, ahora=507.0)
     # 8B.31C: la sospecha ya no reaparece; lo pendiente es el resultado
-    # pÃºblico, con identidad PROPIA (nunca la misma pid).
+    # pÃƒÂºblico, con identidad PROPIA (nunca la misma pid).
     privada = sala.estado_privado(humano["id"])["jugada"]
     if privada.get("presentacion_pendiente"):
         assert privada["presentacion_id"] != pid
@@ -133,8 +138,8 @@ def test_eliminado_participa_identidad_evitar_confirmacion_atrasada_y_privacidad
 
 
 # ---------------------------------------------------------------------------
-# 8B.31C · RESULTADO PÚBLICO de la sospecha.
-# Cierra el flujo canónico: PRESENTACIÓN → REFUTACIÓN → RESULTADO → TURNO.
+# 8B.31C Â· RESULTADO PÃšBLICO de la sospecha.
+# Cierra el flujo canÃ³nico: PRESENTACIÃ“N â†’ REFUTACIÃ“N â†’ RESULTADO â†’ TURNO.
 # ---------------------------------------------------------------------------
 
 
@@ -190,7 +195,7 @@ def _resultado_pendiente(sala):
     return presentacion
 
 
-# 1. Humano sospecha, humano refuta: resultado público y turno aún quieto.
+# 1. Humano sospecha, humano refuta: resultado pÃºblico y turno aÃºn quieto.
 def test_humano_sospecha_humano_refuta_abre_resultado_publico():
     sala, inv, ref, _ = mesa_sospecha_con_refutador()
     abrir_ciclo(sala, inv)
@@ -200,7 +205,7 @@ def test_humano_sospecha_humano_refuta_abre_resultado_publico():
     assert resultado["investigador_alias"] == "Inv"
     assert resultado["refutador_alias"] == "Ref"
     assert sala.estado_jugada == JUGADA_PRESENTANDO_SOSPECHA
-    assert sala.turno_actual == 0  # todavía no avanza
+    assert sala.turno_actual == 0  # todavÃ­a no avanza
     cerrar_resultado(sala)
     assert sala.turno_actual == 1  # y avanza UNA vez
 
@@ -246,7 +251,7 @@ def test_pnj_sospecha_pnj_refuta_abre_resultado_publico():
     cerrar_resultado(sala)
 
 
-# 5. Nadie puede refutar: también hay resultado público.
+# 5. Nadie puede refutar: tambiÃ©n hay resultado pÃºblico.
 def test_nadie_refuta_abre_resultado_publico_sin_refutador():
     sala = Sala("JARA-SIN-REFUTAR")
     inv = sala.agregar_jugador("Inv", True, personaje_id="vera")
@@ -291,7 +296,7 @@ def test_continuar_humano_cierra_el_resultado_publico():
     assert sala.turno_actual == 1
 
 
-# 8. Sin respuesta, vence el plazo y continúa.
+# 8. Sin respuesta, vence el plazo y continÃºa.
 def test_humano_sin_responder_cierra_el_resultado_en_el_plazo():
     sala, inv, ref, _ = mesa_sospecha_con_refutador()
     abrir_ciclo(sala, inv)
@@ -311,13 +316,13 @@ def test_recarga_conserva_el_plazo_del_resultado_publico():
     sala.mostrar_carta(ref["id"], "vera")
     resultado = _resultado_pendiente(sala)
     deadline = resultado["participantes"][ref["id"]]["deadline"]
-    for _ in range(3):  # relecturas del estado privado = reconexión
+    for _ in range(3):  # relecturas del estado privado = reconexiÃ³n
         sala.estado_privado(ref["id"])
     assert _resultado_pendiente(sala)["participantes"][ref["id"]]["deadline"] == deadline
     assert sala.presentacion_sospecha["id"] == resultado["id"]
 
 
-# 10. Una confirmación vieja no afecta a la presentación nueva.
+# 10. Una confirmaciÃ³n vieja no afecta a la presentaciÃ³n nueva.
 def test_confirmacion_antigua_no_afecta_al_resultado_siguiente():
     sala, inv, ref, _ = mesa_sospecha_con_refutador()
     abrir_ciclo(sala, inv)
@@ -331,22 +336,22 @@ def test_confirmacion_antigua_no_afecta_al_resultado_siguiente():
     assert not resultado["participantes"][ref["id"]]["listo"]
 
 
-# 11-13. Privacidad: la carta la ve el investigador; nadie más.
+# 11-13. Privacidad: la carta la ve el investigador; nadie mÃ¡s.
 def test_privacidad_del_resultado_publico():
     sala, inv, ref, pnj = mesa_sospecha_con_refutador()
     abrir_ciclo(sala, inv)
     sala.mostrar_carta(ref["id"], "vera")
     _resultado_pendiente(sala)
-    # El investigador conserva su revelación privada.
+    # El investigador conserva su revelaciÃ³n privada.
     privada_inv = sala.estado_privado(inv["id"])["jugada"]
     assert privada_inv["carta_mostrada"]["id"] == "vera"
     assert sala.estado_carta(inv["id"], "vera") == "vista"
-    # El resto no ve la carta ni las opciones de la refutación.
+    # El resto no ve la carta ni las opciones de la refutaciÃ³n.
     for otro in (ref, pnj):
         privada = sala.estado_privado(otro["id"])["jugada"]
         assert "carta_mostrada" not in privada
         assert "opciones_refutacion" not in privada
-    # El payload público solo dice quién y qué; ni carta ni opciones.
+    # El payload pÃºblico solo dice quiÃ©n y quÃ©; ni carta ni opciones.
     publico = repr(sala.jugada_publica())
     assert "carta_id" not in publico
     assert "carta_mostrada" not in publico
@@ -365,11 +370,91 @@ def test_el_turno_avanza_exactamente_una_vez():
     assert sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     turno = sala.turno_actual
     assert turno == 1
-    # Una segunda actualización ya no tiene presentación que cerrar.
+    # Una segunda actualizaciÃ³n ya no tiene presentaciÃ³n que cerrar.
     assert not sala.actualizar_presentacion_sospecha(ahora=float("inf"))
     assert sala.turno_actual == turno
-    # Y la refutación sigue cerrada: nadie puede refutar dos veces.
+    # Y la refutaciÃ³n sigue cerrada: nadie puede refutar dos veces.
     with pytest.raises(ValueError):
         sala.mostrar_carta(ref["id"], "vera")
     with pytest.raises(ValueError):
         sala.continuar_refutacion(ref["id"])
+
+
+# ---------------------------------------------------------------------------
+# 8B.31D · Panel de deducción en el resultado público.
+# Solo información que el cliente YA tenía: mis_cartas + investigacion.
+# ---------------------------------------------------------------------------
+
+
+def test_el_panel_usa_solo_informacion_ya_posesida():
+    texto = cliente.get("/static/js/sala.js").text
+    inicio = texto.index("function pintarResultadoConocimiento(")
+    cuerpo = texto[inicio:texto.index("function pintarPresentacionSospecha")]
+    # Derivación exclusively desde lo privado que ya tenía el cliente.
+    assert "(sala.mis_cartas || [])" in cuerpo
+    assert "(sala.investigacion || [])" in cuerpo
+    assert "cartasPropias.has(carta.id)" in cuerpo
+    assert 'entrada.estado === "vista"' in cuerpo
+    assert 'entrada.estado === "descartada"' in cuerpo
+    # Sin deducciones automáticas ni información del refutador.
+    for prohibido in (
+        "carta_mostrada",
+        "opciones_refutacion",
+        "coincidencias",
+        "refutador_id",
+        "deduce",
+        "infer",
+    ):
+        assert prohibido not in cuerpo
+    # Las cuatro etiquetas exactas de la hoja de investigación.
+    for etiqueta in ('"TU CARTA"', '"VISTA"', '"DESCARTADA"', '"?"'):
+        assert etiqueta in cuerpo
+    # Cartas informativas, no seleccionables (sin callback de pulsación).
+    assert "alPulsar:" not in cuerpo
+
+
+def test_el_panel_se_monta_en_el_modal_de_presentacion():
+    sala_web, _ = gestor.crear_sala("Paco")
+    try:
+        html = cliente.get(f"/sala/{sala_web.codigo}").text
+    finally:
+        gestor.salas.pop(sala_web.codigo, None)
+    assert 'id="presentacion-resultado-cartas"' in html
+    assert 'id="presentacion-sospecha-cartas"' in html  # 8B.30 intacto
+    assert 'id="btn-continuar-presentacion-sospecha"' in html
+    texto = cliente.get("/static/js/sala.js").text
+    assert "pintarResultadoConocimiento(sala, sospecha)" in texto
+    assert "presentacionSospechaCartas.hidden = true" in texto
+    assert "presentacionResultadoCartas.hidden = false" in texto
+    # Al volver a la presentación de 8B.30 se oculta el panel de deducción.
+    assert "presentacionResultadoCartas.hidden = true" in texto
+    css = cliente.get("/static/css/estilos.css").text
+    assert ".presentacion-resultado-cartas" in css
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in css
+
+
+def test_el_resultado_publico_no_revela_la_carta_mostrada():
+    """A-F: el estado privado NO lleva información del refutador."""
+    sala, inv, ref, pnj = mesa_sospecha_con_refutador()
+    abrir_ciclo(sala, inv)
+    sala.mostrar_carta(ref["id"], "vera")
+    _resultado_pendiente(sala)
+    # El panel se alimenta de investigacion + mis_cartas, nada más.
+    privada_inv = sala.estado_privado(inv["id"])
+    assert isinstance(privada_inv["investigacion"], list)
+    assert isinstance(privada_inv["mis_cartas"], list)
+    # La carta mostrada entra por investigación (vista), NO por la mano: el
+    # panel del cliente laDerivaría de aquí, sin tocar el servidor.
+    assert "vera" not in {c["id"] for c in privada_inv["mis_cartas"]}
+    entrada = next(
+        e for e in privada_inv["investigacion"] if e["id"] == "vera"
+    )
+    assert entrada["estado"] == "vista"
+    assert {c["id"] for c in privada_inv["mis_cartas"]} == {"eulalia"}
+    # El resto no recibe ni la carta mostrada ni las opciones.
+    for otro in (ref, pnj):
+        privada = sala.estado_privado(otro["id"])
+        assert "carta_mostrada" not in privada["jugada"]
+        assert "opciones_refutacion" not in privada["jugada"]
+    # Nadie recibe las coincidencias del refutador.
+    assert "coincidencias" not in repr(sala.jugada_publica())

@@ -1085,6 +1085,63 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   color: var(--texto);
 }
 
+/* 8B.31D · Las tres cartas sospechadas y, bajo cada una, lo que este cliente
+   ya sabía de ella. Tres columnas: CARTA arriba, estado debajo. Mismos colores
+   que las insignias de la hoja de investigación. */
+.presentacion-resultado-cartas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: center;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.presentacion-resultado-columna {
+  display: grid;
+  /* La carta es la protagonista y ocupa lo que sobra; el estado es fijo. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.presentacion-resultado-columna .carta-selector-sospecha {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  min-height: 0;
+  aspect-ratio: 3 / 4;
+}
+
+.presentacion-resultado-estado {
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #fff8dc;
+  background: rgba(12, 19, 32, 0.9);
+  font-size: 0.62rem;
+  line-height: 1.1;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.presentacion-resultado-estado.es-propia {
+  background: rgba(37, 91, 66, 0.94);
+}
+
+.presentacion-resultado-estado.es-vista {
+  background: rgba(76, 57, 113, 0.94);
+}
+
+.presentacion-resultado-estado.es-descartada {
+  background: rgba(115, 42, 42, 0.94);
+}
+
 
 .modal-refutacion-caja {
   width: min(calc(100dvw - 24px), 940px);
@@ -1147,9 +1204,28 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 0;
 }
 
+/* Aviso de plazo: la carta selecionada desborda su caja (halo + escala), así
+   que el texto de ayuda necesita aire propio para quedar claramente debajo.
+   Solo espacio vertical; el modal conserva su altura y el tamaño de la carta
+   (la pista flexible de la rejilla cede esos pocos píxeles). */
+#aviso-timeout-refutacion {
+  margin-top: 10px;
+}
+
+
 @media (orientation: landscape) and (max-height: 560px) {
   .presentacion-resultado-texto {
     font-size: clamp(0.8rem, 2.1vw, 1.05rem);
+  }
+
+  /* 844x390: las tres cartas siguen en una sola fila, algo más bajas. */
+  .presentacion-resultado-cartas {
+    gap: 8px;
+  }
+
+  .presentacion-resultado-estado {
+    padding: 2px 6px;
+    font-size: 0.55rem;
   }
 }
 
@@ -1173,6 +1249,12 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
     margin: 0;
     font-size: clamp(0.61rem, 1.55vw, 0.72rem);
   }
+
+  /* Mismo aire que en vertical, algo menor: aquí las 390 px son justas. */
+  #aviso-timeout-refutacion {
+    margin-top: 6px;
+  }
+
 
   .modal-refutacion-caja > .medallon {
     min-height: 34px;

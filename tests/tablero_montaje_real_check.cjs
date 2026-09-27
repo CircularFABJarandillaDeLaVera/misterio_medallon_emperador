@@ -170,9 +170,9 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=8b31i'),
+  ok(html.includes('/static/js/sala.js?v=8b31k'),
     "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/css/estilos.css?v=8b31i'),
+  ok(html.includes('/static/css/estilos.css?v=8b31k'),
     "la plantilla invalida la caché del popup contextual visual");
   ok(html.includes('/static/js/pantalla_completa.js?v=8b19'),
     "la plantilla incluye el control global de pantalla completa");
