@@ -85,6 +85,11 @@ vm.runInContext(
 
 const $ = (id) => documentStub.getElementById(id);
 const css = fs.readFileSync(path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
+ok(
+  /acciones-contextuales:not\(:has\([\s\S]*#btn-sospecha-ubicacion:not\(\[hidden\]\)[\s\S]*#btn-mover-ubicacion-canvas:not\(\[hidden\]\)[\s\S]*\)\) #btn-cerrar-ubicacion\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*justify-self:\s*center[^}]*width:\s*calc\(50% - 5px\)/.test(css) &&
+    /\.medallon\[hidden\]\s*\{[^}]*display:\s*none/.test(css),
+  "CERRAR se centra solo sin romper el contrato [hidden] de los medallones"
+);
 
 function salaBase(modo = "tablero") {
   return {

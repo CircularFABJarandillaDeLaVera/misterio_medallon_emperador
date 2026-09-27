@@ -71,6 +71,43 @@ def test_eliminado_humano_y_pnj_siguen_refutando():
     assert hallado == (a["id"], ["eulalia"])
 
 
+def test_humano_que_falla_conserva_mano_y_refuta_despues_con_una_coincidencia():
+    sala, a, b, _ = sala_controlada()
+    mano = copy.deepcopy(sala.manos[a["id"]])
+
+    assert acusar(sala, a, sospechoso="bruno") is False
+    assert not a["activo_investigacion"]
+    assert sala.manos[a["id"]] == mano
+
+    sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    assert sala.ultima_jugada["refutador_id"] == a["id"]
+    assert sala.ultima_jugada["carta_id"] == "eulalia"
+    assert sala.estado_privado(b["id"])["jugada"]["carta_mostrada"]["id"] == "eulalia"
+    assert "carta_mostrada" not in sala.estado_privado(a["id"])["jugada"]
+    assert "carta_mostrada" not in sala.estado_publico()["jugada"]
+
+
+def test_humano_que_falla_conserva_eleccion_privada_si_puede_refutar_varias():
+    sala, a, b, c = sala_controlada()
+    sala.manos[a["id"]] = [CARTA_POR_ID["eulalia"], CARTA_POR_ID["picota"]]
+
+    assert acusar(sala, a, sospechoso="bruno") is False
+    sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+
+    privada_a = sala.estado_privado(a["id"])["jugada"]
+    assert {carta["id"] for carta in privada_a["opciones_refutacion"]} == {
+        "eulalia", "picota"
+    }
+    assert "opciones_refutacion" not in sala.estado_privado(b["id"])["jugada"]
+    assert "opciones_refutacion" not in sala.estado_privado(c["id"])["jugada"]
+
+    sala.mostrar_carta(a["id"], "picota")
+    assert sala.estado_privado(b["id"])["jugada"]["carta_mostrada"]["id"] == "picota"
+    assert "carta_mostrada" not in sala.estado_privado(c["id"])["jugada"]
+    assert "carta_mostrada" not in sala.estado_publico()["jugada"]
+    assert "opciones_refutacion" not in sala.estado_publico()["jugada"]
+
+
 def test_ultimo_no_gana_automaticamente_y_si_falla_queda_sin_resolver():
     sala, a, b, c = sala_controlada()
     b["activo_investigacion"] = False

@@ -134,6 +134,10 @@ const htmlSala = fs.readFileSync(
   path.join(__dirname, "..", "app", "templates", "sala.html"),
   "utf8"
 );
+const css = fs.readFileSync(
+  path.join(__dirname, "..", "app", "static", "css", "estilos.css"),
+  "utf8"
+);
 ok(
   !htmlSala.includes('id="resolver-sospechoso"') &&
     !htmlSala.includes('id="resolver-lugar"') &&
@@ -151,6 +155,41 @@ ok(
     htmlSala.includes('id="resolver-grupo-lugar"') &&
     htmlSala.includes('id="resolver-grupo-objeto"'),
   "Resolver ofrece 3 grupos visuales"
+);
+ok(
+  htmlSala.includes('id="modal-resolucion-fallida"') &&
+    htmlSala.includes("TU RESOLUCIÓN HA SIDO REFUTADA") &&
+    htmlSala.includes("HAS SIDO ELIMINADO COMO INVESTIGADOR") &&
+    htmlSala.includes("Conservas tus cartas") &&
+    htmlSala.includes("hasta el final de la partida") &&
+    !htmlSala.includes("Has perdido la partida"),
+  "el popup explica la eliminación como investigador sin expulsar al jugador"
+);
+ok(
+  htmlSala.includes("¿QUIÉN ESCONDIÓ EL MEDALLÓN?") &&
+    htmlSala.includes("¿EN QUÉ LUGAR?") &&
+    htmlSala.includes("¿DÓNDE LO ESCONDIÓ?"),
+  "Resolver formula persona, lugar y escondite con la semántica correcta"
+);
+ok(
+  htmlSala.includes('id="btn-confirmar-resolver" class="medallon medallon-primario medallon-compacto"') &&
+    htmlSala.includes('id="btn-cancelar-resolver" class="medallon medallon-fantasma medallon-compacto"') &&
+    /\.modal-resolver-caja > \.medallon-compacto\s*\{[^}]*width:\s*100%[^}]*min-height:\s*38px/s.test(css) &&
+    /#btn-confirmar-resolver\s*\{[^}]*grid-column:\s*1[^}]*grid-row:\s*9/s.test(css) &&
+    /#btn-cancelar-resolver\s*\{[^}]*grid-column:\s*2[^}]*grid-row:\s*9/s.test(css),
+  "Resolver reutiliza medallones canónicos en una fila compacta"
+);
+ok(
+  /\.modal-resolver-caja\s*\{[^}]*width:\s*calc\(100dvw - 12px\)[^}]*height:\s*calc\(100dvh - 12px\)[^}]*grid-template-rows:[^}]*minmax\(0, 1fr\)/s.test(css) &&
+    /\.selector-cartas-resolver\[data-categoria="sospechoso"\][^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css) &&
+    /\.selector-cartas-resolver\[data-categoria="lugar"\][^}]*repeat\(9, minmax\(0, 1fr\)\)/s.test(css) &&
+    /\.selector-cartas-resolver\[data-categoria="objeto"\][^}]*repeat\(6, minmax\(0, 1fr\)\)/s.test(css),
+  "Resolver reutiliza la geometría viewport-protagonista de Investigación"
+);
+ok(
+  /\.modal-resolver-caja > \.resolver-pregunta[^}]*white-space:\s*nowrap/s.test(css) &&
+    /\.modal-resolver-caja > \.nota-privada[^}]*font-size:\s*clamp/s.test(css),
+  "cabecera, aviso y preguntas de Resolver permanecen en una línea"
 );
 
 // 1. Abrir selección y pasar a confirmación con los nombres visibles.
@@ -235,6 +274,45 @@ ok(
   "enviar cierra la confirmación"
 );
 
+// El estado canónico confirma el fallo local: se reutilizan exactamente
+// las tres cartas enviadas, sin recibir ni inferir la solución real.
+$('modal-resolucion-fallida').hidden = true;
+sandbox.presentarResolucionFallida({
+  activo_investigacion: false,
+  jugada: { tipo: "acusacion", resultado: "acusacion_incorrecta" },
+});
+ok(
+  $("modal-resolucion-fallida").hidden === false &&
+    $("resolucion-fallida-cartas").children.length === 3,
+  "el fallo local abre el popup con exactamente tres cartas"
+);
+ok(
+  $("resolucion-fallida-cartas").children.map((c) => c.getAttribute("aria-label")).join("|") ===
+    "Vera|Parador|Baúl Imperial",
+  "el popup reconstruye la combinación local enviada"
+);
+ok(
+  !$("resolucion-fallida-cartas").textContent.includes("✓") &&
+    !$("resolucion-fallida-cartas").textContent.includes("✗"),
+  "el popup no identifica aciertos ni fallos parciales"
+);
+$("btn-continuar-resolucion-fallida").click();
+ok(
+  $("modal-resolucion-fallida").hidden === true,
+  "CONTINUAR solo cierra el popup y devuelve al tablero"
+);
+
+// Sin una acusación pendiente local (recarga, rival o PNJ), el mismo
+// resultado público no abre información detallada.
+sandbox.presentarResolucionFallida({
+  activo_investigacion: false,
+  jugada: { tipo: "acusacion", resultado: "acusacion_incorrecta" },
+});
+ok(
+  $("modal-resolucion-fallida").hidden === true,
+  "recarga, rival o PNJ no abren el popup local"
+);
+
 // 3. CANCELAR no envía nada y conserva la selección.
 enviados.length = 0;
 $("btn-resolver").click();
@@ -260,6 +338,14 @@ $("btn-enviar-resolver").click();
 ok(
   enviados.filter((m) => m.accion === "resolver_misterio").length === 1,
   "reconfirmar permite un nuevo envío único"
+);
+sandbox.presentarResolucionFallida({
+  activo_investigacion: true,
+  jugada: { tipo: "acusacion", resultado: "resuelto" },
+});
+ok(
+  $("modal-resolucion-fallida").hidden === true,
+  "una resolución correcta conserva el flujo final y no abre el popup de fallo"
 );
 
 // 5. Aviso de timeout solo con plazo server-side.

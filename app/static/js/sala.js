@@ -47,6 +47,9 @@ const btnConfirmarResolver = document.getElementById("btn-confirmar-resolver");
 const modalConfirmarResolver = document.getElementById("modal-confirmar-resolver");
 const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
 const confResolverCartas = document.getElementById("conf-resolver-cartas");
+const modalResolucionFallida = document.getElementById("modal-resolucion-fallida");
+const resolucionFallidaCartas = document.getElementById("resolucion-fallida-cartas");
+const btnContinuarResolucionFallida = document.getElementById("btn-continuar-resolucion-fallida");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
@@ -106,6 +109,7 @@ const animacionesMovimiento = new Map();
 let estadoVisualHidratado = false;
 let ultimoMovimientoId = null;
 let secuenciaAnimacion = 0;
+let resolucionPendienteLocal = null;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -210,6 +214,7 @@ function presentarEstadoPrivado(sala) {
     ultimoMovimientoId = movimientoId;
     ultimaSala = sala;
     pintarSala(sala);
+    presentarResolucionFallida(sala);
     return;
   }
   if (movimientoId !== null && ultimoMovimientoId !== null && movimientoId < ultimoMovimientoId) {
@@ -224,6 +229,7 @@ function presentarEstadoPrivado(sala) {
     iniciarAnimacionMovimiento(movimiento);
     ultimaSala = sala;
     pintarSala(sala);
+    presentarResolucionFallida(sala);
     return;
   }
   if (esMovimientoNuevo && movimiento && movimiento.personaje_id) {
@@ -231,6 +237,7 @@ function presentarEstadoPrivado(sala) {
   }
   ultimaSala = sala;
   pintarSala(sala);
+  presentarResolucionFallida(sala);
   if (esMovimientoNuevo && movimiento && movimiento.tipo === "pasadizo") {
     abrirLlegadaContextual(movimiento);
   }
@@ -1229,14 +1236,14 @@ document.getElementById("btn-confirmar-sospecha").addEventListener("click", () =
 
 const resolverSeleccion = { sospechoso: "", lugar: "", objeto: "" };
 
-function pintarConfirmacionResolver(cartas) {
-  confResolverCartas.innerHTML = "";
+function pintarCartasResolucion(contenedor, cartas, seleccion) {
+  contenedor.innerHTML = "";
   // Solo lectura: las figuras son <div> sin oyentes; para cambiar la
   // acusación hay que CANCELAR y volver al selector.
   [
-    { categoria: "sospechoso", id: resolverSeleccion.sospechoso },
-    { categoria: "lugar", id: resolverSeleccion.lugar },
-    { categoria: "objeto", id: resolverSeleccion.objeto },
+    { categoria: "sospechoso", id: seleccion.sospechoso },
+    { categoria: "lugar", id: seleccion.lugar },
+    { categoria: "objeto", id: seleccion.objeto },
   ].forEach(({ categoria, id }) => {
     const carta = (cartas || []).find(
       (entrada) => entrada.id === id && entrada.categoria === categoria
@@ -1248,8 +1255,32 @@ function pintarConfirmacionResolver(cartas) {
     figura.setAttribute("aria-label", carta.nombre);
     figura.title = carta.nombre;
     while (boton.firstChild) figura.appendChild(boton.firstChild);
-    confResolverCartas.appendChild(figura);
+    contenedor.appendChild(figura);
   });
+}
+
+function pintarConfirmacionResolver(cartas) {
+  pintarCartasResolucion(confResolverCartas, cartas, resolverSeleccion);
+}
+
+function presentarResolucionFallida(sala) {
+  if (!resolucionPendienteLocal) return;
+  const jugada = (sala && sala.jugada) || {};
+  if (jugada.tipo !== "acusacion" && jugada.tipo !== "final") return;
+  const pendiente = resolucionPendienteLocal;
+  resolucionPendienteLocal = null;
+  const falloConfirmado = jugada.resultado === "acusacion_incorrecta" ||
+    (jugada.tipo === "final" && jugada.resultado === "sin_resolver");
+  if (!falloConfirmado || sala.activo_investigacion !== false) {
+    return;
+  }
+  pintarCartasResolucion(
+    resolucionFallidaCartas,
+    pendiente.cartas,
+    pendiente.seleccion
+  );
+  modalResolucionFallida.hidden = false;
+  if (btnContinuarResolucionFallida.focus) btnContinuarResolucionFallida.focus();
 }
 
 function pintarGrupoResolver(contenedor, cartas, categoria, clave) {
@@ -1318,6 +1349,10 @@ btnEnviarResolver.addEventListener("click", () => {
     return;
   }
   btnEnviarResolver.disabled = true;
+  resolucionPendienteLocal = {
+    seleccion: { ...resolverSeleccion },
+    cartas: ((ultimaSala && ultimaSala.investigacion) || []).map((carta) => ({ ...carta })),
+  };
   ws.send(JSON.stringify({
     accion: "resolver_misterio",
     sospechoso_id: resolverSeleccion.sospechoso,
@@ -1325,4 +1360,8 @@ btnEnviarResolver.addEventListener("click", () => {
     objeto_id: resolverSeleccion.objeto,
   }));
   modalConfirmarResolver.hidden = true;
+});
+
+btnContinuarResolucionFallida.addEventListener("click", () => {
+  modalResolucionFallida.hidden = true;
 });

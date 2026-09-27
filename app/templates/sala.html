@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b27" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=8b29" />
 </head>
 <body>
   <main class="contenedor">
@@ -75,7 +75,7 @@
           <p class="nota-privada">Es irreversible. Si fallas quedarás eliminado como investigador.</p>
           <p class="resolver-pregunta">¿QUIÉN ESCONDIÓ EL MEDALLÓN?</p>
           <div id="resolver-grupo-sospechoso" class="selector-cartas-resolver" data-categoria="sospechoso" role="group" aria-label="Selecciona un sospechoso"></div>
-          <p class="resolver-pregunta">¿DÓNDE OCURRIÓ?</p>
+          <p class="resolver-pregunta">¿EN QUÉ LUGAR?</p>
           <div id="resolver-grupo-lugar" class="selector-cartas-resolver" data-categoria="lugar" role="group" aria-label="Selecciona un lugar"></div>
           <p class="resolver-pregunta">¿DÓNDE LO ESCONDIÓ?</p>
           <div id="resolver-grupo-objeto" class="selector-cartas-resolver" data-categoria="objeto" role="group" aria-label="Selecciona un escondite"></div>
@@ -90,6 +90,17 @@
           <p class="nota-privada">Si la acusación es incorrecta quedarás eliminado como investigador.</p>
           <button id="btn-enviar-resolver" class="medallon medallon-primario medallon-compacto" type="button">RESOLVER EL MISTERIO</button>
           <button id="btn-cancelar-confirmar-resolver" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
+        </div>
+      </div>
+      <div id="modal-resolucion-fallida" class="modal" hidden>
+        <div class="modal-caja modal-resolucion-fallida-caja" role="dialog" aria-modal="true" aria-label="Resolución refutada">
+          <h2>TU RESOLUCIÓN HA SIDO REFUTADA</h2>
+          <p class="resolucion-fallida-etiqueta">ESTA ERA TU RESOLUCIÓN</p>
+          <div id="resolucion-fallida-cartas" class="conf-resolver-cartas resolucion-fallida-cartas" role="group" aria-label="Tu resolución refutada"></div>
+          <h3>HAS SIDO ELIMINADO COMO INVESTIGADOR</h3>
+          <p>Ya no puedes moverte, formular sospechas ni resolver el misterio.</p>
+          <p>Conservas tus cartas y podrás seguir refutando las sospechas de los demás hasta el final de la partida.</p>
+          <button id="btn-continuar-resolucion-fallida" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
         </div>
       </div>
       <div id="modal-sospecha" class="modal" hidden>
@@ -152,7 +163,7 @@
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/sala.js?v=8b26b"></script>
+  <script src="/static/js/sala.js?v=8b29"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>
 </html>

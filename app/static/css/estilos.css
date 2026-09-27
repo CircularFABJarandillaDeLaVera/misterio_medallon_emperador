@@ -739,6 +739,15 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   grid-column: 2;
 }
 
+.modal-carta-ubicacion.modo-ubicacion .acciones-contextuales:not(:has(
+  > #btn-sospecha-ubicacion:not([hidden]),
+  > #btn-mover-ubicacion-canvas:not([hidden])
+)) #btn-cerrar-ubicacion {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 5px);
+}
+
 @media (orientation: landscape) and (max-height: 560px) {
   .modal-carta-ubicacion.modo-ubicacion {
     padding: 7px 10px;
@@ -835,13 +844,50 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
    fila por categoría, sin nombres inferiores (Microfase 8B.12).
    Reutiliza la base .carta-selector-sospecha y su halo .seleccionada. */
 .modal-resolver-caja {
-  width: min(94vw, 1000px);
-  max-width: 1000px;
+  width: calc(100vw - 12px);
+  width: calc(100dvw - 12px);
+  max-width: none;
+  height: calc(100vh - 12px);
+  height: calc(100dvh - 12px);
+  min-height: 0;
+  max-height: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.modal-resolver-caja > h2,
+.modal-resolver-caja > .nota-privada,
+.modal-resolver-caja > .resolver-pregunta,
+.modal-resolver-caja > .selector-cartas-resolver {
+  grid-column: 1 / -1;
+}
+
+.modal-resolver-caja > h2,
+.modal-resolver-caja > .nota-privada,
+.modal-resolver-caja > .resolver-pregunta {
+  overflow: hidden;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-resolver-caja h2 {
+  margin-bottom: 3px;
+  font-size: clamp(0.86rem, 1.7vw, 1.15rem);
+}
+
+.modal-resolver-caja > .nota-privada {
+  margin-bottom: 3px;
+  font-size: clamp(0.64rem, 1.35vw, 0.82rem);
 }
 
 .resolver-pregunta {
-  margin: 6px 0 2px;
-  font-size: 0.78rem;
+  margin: 3px 0 1px;
+  font-size: clamp(0.66rem, 1.35vw, 0.78rem);
   letter-spacing: 1.5px;
   color: var(--dorado-claro);
 }
@@ -849,45 +895,61 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 .selector-cartas-resolver {
   display: grid;
   gap: 6px;
-  justify-content: center;
-  margin: 2px 0 4px;
+  min-width: 0;
+  min-height: 0;
+  margin: 1px 0 2px;
+}
+
+.modal-resolver-caja > .medallon-compacto {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 3px;
+  padding: 6px 12px;
+}
+
+#modal-resolver {
+  padding: 6px;
+}
+
+#btn-confirmar-resolver {
+  grid-column: 1;
+  grid-row: 9;
+}
+
+#btn-cancelar-resolver {
+  grid-column: 2;
+  grid-row: 9;
 }
 
 .selector-cartas-resolver[data-categoria="sospechoso"] {
-  grid-template-columns: repeat(6, minmax(0, 88px));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .selector-cartas-resolver[data-categoria="lugar"] {
-  grid-template-columns: repeat(9, minmax(0, 88px));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
 }
 
 .selector-cartas-resolver[data-categoria="objeto"] {
-  grid-template-columns: repeat(6, minmax(0, 86px));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .selector-cartas-resolver .carta-selector-sospecha {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
   padding: 2px;
   border-radius: 5px;
 }
 
 .selector-cartas-resolver .carta-selector-sospecha img {
   width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   aspect-ratio: auto;
   object-fit: contain;
   object-position: center;
   background: #101727;
-}
-
-.selector-cartas-resolver[data-categoria="sospechoso"] .carta-selector-sospecha img {
-  height: 80px;
-}
-
-.selector-cartas-resolver[data-categoria="lugar"] .carta-selector-sospecha img {
-  height: 84px;
-}
-
-.selector-cartas-resolver[data-categoria="objeto"] .carta-selector-sospecha img {
-  height: 78px;
 }
 
 .selector-cartas-resolver .carta-selector-marca {
@@ -938,6 +1000,105 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 
 .conf-resolver-cartas .carta-confirmacion-objeto img {
   height: 150px;
+}
+
+/* Resolución fallida: la caja queda limitada por el viewport y las tres
+   cartas reutilizadas absorben el espacio flexible disponible. */
+#modal-resolucion-fallida {
+  padding: 12px;
+}
+
+.modal-resolucion-fallida-caja {
+  width: min(calc(100dvw - 24px), 940px);
+  max-width: 940px;
+  height: min(calc(100dvh - 24px), 760px);
+  min-height: 0;
+  max-height: 760px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
+  gap: 5px;
+  overflow: visible;
+  padding: 14px 18px;
+}
+
+.modal-resolucion-fallida-caja > h2,
+.modal-resolucion-fallida-caja > h3,
+.modal-resolucion-fallida-caja > p {
+  margin: 0;
+  line-height: 1.18;
+}
+
+.modal-resolucion-fallida-caja > h3 {
+  color: var(--dorado-claro);
+  font-size: clamp(0.84rem, 1.7vw, 1.05rem);
+  letter-spacing: 1px;
+}
+
+.modal-resolucion-fallida-caja > p {
+  font-size: clamp(0.72rem, 1.35vw, 0.9rem);
+}
+
+.modal-resolucion-fallida-caja > .resolucion-fallida-etiqueta {
+  color: var(--texto-suave);
+  font-size: clamp(0.68rem, 1.2vw, 0.78rem);
+  letter-spacing: 1px;
+}
+
+.resolucion-fallida-cartas {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.resolucion-fallida-cartas .carta-selector-sospecha,
+.resolucion-fallida-cartas .carta-selector-sospecha img {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.resolucion-fallida-cartas .carta-selector-sospecha img {
+  object-fit: contain;
+}
+
+.modal-resolucion-fallida-caja > .medallon {
+  justify-self: center;
+  width: min(100%, 260px);
+  margin: 1px 0 0;
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  #modal-resolucion-fallida {
+    padding: 6px;
+  }
+
+  .modal-resolucion-fallida-caja {
+    width: min(calc(100dvw - 12px), 940px);
+    height: calc(100dvh - 12px);
+    padding: 7px 12px;
+    gap: 2px;
+  }
+
+  .modal-resolucion-fallida-caja > h2 {
+    font-size: clamp(0.78rem, 2.2vw, 0.98rem);
+  }
+
+  .modal-resolucion-fallida-caja > h3 {
+    font-size: clamp(0.72rem, 1.9vw, 0.86rem);
+  }
+
+  .modal-resolucion-fallida-caja > p,
+  .modal-resolucion-fallida-caja > .resolucion-fallida-etiqueta {
+    font-size: clamp(0.61rem, 1.55vw, 0.72rem);
+  }
+
+  .modal-resolucion-fallida-caja > .medallon {
+    min-height: 34px;
+    padding-block: 5px;
+  }
 }
 
 .carta-selector-sospecha {
