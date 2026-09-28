@@ -16,6 +16,9 @@ from pydantic import BaseModel
 
 from app.datos.jarandilla import SOSPECHOSOS
 from app.datos.recursos import (
+    AUDIO_CLIC,
+    AUDIO_FINAL,
+    AUDIO_MUSICA_FONDO,
     COLORES_PERSONAJES,
     RECURSOS_VISUALES,
     RECURSO_PEON,
@@ -116,6 +119,7 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
             await difundir(codigo)
             if sala.estado == ESTADO_TERMINADA:
                 cancelar_timeout_refutacion(codigo)
+                cancelar_bloqueo(codigo)
                 return
             if sala.estado_jugada == JUGADA_PRESENTANDO_SOSPECHA:
                 programar_presentacion_sospecha(codigo)
@@ -123,6 +127,8 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
             # La jugada PNJ también puede dejar una refutación humana
             # pendiente: programa el watchdog con el deadline ya creado.
             programar_timeout_refutacion(codigo)
+            # 8B.32: y puede dejar bloqueada a la siguiente persona humana.
+            programar_bloqueo(codigo)
     finally:
         if tareas_pnj.get(codigo) is tarea_actual:
             tareas_pnj.pop(codigo, None)
@@ -285,6 +291,74 @@ def cancelar_presentacion_sospecha(codigo: str) -> None:
         tarea.cancel()
 
 
+# Antibloqueo por inactividad (8B.32). Un plazo canónico de 60 s por acción
+# bloqueante de un humano. NO ejecuta la acción pendiente: al vencer solo
+# abre el aviso privado del ANFITRIÓN, que decide entre PASAR A PNJ y
+# SEGUIR ESPERANDO. Mismo patrón y misma carrera que el timeout de
+# refutación: una sola tarea por sala, nunca duerme con el cerrojo cogido y
+# la identidad del aviso vive en la sala, no en la tarea.
+tareas_bloqueo: dict[str, asyncio.Task] = {}
+
+
+def _necesita_bloqueo(sala) -> bool:
+    return bool(sala.bloqueo_deadline is not None and sala.jugador_bloqueante())
+
+
+async def _vigilar_bloqueo(codigo: str) -> None:
+    """Espera al deadline y abre el aviso si el bloqueo sigue vivo.
+
+    La carrera se gana bajo el cerrojo de la sala y contra la IDENTIDAD del
+    plazo: si la acción se resolvió, si el plazo se renovó o si ya se emitió
+    el aviso, esta tarea es no-op y la que siga viva manda. Nunca reinicia
+    el minuto: el plazo se crea en el motor, al entrar en la acción
+    bloqueante, y solo lo cambia SEGUIR ESPERANDO.
+    """
+    tarea_actual = asyncio.current_task()
+    try:
+        sala = gestor.obtener(codigo)
+        if sala is None or not _necesita_bloqueo(sala):
+            return
+        deadline = sala.bloqueo_deadline
+        if deadline is None:
+            return
+        retraso = deadline - time.monotonic()
+        if retraso > 0:
+            await asyncio.sleep(retraso)
+        async with cerrojos.setdefault(codigo, asyncio.Lock()):
+            sala = gestor.obtener(codigo)
+            if sala is None or sala.bloqueo_deadline != deadline:
+                return  # rancia: la acción se resolvió o el plazo se renovó
+            if not sala.registrar_aviso_inactividad():
+                return  # ya emitido, o el que bloquea es el anfitrión
+        # Solo se difunde el aviso: nadie ejecuta la acción pendiente.
+        await difundir(codigo)
+    finally:
+        if tareas_bloqueo.get(codigo) is tarea_actual:
+            tareas_bloqueo.pop(codigo, None)
+
+
+def programar_bloqueo(codigo: str) -> None:
+    """Programa el watchdog sin reiniciar jamás el deadline de la sala."""
+    sala = gestor.obtener(codigo)
+    if sala is None or sala.estado == ESTADO_TERMINADA:
+        return
+    if not _necesita_bloqueo(sala):
+        return
+    existente = tareas_bloqueo.get(codigo)
+    if existente is None or existente.done():
+        tareas_bloqueo[codigo] = asyncio.create_task(_vigilar_bloqueo(codigo))
+
+
+def cancelar_bloqueo(codigo: str) -> None:
+    tarea = tareas_bloqueo.pop(codigo, None)
+    try:
+        actual = asyncio.current_task()
+    except RuntimeError:
+        actual = None
+    if tarea and tarea is not actual:
+        tarea.cancel()
+
+
 class EntradaAlias(BaseModel):
     alias: str = ""
     modo: str = "rapido"
@@ -403,6 +477,11 @@ def listar_recursos_visuales():
         "tablero": RECURSO_TABLERO,
         "peon": RECURSO_PEON,
         "colores_personajes": COLORES_PERSONAJES,
+        "audio": {
+            "musica_fondo": AUDIO_MUSICA_FONDO,
+            "clic": AUDIO_CLIC,
+            "final": AUDIO_FINAL,
+        },
     }
 
 
@@ -435,6 +514,9 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     # deadline existente de la sala, sin reiniciar el plazo.
     programar_timeout_refutacion(sala.codigo)
     programar_presentacion_sospecha(sala.codigo)
+    # 8B.32: idem con el antibloqueo. El plazo vive en la sala: recargar o
+    # volver a conectarse NO lo reinicia ni reinicia el minuto.
+    programar_bloqueo(sala.codigo)
     try:
         while True:
             datos = await ws.receive_json()
@@ -448,6 +530,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+                programar_bloqueo(sala.codigo)
             elif accion == "confirmar_presentacion_sospecha":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -463,6 +546,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 if completada:
                     programar_timeout_refutacion(sala.codigo)
                     programar_turno_pnj(sala.codigo)
+                    programar_bloqueo(sala.codigo)
             elif accion == "elegir_personaje":
                 try:
                     sala.elegir_personaje(jugador_id, datos.get("personaje_id", ""))
@@ -474,7 +558,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
             elif accion == "formular_sospecha":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
-                        sala.formular_sospecha(
+                        sala.formular_sospecha_humano(
                             jugador_id,
                             datos.get("sospechoso_id", ""),
                             datos.get("lugar_id", ""),
@@ -484,6 +568,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                cancelar_bloqueo(sala.codigo)
                 programar_presentacion_sospecha(sala.codigo)
             elif accion == "tirar_dado":
                 try:
@@ -493,6 +578,8 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     await ws.send_json({"tipo": "error", "detalle": str(exc)})
                     continue
                 await difundir(sala.codigo)
+                # La tirada abre la elección de destino: nuevo plazo bloqueante.
+                programar_bloqueo(sala.codigo)
             elif accion == "mover":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -502,6 +589,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+                programar_bloqueo(sala.codigo)
             elif accion == "usar_pasadizo":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -511,10 +599,11 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 await difundir(sala.codigo)
                 programar_timeout_refutacion(sala.codigo)
+                programar_bloqueo(sala.codigo)
             elif accion == "resolver_misterio":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
-                        sala.resolver_misterio(
+                        sala.resolver_misterio_humano(
                             jugador_id,
                             datos.get("sospechoso_id", ""),
                             datos.get("lugar_id", ""),
@@ -529,8 +618,10 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                         tarea.cancel()
                     cancelar_timeout_refutacion(sala.codigo)
                     cancelar_presentacion_sospecha(sala.codigo)
+                    cancelar_bloqueo(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
+                programar_bloqueo(sala.codigo)
             elif accion == "mostrar_carta":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -541,6 +632,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 # La elección manual ganó: el watchdog pendiente es no-op.
                 cancelar_timeout_refutacion(sala.codigo)
                 cancelar_presentacion_sospecha(sala.codigo)
+                cancelar_bloqueo(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
                 # 8B.31C: la refutación abre el resultado público.
@@ -555,10 +647,52 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 # El servidor completa la refutación: el watchdog es no-op.
                 cancelar_timeout_refutacion(sala.codigo)
                 cancelar_presentacion_sospecha(sala.codigo)
+                cancelar_bloqueo(sala.codigo)
                 await difundir(sala.codigo)
                 programar_turno_pnj(sala.codigo)
                 # 8B.31C: la refutación abre el resultado público.
                 programar_presentacion_sospecha(sala.codigo)
+            elif accion == "seguir_esperando":
+                # 8B.32: nuevo periodo canónico de 60 s para la MISMA acción
+                # bloqueante. El watchdog anterior dormía sobre el plazo
+                # viejo: se cancela y se rearma con el nuevo, sin tocar nada
+                # más de la partida.
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.seguir_esperando(jugador_id, datos.get("aviso_id"))
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                cancelar_bloqueo(sala.codigo)
+                await difundir(sala.codigo)
+                programar_bloqueo(sala.codigo)
+            elif accion == "pasar_a_pnj":
+                # 8B.32: el MISMO asiento pasa a controlado automáticamente y
+                # resuelve de inmediato la acción que tenía bloqueada. Conversión
+                # y continuación, juntas y bajo el mismo cerrojo: una única
+                # transición canónica.
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.convertir_en_pnj(jugador_id, datos.get("aviso_id"))
+                        sala.continuar_bloqueo_como_pnj()
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                cancelar_bloqueo(sala.codigo)
+                if sala.estado == ESTADO_TERMINADA:
+                    tarea = tareas_pnj.pop(sala.codigo, None)
+                    if tarea and tarea is not asyncio.current_task():
+                        tarea.cancel()
+                    cancelar_timeout_refutacion(sala.codigo)
+                    cancelar_presentacion_sospecha(sala.codigo)
+                await difundir(sala.codigo)
+                # La continuación puede haber movido, sospechado o resuelto:
+                # se reprograma todo lo que corresponda, igual que tras una
+                # jugada normal de un PNJ.
+                programar_turno_pnj(sala.codigo)
+                programar_presentacion_sospecha(sala.codigo)
+                programar_timeout_refutacion(sala.codigo)
+                programar_bloqueo(sala.codigo)
             elif accion == "marcar_investigacion":
                 try:
                     sala.marcar_investigacion(
@@ -590,6 +724,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     tarea.cancel()
                 cancelar_timeout_refutacion(sala.codigo)
                 cancelar_presentacion_sospecha(sala.codigo)
+                cancelar_bloqueo(sala.codigo)
             else:
                 await difundir(sala.codigo)
         # En partida iniciada el jugador y su mano se conservan

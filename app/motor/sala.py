@@ -75,6 +75,27 @@ TIMEOUT_REFUTACION_HUMANO_SEGUNDOS = 10.0
 PAUSA_PRESENTACION_PNJ_SEGUNDOS = 3.0
 PAUSA_PRESENTACION_HUMANO_SEGUNDOS = 10.0
 
+# Antibloqueo por inactividad (8B.32). Plazo CANÓNICO del servidor para un
+# humano que bloquea la partida con una acción obligatoria. NO ejecuta la
+# acción pendiente: solo ofrece al anfitrión convertir ese mismo asiento en
+# PNJ o seguir esperando otro periodo igual.
+INACTIVIDAD_BLOQUEO_SEGUNDOS = 60.0
+
+# Únicas acciones que bloquean la partida esperando a un humano concreto.
+# Derivadas de la máquina de estados: los tres estados de los que no hay
+# salida sin una acción del jugador en turno. La refutación privada
+# (esperando_eleccion_refutador) y la presentación sincronizada ya tienen su
+# propio plazo canónico y quedan EXCLUIDAS a propósito.
+ACCION_TIRAR_DADO = "tirar_dado"
+ACCION_ELEGIR_DESTINO = "elegir_destino"
+ACCION_FORMULAR_SOSPECHA = "formular_sospecha"
+ACCION_POR_ESTADO_BLOQUEANTE = {
+    JUGADA_ESPERANDO_MOVIMIENTO: ACCION_TIRAR_DADO,
+    JUGADA_ESPERANDO_DESTINO: ACCION_ELEGIR_DESTINO,
+    JUGADA_ESPERANDO_SOSPECHA: ACCION_FORMULAR_SOSPECHA,
+}
+ESTADOS_BLOQUEANTES = frozenset(ACCION_POR_ESTADO_BLOQUEANTE)
+
 # Hoja de investigación privada (Microfase 3B). Terminología de OBJETOS.
 INV_SIN_INFORMACION = "sin_informacion"
 INV_DESCARTADA = "descartada"
@@ -150,6 +171,14 @@ class Sala:
         # la sala y sobrevive a recargas/reconexiones: solo cambia con una
         # nueva sospecha o al resolver la actual.
         self.refutacion_deadline: float | None = None
+        # Antibloqueo por inactividad (8B.32). Identidad y plazo del humano
+        # que bloquea la partida, más el aviso ya emitido. Vive en la sala:
+        # sobrevive a reload, redifusiones y reconexiones, y solo cambia al
+        # entrar en una acción bloqueante nueva o al pedir el anfitrión que
+        # siga esperando.
+        self._reiniciar_bloqueo()
+        # El identificador de aviso es monótono durante toda la partida.
+        self.bloqueo_aviso_id = 0
         self.cartas_sospechadas: set[str] = set()  # memoria exclusivamente publica
         self.pnj_pensando_id: str | None = None
         self.resultado_final: str | None = None
@@ -336,6 +365,8 @@ class Sala:
                 self.posiciones.asignar(
                     j["id"], POSICIONES_INICIALES[j["personaje_id"]]
                 )
+        # 8B.32: el primer turno arranca el primer plazo bloqueante.
+        self.marcar_bloqueo()
 
     @staticmethod
     def _validar_carta_categoria(carta_id: str, categoria: str) -> str:
@@ -381,6 +412,8 @@ class Sala:
         self.pnj_pensando_id = None
         self.tirada_pendiente = None
         self.rutas_pendientes = {}
+        # 8B.32: nuevo turno = posible acción bloqueante nueva (plazo nuevo).
+        self.marcar_bloqueo()
 
     def _participante_en_turno_para_mover(self, jugador_id: str) -> dict:
         if self.modo != MODO_TABLERO or self.estado != ESTADO_INICIADA:
@@ -404,6 +437,8 @@ class Sala:
         for ruta in rutas:
             self.rutas_pendientes.setdefault(ruta.destino, ruta.posiciones)
         self.estado_jugada = JUGADA_ESPERANDO_DESTINO
+        # 8B.32: desde la tirada espera la ELECCIÓN de destino.
+        self.marcar_bloqueo()
         return tirada
 
     def tirar_dado_tablero(self, jugador_id: str, rng=None) -> int:
@@ -430,6 +465,8 @@ class Sala:
         self.rutas_pendientes = {}
         if TABLERO.es_ubicacion(destino_id):
             self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+            # 8B.32: entrar en una ubicación abre la sospecha obligatoria.
+            self.marcar_bloqueo()
         else:
             self.avanzar_turno()
 
@@ -453,6 +490,8 @@ class Sala:
             jugador_id, "pasadizo", origen, destino, (destino,)
         )
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        # 8B.32: el pasadizo también desemboca en la sospecha obligatoria.
+        self.marcar_bloqueo()
         return destino
 
     def _registrar_movimiento(
@@ -643,6 +682,19 @@ class Sala:
         ]
         candidatos = destinos_ubicacion or list(self.rutas_pendientes)
         destino_id = rng.choice(candidatos)
+        self._elegir_destino_y_continuar_pnj_tablero(
+            jugador, destino_id, tirada, rng
+        )
+
+    def _elegir_destino_y_continuar_pnj_tablero(
+        self, jugador: dict, destino_id: str, tirada: int, rng
+    ) -> None:
+        """Cola común de un PNJ de tablero: mueve con la tirada ya resuelta
+        y, si entra en una ubicación, formula la sospecha. La comparten el
+        turno PNJ completo y la continuación de una tirada que un humano dejó
+        sin elegir destino (8B.32): misma lógica, sin duplicarla."""
+        jugador_id = jugador["id"]
+        origen = self.describir_posicion(self.posiciones.obtener(jugador_id))["nombre"]
         destino = self.describir_posicion(destino_id)["nombre"]
         movimiento = {
             "accion": "movimiento",
@@ -781,6 +833,44 @@ class Sala:
             return None
         return self._completar_refutacion_automatica(rng=rng)
 
+    def formular_sospecha_humano(
+        self,
+        jugador_id: str,
+        sospechoso_id: str,
+        lugar_id: str,
+        objeto_id: str,
+        rng=None,
+    ) -> None:
+        """Ruta humana de la sospecha. Tras 8B.32 un asiento convertido en
+        PNJ conserva su jugador_id: sin esta comprobación recuperaría el
+        control del asiento al reconectar. Los PNJ usan `formular_sospecha`.
+        """
+        self._exigir_humano(jugador_id)
+        self.formular_sospecha(
+            jugador_id, sospechoso_id, lugar_id, objeto_id, rng=rng
+        )
+
+    def resolver_misterio_humano(
+        self,
+        jugador_id: str,
+        sospechoso_id: str,
+        lugar_id: str,
+        objeto_id: str,
+    ) -> bool:
+        """Ruta humana de la acusación, con la misma protección."""
+        self._exigir_humano(jugador_id)
+        return self.resolver_misterio(
+            jugador_id, sospechoso_id, lugar_id, objeto_id
+        )
+
+    def _exigir_humano(self, jugador_id: str) -> dict:
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None:
+            raise ValueError("Jugador desconocido en esta sala.")
+        if jugador["tipo"] != TIPO_HUMANO:
+            raise ValueError("Este participante ya no lo controla ningún humano.")
+        return jugador
+
     def formular_sospecha(
         self,
         jugador_id: str,
@@ -817,6 +907,8 @@ class Sala:
         self.ultima_jugada = None
         self.sospecha_pendiente = None
         self.refutacion_deadline = None
+        # 8B.32: la presentación sincronizada tiene su propio plazo canónico.
+        self._reiniciar_bloqueo()
         inicio = time.monotonic() if ahora is None else ahora
         self.secuencia_presentacion += 1
         participantes = {}
@@ -910,6 +1002,9 @@ class Sala:
         self.sospecha_pendiente = None
         self.refutacion_deadline = None
         self.pnj_pensando_id = None
+        # 8B.32: la refutación y el resultado público se rigen por sus propios
+        # plazos canónicos; aquí no hay acción bloqueante de antibloqueo.
+        self._reiniciar_bloqueo()
         self.secuencia_presentacion += 1
         participantes = {}
         for participante in self.jugadores:
@@ -991,6 +1086,9 @@ class Sala:
             self.refutacion_deadline = (
                 time.monotonic() + TIMEOUT_REFUTACION_HUMANO_SEGUNDOS
             )
+            # 8B.32: la refutación privada tiene su propio timeout de 10 s y
+            # queda EXCLUIDA del antibloqueo por inactividad.
+            self._reiniciar_bloqueo()
 
     def mostrar_carta(self, jugador_id: str, carta_id: str) -> None:
         pendiente = self.sospecha_pendiente
@@ -1069,6 +1167,162 @@ class Sala:
             "categoria": carta["categoria"],
             "estado": self.estado_carta(jugador_id, cid),
         }
+
+    def _reiniciar_bloqueo(self) -> None:
+        """Deja la sala sin bloqueo. El identificador de aviso nunca se
+        reinicia: es monótono y permite descartar avisos antiguos."""
+        self.bloqueo_jugador_id = None
+        self.bloqueo_accion = None
+        self.bloqueo_deadline = None
+        self.bloqueo_aviso_emitido = False
+
+    def jugador_bloqueante(self) -> dict | None:
+        """Único humano cuya acción OBLIGATORIA detiene la partida, o None.
+
+        Se deriva siempre del estado real: si la partida ya no está
+        bloqueada por esa acción, no hay bloqueo (ni deadline) que mantener.
+        La refutación privada y la presentación sincronizada, con su propio
+        plazo canónico, no aparecen aquí nunca.
+        """
+        if self.estado != ESTADO_INICIADA:
+            return None
+        if self.estado_jugada not in ESTADOS_BLOQUEANTES:
+            return None
+        jugador = self.jugador_en_turno()
+        if (
+            jugador is None
+            or jugador["tipo"] != TIPO_HUMANO
+            or not jugador["activo_investigacion"]
+        ):
+            return None
+        return jugador
+
+    def marcar_bloqueo(self, ahora: float | None = None) -> None:
+        """Fija el plazo canónico al ENTRAR en una acción bloqueante.
+
+        Solo renueva el minuto cuando cambia de verdad el jugador o la
+        acción bloqueante: redifusiones, recarga o reconexión no lo tocan.
+        """
+        instante = time.monotonic() if ahora is None else ahora
+        jugador = self.jugador_bloqueante()
+        if jugador is None:
+            self._reiniciar_bloqueo()
+            return
+        accion = ACCION_POR_ESTADO_BLOQUEANTE[self.estado_jugada]
+        if (
+            self.bloqueo_jugador_id == jugador["id"]
+            and self.bloqueo_accion == accion
+            and self.bloqueo_deadline is not None
+        ):
+            return
+        self.bloqueo_jugador_id = jugador["id"]
+        self.bloqueo_accion = accion
+        self.bloqueo_deadline = instante + INACTIVIDAD_BLOQUEO_SEGUNDOS
+        self.bloqueo_aviso_emitido = False
+
+    def registrar_aviso_inactividad(self, ahora: float | None = None) -> bool:
+        """Vence el plazo y abre el aviso del anfitrión. Devuelve True una
+        sola vez por periodo de espera.
+
+        El anfitrión bloqueado NUNCA genera aviso: la partida sigue
+        esperándolo indefinidamente y nadie más interviene.
+        """
+        if self.bloqueo_deadline is None or self.bloqueo_aviso_emitido:
+            return False
+        jugador = self.jugador_bloqueante()
+        if jugador is None or jugador["id"] != self.bloqueo_jugador_id:
+            return False
+        if jugador["es_anfitrion"]:
+            return False
+        instante = time.monotonic() if ahora is None else ahora
+        if instante < self.bloqueo_deadline:
+            return False
+        self.bloqueo_aviso_emitido = True
+        return True
+
+    def _aviso_inactividad_activo(self, jugador_id: str, aviso_id) -> None:
+        """Valida que quien actúa es el anfitrión y que el aviso que tiene
+        delante es el vigente (nunca uno ya resuelto o antiguo)."""
+        anfitrion = self.jugador_por_id(jugador_id)
+        if anfitrion is None or not anfitrion["es_anfitrion"]:
+            raise ValueError("Solo el anfitrión puede decidir sobre la inactividad.")
+        if not self.bloqueo_aviso_emitido or self.bloqueo_deadline is None:
+            raise ValueError("No hay ningún aviso de inactividad activo.")
+        if self.jugador_bloqueante() is None:
+            raise ValueError("Ya no hay ninguna acción bloqueante pendiente.")
+        if aviso_id is None or int(aviso_id) != self.bloqueo_aviso_id:
+            raise ValueError("Ese aviso ya no está activo.")
+
+    def seguir_esperando(
+        self, jugador_id: str, aviso_id, ahora: float | None = None
+    ) -> None:
+        """Mantiene al jugador como humano y abre un NUEVO periodo de 60 s."""
+        self._aviso_inactividad_activo(jugador_id, aviso_id)
+        instante = time.monotonic() if ahora is None else ahora
+        self.bloqueo_deadline = instante + INACTIVIDAD_BLOQUEO_SEGUNDOS
+        self.bloqueo_aviso_id += 1
+        self.bloqueo_aviso_emitido = False
+
+    def convertir_en_pnj(self, jugador_id: str, aviso_id) -> dict:
+        """El MISMO asiento pasa a controlado automáticamente.
+
+        Se conserva jugador_id, personaje, alias, mano, vistas, descartes,
+        conocimiento, posición, turno, orden, estado de eliminación, el
+        misterio y las posiciones físicas de los objetos. No reparte, no
+        reinicia nada y no crea un séptimo participante.
+        """
+        self._aviso_inactividad_activo(jugador_id, aviso_id)
+        bloqueante = self.jugador_bloqueante()
+        if bloqueante["id"] != self.bloqueo_jugador_id:
+            raise ValueError("Ese jugador no es quien bloquea la partida.")
+        if bloqueante["id"] == jugador_id:
+            raise ValueError("El anfitrión no puede convertirse en PNJ.")
+        bloqueante["tipo"] = TIPO_PNJ
+        self._reiniciar_bloqueo()
+        return bloqueante
+
+    def continuar_bloqueo_como_pnj(self, rng=None) -> None:
+        """Resuelve de inmediato la acción que el humano dejó bloqueada.
+
+        Solo actúa si la acción pendiente NO la cubre ya la cadena PNJ
+        canónica: la tirada ya realizada (`esperando_destino`) y la sospecha
+        pendiente de una ubicación. `esperando_movimiento` la toma
+        `ejecutar_turno_pnj` sin tocar nada aquí.
+        """
+        rng = rng or random
+        jugador = self.jugador_en_turno()
+        if jugador is None or jugador["tipo"] != TIPO_PNJ:
+            raise ValueError("No hay ninguna acción bloqueante de un PNJ.")
+        if self.estado != ESTADO_INICIADA:
+            raise ValueError("La partida no admite nuevas jugadas.")
+        if self.estado_jugada == JUGADA_ESPERANDO_DESTINO and self.tirada_pendiente is not None:
+            # Ya se había tirado: se USA esa tirada, nunca otra.
+            destinos_ubicacion = [
+                destino
+                for destino in self.rutas_pendientes
+                if TABLERO.es_ubicacion(destino)
+            ]
+            candidatos = destinos_ubicacion or list(self.rutas_pendientes)
+            if not candidatos:
+                raise ValueError("No hay destinos válidos para la tirada pendiente.")
+            self._elegir_destino_y_continuar_pnj_tablero(
+                jugador, rng.choice(candidatos), self.tirada_pendiente, rng
+            )
+            return
+        if self.estado_jugada == JUGADA_ESPERANDO_SOSPECHA:
+            solucion = self.deducir_solucion_pnj(jugador["id"])
+            if solucion:
+                self.resolver_misterio(jugador["id"], **solucion)
+                return
+            lugar_id = (
+                self.posiciones.obtener(jugador["id"])
+                if self.modo == MODO_TABLERO
+                else None
+            )
+            sospecha = self.elegir_sospecha_pnj(
+                jugador["id"], rng=rng, lugar_id=lugar_id
+            )
+            self.formular_sospecha(jugador["id"], **sospecha, rng=rng)
 
     def nombre_personaje(self, personaje_id: str | None) -> str | None:
         if not personaje_id:
@@ -1283,6 +1537,9 @@ class Sala:
                 if "posiciones_objetos" in publico else {}
             ),
             "jugada": self.jugada_privada(jugador_id),
+            # 8B.32: el aviso de inactividad es privado del ANFITRIÓN y solo
+            # travels con su alias. Nunca mano, ni opciones, ni conocimiento.
+            "inactividad": self._inactividad_privada(jugador_id),
             "posicion": self.describir_posicion(
                 self.posiciones.obtener(jugador_id)
             ),
@@ -1294,6 +1551,19 @@ class Sala:
                 if "solucion" in publico else {}
             ),
         }
+
+    def _inactividad_privada(self, jugador_id: str) -> dict | None:
+        """Aviso de antibloqueo: solo para el anfitrión y solo con el alias
+        del jugador que bloquea. `null` para todos los demás, siempre."""
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None or not jugador["es_anfitrion"]:
+            return None
+        if not self.bloqueo_aviso_emitido or self.bloqueo_deadline is None:
+            return None
+        bloqueante = self.jugador_bloqueante()
+        if bloqueante is None or bloqueante["id"] != self.bloqueo_jugador_id:
+            return None
+        return {"aviso_id": self.bloqueo_aviso_id, "alias": bloqueante["alias"]}
 
     def _movimiento_privado(self, jugador_id: str) -> dict:
         if self.modo != MODO_TABLERO:

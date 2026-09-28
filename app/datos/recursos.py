@@ -11,6 +11,14 @@ from app.datos.jarandilla import LUGARES, OBJETOS, SOSPECHOSOS
 URL_IMG = "/static/img"
 RECURSO_PEON = f"{URL_IMG}/personajes/peon.svg"
 
+# Audio (8B.33/8B.33B). Mismo patron que las imagenes: el original vive en
+# `recursos/sonidos/` y el runtime es una copia byte a byte servida desde
+# `app/static/audio/`. Sin recomprimir.
+URL_AUDIO = "/static/audio"
+AUDIO_MUSICA_FONDO = f"{URL_AUDIO}/musica_fondo.mp3"
+AUDIO_CLIC = f"{URL_AUDIO}/clic.mp3"
+AUDIO_FINAL = f"{URL_AUDIO}/final.mp3"
+
 # Correspondencia canónica explícita ID de ubicación -> imagen de tablero.
 # Las claves son IDs del juego; los valores, rutas runtime. Nunca al revés.
 IMAGEN_TABLERO_POR_ID = {

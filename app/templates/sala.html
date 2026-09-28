@@ -169,9 +169,20 @@
           <p id="error-hoja" class="error"></p>
         </div>
       </div>
+      <!-- 8B.32: último del bloque para que el aviso se pinte sobre cualquier
+           otro modal abierto (todos comparten position: fixed y z-index). -->
+      <div id="modal-inactividad" class="modal" hidden>
+        <div class="modal-caja modal-inactividad-caja" role="dialog" aria-modal="true" aria-labelledby="inactividad-titulo">
+          <h2 id="inactividad-titulo">JUGADOR SIN ACTIVIDAD</h2>
+          <p id="inactividad-texto" class="nota-privada"></p>
+          <button id="btn-pasar-a-pnj" class="medallon medallon-primario medallon-compacto" type="button">PASAR A PNJ</button>
+          <button id="btn-seguir-esperando" class="medallon medallon-fantasma medallon-compacto" type="button">SEGUIR ESPERANDO</button>
+        </div>
+      </div>
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
+  <script src="/static/js/audio.js?v=8b33b"></script>
   <script src="/static/js/sala.js?v=8b31k"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>

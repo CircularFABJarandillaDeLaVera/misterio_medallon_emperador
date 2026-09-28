@@ -60,6 +60,18 @@ const presentacionResultadoTexto = document.getElementById("presentacion-resulta
 const presentacionResultadoCartas = document.getElementById("presentacion-resultado-cartas");
 const btnContinuarPresentacionSospecha = document.getElementById("btn-continuar-presentacion-sospecha");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
+const modalInactividad = document.getElementById("modal-inactividad");
+const inactividadTexto = document.getElementById("inactividad-texto");
+const btnPasarAPnj = document.getElementById("btn-pasar-a-pnj");
+const btnSeguirEsperando = document.getElementById("btn-seguir-esperando");
+// 8B.32 · Último aviso de inactividad ya tratado por ESTE cliente. El plazo
+// es canónico del servidor: aquí solo se recuerda qué id se ha visto para que
+// una redifusión no reabra el popup (mismo patrón que la presentación).
+let inactividadAvisoVisto = null;
+let inactividadAvisoVigente = null;
+// 8B.33B · Último estado de partida visto por ESTE cliente. Sirve para
+// distinguir la transición real al final de un simple repintado.
+let estadoPartidaVisto = null;
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
 const resumenSala = document.getElementById("resumen-sala");
@@ -316,6 +328,29 @@ function crearMarcaLobby(texto, modificador) {
   return marca;
 }
 
+function pintarInactividad(sala) {
+  // 8B.32 · El aviso llega solo al anfitrión y solo con el alias. Nunca
+  // reejecuta nada: el servidor decide. Un aviso ya visto no se reabre.
+  const aviso = (sala && sala.inactividad) || null;
+  if (!aviso || aviso.aviso_id === inactividadAvisoVisto) {
+    modalInactividad.hidden = true;
+    inactividadAvisoVigente = null;
+    if (!aviso) inactividadAvisoVisto = null;
+    return;
+  }
+  inactividadAvisoVisto = aviso.aviso_id;
+  inactividadAvisoVigente = aviso.aviso_id;
+  inactividadTexto.textContent =
+    `${aviso.alias} lleva más de un minuto sin realizar la acción necesaria para continuar.`;
+  modalInactividad.hidden = false;
+  if (btnSeguirEsperando.focus) btnSeguirEsperando.focus();
+}
+
+function cerrarInactividad() {
+  modalInactividad.hidden = true;
+  inactividadAvisoVigente = null;
+}
+
 function pintarSala(sala) {
   error.textContent = "";
   // Modo de partida
@@ -349,6 +384,7 @@ function pintarSala(sala) {
     pintarTablero(sala);
     pintarPanel(sala);
     pintarFinal(sala);
+    pintarInactividad(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
@@ -775,6 +811,24 @@ function pintarJugada(sala) {
   }
 }
 
+// 8B.32 · Antibloqueo por inactividad. El plazo es canónico del servidor:
+// aquí solo se le manda la decisión del anfitrión con el aviso que tiene
+// delante. El popup se cierra al decidir: durante el nuevo minuto no
+// reaparece y la redifusión no lo vuelve a abrir.
+btnSeguirEsperando.addEventListener("click", () => {
+  if (modalInactividad.hidden || inactividadAvisoVigente === null) return;
+  const avisoId = inactividadAvisoVigente;
+  cerrarInactividad();
+  ws.send(JSON.stringify({ accion: "seguir_esperando", aviso_id: avisoId }));
+});
+
+btnPasarAPnj.addEventListener("click", () => {
+  if (modalInactividad.hidden || inactividadAvisoVigente === null) return;
+  const avisoId = inactividadAvisoVigente;
+  cerrarInactividad();
+  ws.send(JSON.stringify({ accion: "pasar_a_pnj", aviso_id: avisoId }));
+});
+
 btnConfirmarRefutacion.addEventListener("click", () => {
   if (!cartaRefutacionSeleccionadaId || btnConfirmarRefutacion.disabled) return;
   btnConfirmarRefutacion.disabled = true;
@@ -1188,6 +1242,23 @@ function pintarPanel(sala) {
 }
 
 function pintarFinal(sala) {
+  // 8B.33/8B.33B · La musica ambiental vive en la partida y se detiene con
+  // ella; el efecto "final" suena UNA sola vez, en la TRANSICION a partida
+  // terminada. Un repintado, un WebSocket repetido o una recarga con la
+  // pantalla final ya visible no vuelven a dispararlo: representa el momento
+  // del final, no estar mirandolo. Nada de esto toca Sala: es estado local.
+  const anterior = estadoPartidaVisto;
+  estadoPartidaVisto = sala.estado;
+  if (window.AudioFondo) {
+    if (sala.estado === "terminada") {
+      window.AudioFondo.detener();
+      if (anterior && anterior !== "terminada") {
+        window.AudioFondo.reproducirEfecto("final");
+      }
+    } else if (sala.estado === "iniciada") {
+      window.AudioFondo.iniciar();
+    }
+  }
   finalPartida.hidden = sala.estado !== "terminada";
   finalPartida.innerHTML = "";
   if (sala.estado !== "terminada" || !sala.solucion) return;
