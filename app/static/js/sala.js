@@ -1242,11 +1242,13 @@ function pintarPanel(sala) {
 }
 
 function pintarFinal(sala) {
-  // 8B.33/8B.33B · La musica ambiental vive en la partida y se detiene con
-  // ella; el efecto "final" suena UNA sola vez, en la TRANSICION a partida
-  // terminada. Un repintado, un WebSocket repetido o una recarga con la
-  // pantalla final ya visible no vuelven a dispararlo: representa el momento
-  // del final, no estar mirandolo. Nada de esto toca Sala: es estado local.
+  // 8B.33/8B.33B/8B.33C · La musica ambiental acompaña portada, lobby y
+  // partida desde el propio modulo de audio; aqui solo se le avisa del
+  // cambio de FASE (nivel de partida al empezar) y del FINAL, que la detiene
+  // y dispara su efecto UNA sola vez. Un repintado, un WebSocket repetido o
+  // una recarga con la pantalla final ya visible no vuelven a dispararlo:
+  // representa el momento del final, no estar mirandolo. Nada de esto toca
+  // Sala: es estado local.
   const anterior = estadoPartidaVisto;
   estadoPartidaVisto = sala.estado;
   if (window.AudioFondo) {

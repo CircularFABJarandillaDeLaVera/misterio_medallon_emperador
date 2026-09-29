@@ -32,22 +32,37 @@
   // Mixaje: musica ambiental muy suave, clic claramente perceptible pero
   // discreto y final algo mas protagonista. Multiplicadores sobre el volumen
   // elegido por el jugador: no se modifica ningun archivo de audio.
-  const VUELO_MUSICA = 1;
   const VUELO_CLIC = 2.2;
   const VUELO_FINAL = 3;
 
+  // 8B.33C · La musica acompaña TODA la experiencia con un solo nivel por
+  // fase: ambiental en portada y lobby, algo mas baja durante la partida.
+  // Son NIVELES BASE, no el volumen del jugador: su slider se conserva y
+  // escala los dos (ver `nivelObjetivo`).
+  const NIVEL_AMBIENTE = 0.22;
+  const NIVEL_PARTIDA = 0.15;
+  const DURACION_FADE_MS = 700;
+
+  // Continuidad entre la PORTADA y la SALA. `inicio.js` navega con
+  // `window.location.href`, un cambio de documento completo: la instancia
+  // `Audio` no puede sobrevivir ahi (mismo limite que cualquier pagina sin
+  // SPA, y no se introduce una). Lo que si se conserva, con el mismo
+  // almacenamiento de sesion que ya usa la identidad del jugador, es el
+  // punto exacto de la pista, y SOLO si el salto fue navegacion y no una
+  // recarga: una recarga sigue empezando la musica desde el principio.
+  const CLAVE_POSICION = "musica_fondo_posicion";
+  const MAX_SEGUNDOS_ENTRE_DOCUMENTOS = 8000;
+
   // La pista musical se crea LAZILY: cargar el modulo en la portada no
-  // descarga ni reproduce musica_fondo (8B.33B).
+  // descarga ni reproduce musica_fondo hasta que de verdad se pide.
   let musica = null;
   function obtenerMusica() {
     if (musica) return musica;
     musica = new Audio();
-    // El lobby no reproduce nada y el MP3 pesa: solo se pide su metadato
-    // hasta que la partida pide musica de verdad. Al sonar, el navegador
-    // descarga el resto. Es una decision de este cliente, no del servidor.
+    // El MP3 pesa: solo se pide su metadato hasta que la musica arranca.
     musica.preload = "metadata";
     musica.loop = true;
-    musica.volume = volumen * VUELO_MUSICA;
+    musica.volume = nivelObjetivo();
     musica.src = urlMusica;
     return musica;
   }
@@ -61,11 +76,13 @@
   const finalYaReproducido = { valor: false };
 
   let volumen = VOLUMEN_POR_DEFECTO;
-  let deseada = false;   // la partida pide musica
+  let enPartida = false;   // la musica ambiental pasa a nivel de partida
+  let deseada = true;     // 8B.33C: la musica acompaña desde la portada
   let sonando = false;   // la pista esta realmente reproduciendo
   let enCurso = false;   // hay un play() pendiente de resolverse
   let generacion = 0;    // invalida los play() que quedaron en el aire
   let gestoReservado = false;
+  let fadeEnCurso = null;
 
   function leerVolumen() {
     try {
@@ -88,24 +105,70 @@
     }
   }
 
-  function aplicarVolumen() {
-    // El mismo mando gobierna musica y efectos. Con volumen 0 calla todo.
-    if (musica) musica.volume = Math.min(1, volumen * VUELO_MUSICA);
+  /* --- Nivel de la musica (8B.33C) ---
+     El slider sigue siendo el VOLUMEN GENERAL del jugador y su valor
+     guardado NO se toca. Los niveles de fase se interpretan de forma
+     compatible: la preferencia actua como factor relativo sobre el
+     volumen que ya era por defecto (0,15), de modo que 0,15 -> ambiente
+     0,22 y partida 0,15 (lo aprobado en 8B.33), 0 -> silencio siempre y
+     cualquier otra preferencia escala los dos niveles a la vez. */
+  function factorUsuario() {
+    return volumen / VOLUMEN_POR_DEFECTO;
+  }
+
+  function nivelObjetivo() {
+    const base = enPartida ? NIVEL_PARTIDA : NIVEL_AMBIENTE;
+    return Math.min(1, base * factorUsuario());
+  }
+
+  function nivelEfecto(vuelo) {
+    return Math.min(1, volumen * vuelo);
+  }
+
+  function aplicarVolumenEfectos() {
     efectos.forEach(function (efecto) {
-      if (efecto.instancia) {
-        efecto.instancia.volume = Math.min(1, volumen * efecto.vuelo);
-      }
+      if (efecto.instancia) efecto.instancia.volume = nivelEfecto(efecto.vuelo);
     });
+  }
+
+  // Cambio de nivel con fundido corto: la pista NUNCA se pausa, se reinicia
+  // ni se rebobina, sigue por el punto por el que iba.
+  function aplicarNivel(inmediato) {
+    if (!musica) return;
+    const objetivo = nivelObjetivo();
+    if (fadeEnCurso !== null) {
+      clearInterval(fadeEnCurso);
+      fadeEnCurso = null;
+    }
+    if (inmediato || !sonando || musica.volume === objetivo) {
+      musica.volume = objetivo;
+      return;
+    }
+    const desde = musica.volume;
+    const pasos = 14;
+    let paso = 0;
+    fadeEnCurso = setInterval(function () {
+      paso += 1;
+      const avance = Math.min(1, paso / pasos);
+      musica.volume = desde + (objetivo - desde) * avance;
+      if (avance >= 1) {
+        clearInterval(fadeEnCurso);
+        fadeEnCurso = null;
+        musica.volume = objetivo;
+      }
+    }, Math.round(DURACION_FADE_MS / pasos));
   }
 
   function fijarVolumen(valor) {
     const numero = Number(valor);
     if (!Number.isFinite(numero)) return volumen;
     volumen = Math.min(1, Math.max(0, numero));
-    aplicarVolumen();
+    // El slider manda al instante y respeta la fase actual; la musica solo
+    // cambia de nivel, nunca se reinicia.
+    aplicarVolumenEfectos();
+    aplicarNivel(true);
     guardarVolumen();
     sincronizarControl();
-    // Tocar el control tambien cuenta como gesto: intenta unlocking.
     if (deseada) intentarReproducir();
     return volumen;
   }
@@ -177,8 +240,8 @@
   }
 
   // Primera interaccion real del jugador: gesto legitimo del navegador para
-  // desbloquear el audio. Se instala una sola vez y solo mientras la partida
-  // pide musica, de modo que no intercepta nada.
+  // desbloquear el audio. Se instala una sola vez y solo mientras se quiere
+  // musica, de modo que no intercepta nada.
   function reservarGesto() {
     if (gestoReservado) return;
     gestoReservado = true;
@@ -195,17 +258,68 @@
     });
   }
 
+  /* --- Continuidad entre PORTADA y SALA (8B.33C) --- */
+  function leerPosicionRetomada() {
+    try {
+      const crudo = window.sessionStorage.getItem(CLAVE_POSICION);
+      if (!crudo) return 0;
+      const datos = JSON.parse(crudo);
+      const transcurrido = (Date.now() - datos.momento) / 1000;
+      // Una recarga (o volver atras mucho despues) no es una navegacion: la
+      // musica empieza desde el principio, como se aprobo en 8B.33B.
+      if (!(transcurrido >= 0 && transcurrido <= MAX_SEGUNDOS_ENTRE_DOCUMENTOS)) return 0;
+      const posicion = Number(datos.posicion);
+      return Number.isFinite(posicion) && posicion > 0 ? posicion : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function guardarPosicion() {
+    try {
+      window.sessionStorage.setItem(CLAVE_POSICION, JSON.stringify({
+        posicion: musica ? musica.currentTime : 0,
+        momento: Date.now(),
+      }));
+    } catch (error) {
+      /* Sin persistencia de sesion: la musica empieza simplemente aqui. */
+    }
+  }
+
+  function prepararMusicaAmbiental() {
+    // 8B.33C: la musica se pide al cargar el documento (portada o sala).
+    // Puede ser bloqueada por el navegador: en ese caso arranca con la
+    // primera interaccion real, sin error ni reintentos agresivos.
+    const pista = obtenerMusica();
+    aplicarNivel(true);
+    const posicion = leerPosicionRetomada();
+    if (posicion > 0) {
+      if (pista.readyState > 0) {
+        pista.currentTime = posicion;
+      } else {
+        pista.addEventListener("loadedmetadata", function alListo() {
+          pista.removeEventListener("loadedmetadata", alListo);
+          pista.currentTime = posicion;
+        });
+      }
+    }
+    reservarGesto();
+    if (volumen > 0) intentarReproducir();
+    sincronizarControl();
+  }
+
   function iniciar() {
-    // Idempotente: se llama en cada repintado y solo la primera vez cambia
-    // algo. Nunca crea una segunda pista.
-    deseada = true;
-    aplicarVolumen();
+    // Entra la PARTIDA: la musica sigue sonando y solo baja de nivel, con
+    // fundido. Idempotente: se llama en cada repintado.
+    enPartida = true;
     if (volumen === 0) {
+      aplicarVolumenEfectos();
       sincronizarControl();
       return;
     }
-    reservarGesto();
-    intentarReproducir();
+    aplicarVolumenEfectos();
+    aplicarNivel();
+    if (deseada) intentarReproducir();
     sincronizarControl();
   }
 
@@ -213,8 +327,13 @@
     // Fin de partida: la musica no continua detras de la pantalla final.
     // En portada/lobby la pista puede no existir todavia: es un no-op.
     deseada = false;
+    enPartida = false;
     generacion += 1;
     enCurso = false;
+    if (fadeEnCurso !== null) {
+      clearInterval(fadeEnCurso);
+      fadeEnCurso = null;
+    }
     if (musica) {
       musica.pause();
       musica.currentTime = 0;
@@ -328,8 +447,8 @@
   });
 
   // El control vive junto al de pantalla completa, en el marco de la vista
-  // de PARTIDA. En portada el modulo se carga para el clic, pero no pinta
-  // nada: alli no hay musica que gobernar ni debe cambiar la pantalla.
+  // de PARTIDA. En portada el modulo se carga para la musica y el clic, pero
+  // no pinta nada: la portada no debe cambiar visualmente.
   if (!enPortada) {
     const referencia = doc.querySelector(".control-pantalla-completa");
     const anfitrion =
@@ -341,8 +460,19 @@
   }
 
   volumen = leerVolumen();
-  aplicarVolumen();
   sincronizarControl();
+
+  // La pista ambiental se pide al cargar, ya sea en la portada o en la sala.
+  prepararMusicaAmbiental();
+
+  // Al cambiar de documento (PORTADA -> SALA) se guarda el punto exacto de
+  // la pista para poder retomarla alli. `pagehide` y `beforeunload` se
+  // disparan sobre `window` y NO burbujean al `document`: por eso se
+  // escuchan ahi, no en el documento. Es la unica continuidad posible sin
+  // convertir la app en SPA, y no altera el comportamiento de una recarga.
+  window.addEventListener("pagehide", guardarPosicion);
+  window.addEventListener("beforeunload", guardarPosicion);
+  doc.addEventListener("pagehide", guardarPosicion);
 
   // El manifiesto canonico confirma las rutas cuando llega. Solo se usan si
   // la pista o el efecto aun no han empezado: nunca se cambia una fuente

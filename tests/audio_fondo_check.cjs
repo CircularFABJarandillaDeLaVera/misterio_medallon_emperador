@@ -1,7 +1,7 @@
-/* Harness Fases 8B.33 y 8B.33B: musica ambiental, clic y final.
+/* Harness Fases 8B.33, 8B.33B y 8B.33C: musica ambiental (portada, lobby,
+   partida), efectos clic y final, fundido de nivel ymute.
    Ejecuta los modulos REALES (app/static/js/audio.js y el enganche de
-   sala.js) con stubs de Audio, document, window y localStorage, y
-   comprueba el contrato completo.
+   sala.js) con stubs de Audio, document, window y localStorage.
    Uso: node tests/audio_fondo_check.cjs */
 "use strict";
 
@@ -18,6 +18,10 @@ function ok(cond, nombre) {
     console.log(`FAIL ${nombre}`);
   }
 }
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+// El fundido dura ~700 ms con pasos de 50 ms.
+const esperarFade = () => esperar(900);
 
 // ---------------------------------------------------------------- DOM stub
 function makeElemento(tag) {
@@ -67,6 +71,9 @@ function makeElemento(tag) {
     addEventListener(evento, fn) {
       (this._oyentes[evento] = this._oyentes[evento] || []).push(fn);
     },
+    removeEventListener(evento, fn) {
+      this._oyentes[evento] = (this._oyentes[evento] || []).filter((otro) => otro !== fn);
+    },
     setAttribute(k, v) { el._attrs[k] = String(v); },
     contains(nodo) {
       if (nodo === el) return true;
@@ -79,9 +86,15 @@ function makeElemento(tag) {
   return el;
 }
 
-function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada = false } = {}) {
+function crearEntorno({
+  almacenamientoInicial = {},
+  playRechaza = false,
+  portada = false,
+  posicionPrevia = null,
+} = {}) {
   const instancias = [];
   const almacen = { ...almacenamientoInicial };
+  const sesion = {};
   const oyentesDoc = {};
 
   class AudioFalso {
@@ -94,10 +107,17 @@ function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada
       this.src = "";
       this.reproducciones = 0;
       this.pausas = 0;
+      this.readyState = 1;
+      this._oyentes = {};
       instancias.push(this);
+    }
+    addEventListener(evento, fn) { (this._oyentes[evento] = this._oyentes[evento] || []).push(fn); }
+    removeEventListener(evento, fn) {
+      this._oyentes[evento] = (this._oyentes[evento] || []).filter((otro) => otro !== fn);
     }
     play() {
       this.reproducciones += 1;
+      this.pausado = false;
       return playRechaza
         ? Promise.reject(new Error("autoplay bloqueado"))
         : Promise.resolve();
@@ -106,6 +126,13 @@ function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada
       this.pausas += 1;
       this.pausado = true;
     }
+  }
+
+  if (posicionPrevia !== null) {
+    sesion.musica_fondo_posicion = JSON.stringify({
+      posicion: posicionPrevia,
+      momento: Date.now() - 1500,
+    });
   }
 
   const tarjeta = makeElemento("section");
@@ -132,8 +159,9 @@ function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada
       oyentesDoc[evento] = (oyentesDoc[evento] || []).filter((otro) => otro !== fn);
     },
     gesto() { (oyentesDoc.pointerdown || []).forEach((fn) => fn({ target: tarjeta })); },
-    // Clic real de usuario: recorre los oyentes en fase de captura.
     click(destino) { (oyentesDoc.click || []).forEach((fn) => fn({ target: destino })); },
+    // Simula el fin de un documento (navegacion PORTADA -> SALA).
+    salir() { (oyentesDoc.pagehide || []).forEach((fn) => fn({})); },
   };
 
   const sandbox = {
@@ -144,6 +172,16 @@ function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada
         getItem: (k) => (k in almacen ? almacen[k] : null),
         setItem: (k, v) => { almacen[k] = String(v); },
       },
+      sessionStorage: {
+        getItem: (k) => (k in sesion ? sesion[k] : null),
+        setItem: (k, v) => { sesion[k] = String(v); },
+      },
+      Date,
+      JSON,
+      setTimeout,
+      clearTimeout,
+      setInterval,
+      clearInterval,
     },
     Audio: AudioFalso,
     fetch: () => Promise.resolve({
@@ -156,14 +194,31 @@ function crearEntorno({ almacenamientoInicial = {}, playRechaza = false, portada
       }),
     }),
   };
-  sandbox.window.document = documentStub;
+  sandbox.window.window = sandbox.window;
+  // `window` y `document` comparten el registro de oyentes del stub: los
+  // eventos de salida de pagina (pagehide/beforeunload) se escuchan en
+  // `window`, y en un navegador real NO burbujean al documento.
+  sandbox.window.addEventListener = (evento, fn) => {
+    (oyentesDoc[evento] = oyentesDoc[evento] || []).push(fn);
+  };
+  sandbox.window.removeEventListener = (evento, fn) => {
+    oyentesDoc[evento] = (oyentesDoc[evento] || []).filter((otro) => otro !== fn);
+  };
+  sandbox.window.dispatchEvent = (evento) => {
+    (oyentesDoc[evento.tipo] = oyentesDoc[evento.tipo] || []).forEach((fn) => fn(evento));
+  };
+  // El contexto de vm no trae temporizadores: se inyectan como globales.
+  sandbox.setInterval = setInterval;
+  sandbox.clearInterval = clearInterval;
+  sandbox.setTimeout = setTimeout;
+  sandbox.clearTimeout = clearTimeout;
   vm.createContext(sandbox);
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, "..", "app", "static", "js", "audio.js"), "utf8"),
     sandbox,
     { filename: "audio.js" }
   );
-  return { sandbox, instancias, almacen, documentStub, tarjeta, marcoCompleta };
+  return { sandbox, instancias, almacen, sesion, documentStub, tarjeta, marcoCompleta };
 }
 
 function control(entorno) {
@@ -181,241 +236,261 @@ function botonReal(clase, etiqueta) {
   return b;
 }
 
-// ------------------------------------------------------------------ Pruebas
-// 9 · El modulo se carga en portada y sala; solo la sala pinta el control.
-const htmlSala = fs.readFileSync(path.join(__dirname, "..", "app", "templates", "sala.html"), "utf8");
-const htmlPortada = fs.readFileSync(path.join(__dirname, "..", "app", "templates", "inicio.html"), "utf8");
-ok(htmlSala.includes("/static/js/audio.js"), "audio.js se carga en la sala");
-ok(htmlPortada.includes("/static/js/audio.js"), "audio.js se carga tambien en portada (clic)");
+async function main() {
+  // 9 · El modulo se carga en portada y sala; el control, solo en la sala.
+  const htmlSala = fs.readFileSync(path.join(__dirname, "..", "app", "templates", "sala.html"), "utf8");
+  const htmlPortada = fs.readFileSync(path.join(__dirname, "..", "app", "templates", "inicio.html"), "utf8");
+  ok(htmlSala.includes("/static/js/audio.js"), "audio.js se carga en la sala");
+  ok(htmlPortada.includes("/static/js/audio.js"), "audio.js se carga tambien en portada");
 
-// A · La musica NO suena en portada: ni pista creada, ni control visible.
-const portada = crearEntorno({ portada: true });
-const audioPortada = portada.sandbox.window.AudioFondo;
-ok(portada.instancias.length === 0, "A · la portada no crea ninguna pista de audio");
-ok(!control(portada), "A · la portada no muestra el control de sonido");
-portada.documentStub.click(botonReal("medallon", "CREAR PARTIDA"));
-ok(!pistaDe(portada, "musica_fondo.mp3"), "A · en portada solo se crea la pista de clic");
-ok(!!pistaDe(portada, "clic.mp3"), "B · CREAR PARTIDA reproduce clic desde la portada");
-ok(!pistaDe(portada, "final.mp3"), "A · la portada no crea la pista de final");
+  // ---------------- A, D, G, H · PORTADA
+  const portada = crearEntorno({ portada: true });
+  const audioPortada = portada.sandbox.window.AudioFondo;
+  const musicaPortada = pistaDe(portada, "musica_fondo.mp3");
+  ok(Boolean(musicaPortada), "A · la portada pide la musica al cargar");
+  ok(musicaPortada.reproducciones === 1, "A · la portada intenta reproducir la musica");
+  ok(musicaPortada.loop === true, "A · la musica ambiental va en loop");
+  ok(Math.abs(musicaPortada.volume - 0.22) < 1e-9, "D · en portada el nivel objetivo es 0,22");
+  ok(!control(portada), "A · la portada no muestra el control de sonido");
+  ok(!pistaDe(portada, "final.mp3"), "A · la portada no crea la pista de final");
+  ok(portada.instancias.filter((p) => String(p.src).endsWith("musica_fondo.mp3")).length === 1,
+    "H · una sola pista musical, tambien en portada");
 
-// B/C · Un clic por interaccion manual, sobre la estructura de controles.
-let entorno = crearEntorno();
-const audio = entorno.sandbox.window.AudioFondo;
-const crear = botonReal("medallon medallon-primario", "CREAR PARTIDA");
-entorno.tarjeta.appendChild(crear);
-entorno.documentStub.click(crear);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 1, "B · CREAR PARTIDA suena una vez");
-entorno.documentStub.click(crear);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 2, "K · clic tras clic: un sonido por accion");
-ok(entorno.instancias.filter((p) => p.src.endsWith("clic.mp3")).length === 1,
-  "8 · el clic reutiliza una sola instancia, sin acumular Audio");
+  // Clic en portada: la musica NO se reinicia ni se duplica.
+  const botonPortada = botonReal("medallon", "CREAR PARTIDA");
+  portada.tarjeta.appendChild(botonPortada);
+  portada.documentStub.click(botonPortada);
+  ok(!!pistaDe(portada, "clic.mp3"), "B · CREAR PARTIDA reproduce clic desde la portada");
+  ok(musicaPortada.reproducciones === 1, "G · el clic no reinicia la musica");
+  ok(portada.instancias.filter((p) => String(p.src).endsWith("musica_fondo.mp3")).length === 1,
+    "H · el clic no crea una segunda musica");
 
-// Estructura real de la hoja de investigacion y del tablero.
-const miniatura = makeElemento("div");
-miniatura.className = "carta-visual-compacta";
-entorno.tarjeta.appendChild(miniatura);
-entorno.documentStub.click(miniatura);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 3, "F · seleccionar una carta de la hoja suena");
-entorno.documentStub.click(entorno.marcoCompleta);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 4, "F · el control de pantalla completa suena");
+  // M · Continuidad entre PORTADA y SALA (cambio de documento).
+  musicaPortada.currentTime = 42;
+  portada.documentStub.salir();
+  ok(portada.sesion.musica_fondo_posicion, "M · al salir del documento guarda el punto de la pista");
+  const salaTrasPortada = crearEntorno({ posicionPrevia: 42 });
+  const musicaSala = pistaDe(salaTrasPortada, "musica_fondo.mp3");
+  ok(musicaSala.currentTime === 42, "M · la sala retoma la musica donde estaba");
+  const recarga = crearEntorno({ posicionPrevia: 42 });
+  ok(pistaDe(recarga, "musica_fondo.mp3").reproducciones === 1, "M · una recarga no duplica pistas");
 
-// Donde NO suena clic.
-const parrafo = makeElemento("p");
-parrafo.textContent = "EL MISTERIO DEL MEDALLÓN";
-entorno.tarjeta.appendChild(parrafo);
-entorno.documentStub.click(parrafo);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 4, "2 · un texto que no es control NO suena");
-const deshabilitado = botonReal("medallon", "COMENZAR PARTIDA");
-deshabilitado.disabled = true;
-entorno.tarjeta.appendChild(deshabilitado);
-entorno.documentStub.click(deshabilitado);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 4, "J · un control deshabilitado NO suena");
-const ariaDeshabilitado = botonReal("medallon", "SIN INFORMACIÓN");
-ariaDeshabilitado.setAttribute("aria-disabled", "true");
-entorno.tarjeta.appendChild(ariaDeshabilitado);
-entorno.documentStub.click(ariaDeshabilitado);
-ok(pistaDe(entorno, "clic.mp3").reproducciones === 4, "J · aria-disabled tampoco suena");
-ok(entorno.sandbox.window.AudioFondo.reproducirEfecto("dado") === null,
-  "los efectos no implementados siguen devolviendo null");
-
-// M · La musica ambiental sigue exactamente como en 8B.33.
-const musica = pistaDe(entorno, "musica_fondo.mp3");
-ok(musica === undefined, "M · cargar el modulo no crea la pista musical");
-audio.iniciar();
-const musical = pistaDe(entorno, "musica_fondo.mp3");
-ok(Boolean(musical), "M · la partida iniciada crea la pista musical");
-ok(musical.loop === true, "M · la musica sigue en loop");
-ok(musical.preload === "metadata", "M · la musica sigue pidiendo solo metadato");
-ok(audio.volumenActual() === 0.15 && musical.volume === 0.15, "6 · volumen inicial 0.15");
-for (let i = 0; i < 5; i += 1) audio.iniciar();
-ok(musical.reproducciones === 1, "F/I · los repintados y WebSocket no reinician la musica");
-ok(entorno.instancias.filter((p) => p.src.endsWith("musica_fondo.mp3")).length === 1,
-  "M · una sola pista musical por cliente");
-
-// 7 · El mismo mando gobierna musica, clic y final.
-const clic = pistaDe(entorno, "clic.mp3");
-ok(Math.abs(clic.volume - 0.15 * 2.2) < 1e-9, "7 · el clic se oye claro pero discreto (x2,2)");
-audio.fijarVolumen(0.2);
-ok(Math.abs(musical.volume - 0.2) < 1e-9, "7 · la musica sigue el volumen elegido");
-ok(Math.abs(clic.volume - 0.2 * 2.2) < 1e-9, "7 · el clic se reescala con el mismo volumen");
-audio.reproducirEfecto("final");
-const final = pistaDe(entorno, "final.mp3");
-ok(Math.abs(final.volume - 0.2 * 3) < 1e-9, "7 · el final es algo mas protagonista (x3)");
-audio.fijarVolumen(1);
-ok(clic.volume === 1 && final.volume === 1 && musical.volume === 1,
-  "7 · al maximo todo satura sin superar 1");
-audio.fijarVolumen(0.2);
-ok(final.loop === false, "R · el final no esta en loop");
-ok(final.reproducciones === 1, "4 · el final suena una vez");
-audio.reproducirEfecto("final");
-ok(final.reproducciones === 1, "5 · el final no se repite en la misma pagina");
-entorno.documentStub.click(crear);
-ok(final.pausas === 0 && final.reproducciones === 1,
-  "8 · un clic posterior no detiene ni reinicia el final");
-
-// L · Mute: calla todo.
-const clicsAntes = clic.reproducciones;
-audio.fijarVolumen(0);
-ok(musical.volume === 0, "L · volumen 0 silencia la musica");
-entorno.documentStub.click(crear);
-ok(clic.volume === 0, "L · volumen 0 silencia el clic");
-ok(clic.reproducciones === clicsAntes, "L · con volumen 0 no se dispara el clic");
-audio.reproducirEfecto("final");
-ok(final.reproducciones === 1, "L · con volumen 0 no se dispara el final");
-
-// 7 · El control de sonido gobierna tambien los efectos.
-const boton = control(entorno);
-const panel = boton.children.find((hijo) => hijo.className.includes("control-sonido-panel"));
-const etiqueta = panel.children.find((hijo) => hijo.className.includes("control-sonido-etiqueta"));
-const slider = etiqueta.children.find((hijo) => hijo.className.includes("control-sonido-slider"));
-slider.value = "40";
-slider.dispara("input");
-ok(audio.volumenActual() === 0.4, "el slider sigue cambiando el volumen");
-ok(Math.abs(musical.volume - 0.4) < 1e-9 && Math.abs(clic.volume - 0.4 * 2.2) < 1e-9,
-  "el mismo slider gobierna musica y clic");
-ok(entorno.almacen.volumen_musica === "0.4", "la preferencia sigue en localStorage");
-ok(boton.classList.contains("silenciado") === false, "al volver a oir desaparece el estado silenciado");
-slider.value = "0";
-slider.dispara("input");
-ok(boton.classList.contains("silenciado"), "volumen 0 se refleja visualmente");
-
-// S · Rutas runtime correctas.
-ok(musical.src === "/static/audio/musica_fondo.mp3", "S · la musica usa su ruta runtime");
-ok(clic.src === "/static/audio/clic.mp3", "S · el clic usa su ruta runtime");
-ok(final.src === "/static/audio/final.mp3", "S · el final usa su ruta runtime");
-
-// O · Play rechazado: sin excepcion y con el control disponible.
-const bloqueado = crearEntorno({ playRechaza: true });
-const audioBloqueado = bloqueado.sandbox.window.AudioFondo;
-let lanzoExcepcion = false;
-try {
-  audioBloqueado.iniciar();
-  bloqueado.documentStub.click(botonReal("medallon", "COMENZAR"));
-} catch (error) {
-  lanzoExcepcion = true;
-}
-ok(!lanzoExcepcion, "O · un play() rechazado no lanza excepcion visible");
-ok(audioBloqueado.isSonando() === false, "O · queda preparada pero sin sonar");
-ok(Boolean(control(bloqueado)), "O · el control de sonido sigue disponible");
-bloqueado.instancias[0].play = function () {
-  this.reproducciones += 1;
-  return Promise.resolve();
-};
-bloqueado.documentStub.gesto();
-ok(bloqueado.instancias[0].reproducciones >= 1, "P · la primera interaccion arranca la musica");
-
-// P · Recarga durante partida: misma pista preparada, sin duplicar.
-const recarga = crearEntorno({ almacenamientoInicial: { volumen_musica: "0.3" } });
-recarga.sandbox.window.AudioFondo.iniciar();
-const trasRecarga = pistaDe(recarga, "musica_fondo.mp3");
-recarga.sandbox.window.AudioFondo.iniciar();
-ok(recarga.instancias.filter((p) => p.src.endsWith("musica_fondo.mp3")).length === 1,
-  "P · la recarga no duplica la pista");
-ok(trasRecarga.reproducciones === 1, "P · la recarga no reinicia la reproduccion");
-ok(recarga.sandbox.window.AudioFondo.volumenActual() === 0.3, "P · restaura la preferencia local");
-
-// M · Preferencia independiente por dispositivo.
-const otro = crearEntorno({ almacenamientoInicial: { volumen_musica: "0.05" } });
-ok(otro.sandbox.window.AudioFondo.volumenActual() === 0.05, "M · otra preferencia local se restaura");
-
-// ------------------------------------------- enganche real en sala.js (N/O/P/Q)
-const llamadas = [];
-function stubAudio() {
-  return {
-    iniciar: () => llamadas.push("iniciar"),
-    detener: () => llamadas.push("detener"),
-    reproducirEfecto: (nombre) => llamadas.push(`efecto:${nombre}`),
+  // ---------------- B, C · Autoplay bloqueado
+  const bloqueado = crearEntorno({ playRechaza: true });
+  const audioBloqueado = bloqueado.sandbox.window.AudioFondo;
+  let lanzo = false;
+  try {
+    bloqueado.documentStub.click(botonReal("medallon", "UNIRME"));
+  } catch (error) {
+    lanzo = true;
+  }
+  ok(!lanzo, "B · un play() rechazado no lanza excepcion visible");
+  ok(audioBloqueado.isSonando() === false, "B · queda preparada pero sin sonar");
+  ok(Boolean(control(bloqueado)), "B · el control de sonido sigue disponible");
+  bloqueado.instancias[0].play = function () {
+    this.reproducciones += 1;
+    return Promise.resolve();
   };
+  bloqueado.documentStub.gesto();
+  ok(bloqueado.instancias[0].reproducciones >= 1, "C · la primera interaccion arranca la musica");
+
+  // ---------------- E, F, G · LOBBY -> PARTIDA con fundido
+  const entorno = crearEntorno();
+  const audio = entorno.sandbox.window.AudioFondo;
+  const musica = pistaDe(entorno, "musica_fondo.mp3");
+  await esperar(20);
+  ok(Math.abs(musica.volume - 0.22) < 1e-9, "D · en el lobby el nivel objetivo es 0,22");
+  ok(audio.volumenActual() === 0.15, "D · el volumen general por defecto sigue siendo 0,15");
+  ok(musica.preload === "metadata", "la musica sigue pidiendo solo metadato");
+
+  // La cancion continua: se fija un punto y se comprueba que sigue en el.
+  musica.currentTime = 77;
+  const reproduccionesAntes = musica.reproducciones;
+  audio.iniciar();   // COMENZAR PARTIDA
+  ok(musica.pausas === 0, "G · comenzar la partida NO hace pause()");
+  ok(musica.reproducciones === reproduccionesAntes, "G · comenzar la partida NO vuelve a dar play()");
+  ok(musica.currentTime === 77, "G · la cancion sigue por el punto por el que iba");
+  const nivelInmediato = musica.volume;
+  ok(Math.abs(nivelInmediato - 0.22) < 1e-9, "F · el fundido no salta: el nivel no cambia de golpe");
+  await esperar(250);
+  const nivelMedio = musica.volume;
+  ok(nivelMedio < 0.22 - 1e-6 && nivelMedio > 0.15 + 1e-6,
+    `F · a mitad del fundido el nivel es intermedio (${nivelMedio.toFixed(3)})`);
+  await esperarFade();
+  ok(Math.abs(musica.volume - 0.15) < 1e-9, "E · al terminar el fundido el nivel es 0,15");
+
+  for (let i = 0; i < 5; i += 1) audio.iniciar();
+  ok(musica.reproducciones === reproduccionesAntes, "F/I · los repintados no tocan la musica");
+  ok(musica.currentTime === 77, "G · los repintados tampoco la reinician");
+  ok(entorno.instancias.filter((p) => String(p.src).endsWith("musica_fondo.mp3")).length === 1,
+    "H · una sola pista musical por cliente");
+
+  // ---------------- I, K, J · Clic, slider y mute
+  const crear = botonReal("medallon medallon-primario", "CREAR PARTIDA");
+  entorno.tarjeta.appendChild(crear);
+  entorno.documentStub.click(crear);
+  const clic = pistaDe(entorno, "clic.mp3");
+  ok(clic.reproducciones === 1, "I · el clic suena con la musica de fondo");
+  ok(musica.pausado === false, "I · el clic no detiene la musica");
+  ok(musica.reproducciones === reproduccionesAntes, "I · el clic no reinicia la musica");
+  entorno.documentStub.click(crear);
+  ok(clic.reproducciones === 2, "K · un clic por accion, sin doble");
+  ok(entorno.instancias.filter((p) => String(p.src).endsWith("clic.mp3")).length === 1,
+    "H · el clic reutiliza una sola instancia");
+
+  const miniatura = makeElemento("div");
+  miniatura.className = "carta-visual-compacta";
+  entorno.tarjeta.appendChild(miniatura);
+  entorno.documentStub.click(miniatura);
+  ok(clic.reproducciones === 3, "F · seleccionar una carta de la hoja suena");
+  entorno.documentStub.click(entorno.marcoCompleta);
+  ok(clic.reproducciones === 4, "F · el control de pantalla completa suena");
+
+  // Donde NO suena.
+  const parrafo = makeElemento("p");
+  parrafo.textContent = "EL MISTERIO DEL MEDALLÓN";
+  entorno.tarjeta.appendChild(parrafo);
+  entorno.documentStub.click(parrafo);
+  const deshabilitado = botonReal("medallon", "COMENZAR PARTIDA");
+  deshabilitado.disabled = true;
+  entorno.tarjeta.appendChild(deshabilitado);
+  entorno.documentStub.click(deshabilitado);
+  const ariaDeshabilitado = botonReal("medallon", "SIN INFORMACIÓN");
+  ariaDeshabilitado.setAttribute("aria-disabled", "true");
+  entorno.tarjeta.appendChild(ariaDeshabilitado);
+  entorno.documentStub.click(ariaDeshabilitado);
+  ok(clic.reproducciones === 4, "2 · texto, deshabilitados y aria-disabled NO suenan");
+  ok(audio.reproducirEfecto("dado") === null, "los efectos no implementados siguen devolviendo null");
+
+  // K · El slider general escala los dos niveles y no se rompe.
+  const boton = control(entorno);
+  const panel = boton.children.find((h) => h.className.includes("control-sonido-panel"));
+  const etiqueta = panel.children.find((h) => h.className.includes("control-sonido-etiqueta"));
+  const slider = etiqueta.children.find((h) => h.className.includes("control-sonido-slider"));
+  slider.value = "30";
+  slider.dispara("input");
+  ok(Math.abs(audio.volumenActual() - 0.3) < 1e-9, "K · el slider sigue cambiando el volumen general");
+  ok(Math.abs(musica.volume - 0.3) < 1e-9,
+    "K · en partida el nivel es el general (0,15 por defecto escalado)");
+  ok(Math.abs(clic.volume - 0.3 * 2.2) < 1e-9, "K · el clic conserva su multiplicador");
+  ok(entorno.almacen.volumen_musica === "0.3", "K · la preferencia sigue en localStorage");
+  ok(musica.reproducciones === reproduccionesAntes, "K · mover el slider no reinicia la musica");
+  // Volumen general 0,15 con la fase de partida: no se sobrescribe nada.
+  audio.fijarVolumen(0.15);
+  ok(Math.abs(musica.volume - 0.15) < 1e-9, "K · volver al valor por defecto no pisa la eleccion del usuario");
+  audio.fijarVolumen(0.4);
+  ok(Math.abs(musica.volume - 0.4) < 1e-9, "K · en partida el 0,4 del jugador da 0,4 de nivel");
+  ok(Math.abs(clic.volume - 0.4 * 2.2) < 1e-9, "4 · los multiplicadores de efectos no cambian");
+
+  // J · Mute calla musica y efectos.
+  audio.fijarVolumen(0);
+  ok(musica.volume === 0, "J · volumen 0 silencia la musica");
+  const antesDelSilencio = clic.reproducciones;
+  entorno.documentStub.click(crear);
+  ok(clic.reproducciones === antesDelSilencio, "J · con volumen 0 no se dispara el clic");
+  audio.reproducirEfecto("final");
+  ok(!pistaDe(entorno, "final.mp3"), "J · con volumen 0 no se dispara el final");
+  ok(boton.classList.contains("silenciado"), "J · el estado silenciado se refleja visualmente");
+  ok(boton.getAttribute("aria-pressed") === "false", "J · el estado silenciado se expone por ARIA");
+
+  // 7 · Volumen al maximo satura los tres.
+  audio.fijarVolumen(1);
+  ok(musica.volume === 1 && clic.volume === 1, "7 · al maximo todo satura sin superar 1");
+  audio.fijarVolumen(0.15);
+
+  // ---------------- L · Final
+  const finalAntes = pistaDe(entorno, "final.mp3");
+  audio.reproducirEfecto("final");
+  const final = pistaDe(entorno, "final.mp3");
+  ok(final !== finalAntes, "L · el final usa su propia reproduccion");
+  ok(final.loop === false, "L · el final no esta en loop");
+  ok(final.reproducciones === 1, "L · el final suena una vez");
+  ok(musica.pausado === false, "L · el final no detiene la musica por si mismo");
+  audio.reproducirEfecto("final");
+  ok(final.reproducciones === 1, "L · el final no se repite en la misma pagina");
+  entorno.documentStub.click(crear);
+  ok(final.pausas === 0 && final.reproducciones === 1,
+    "L · un clic posterior no detiene ni reinicia el final");
+
+  // S · Rutas runtime correctas.
+  ok(musica.src === "/static/audio/musica_fondo.mp3", "S · la musica usa su ruta runtime");
+  ok(clic.src === "/static/audio/clic.mp3", "S · el clic usa su ruta runtime");
+  ok(final.src === "/static/audio/final.mp3", "S · el final usa su ruta runtime");
+
+  // ---------------- Enganche real en sala.js (L)
+  const llamadas = [];
+  function stubAudio() {
+    return {
+      iniciar: () => llamadas.push("iniciar"),
+      detener: () => llamadas.push("detener"),
+      reproducirEfecto: (nombre) => llamadas.push(`efecto:${nombre}`),
+    };
+  }
+  function paginaSala() {
+    const registro = {};
+    const documentSala = {
+      getElementById(id) {
+        if (!registro[id]) registro[id] = makeElemento("div");
+        return registro[id];
+      },
+      createElement: (tag) => makeElemento(tag),
+      addEventListener() {},
+      removeEventListener() {},
+      body: makeElemento("body"),
+      activeElement: null,
+      documentElement: {},
+    };
+    registro.codigo = makeElemento("p");
+    registro.codigo.textContent = "JARA-AUDIO";
+    const sandbox = {
+      console,
+      document: documentSala,
+      window: { location: { protocol: "http:", host: "localhost:8000" }, AudioFondo: stubAudio() },
+      sessionStorage: { getItem: () => "jug-audio", setItem: () => {} },
+      fetch: () => Promise.resolve({ then: () => ({ then: () => {} }) }),
+      WebSocket: class { send() {} },
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, "..", "app", "static", "js", "sala.js"), "utf8"),
+      sandbox,
+      { filename: "sala.js" }
+    );
+    return sandbox.pintarFinal;
+  }
+
+  let pintarFinal = paginaSala();
+  pintarFinal({ estado: "esperando" });
+  ok(llamadas.length === 0, "el lobby no toca el nivel: la musica sigue en ambiente");
+  llamadas.length = 0;
+  pintarFinal({ estado: "iniciada" });
+  ok(llamadas.join(",") === "iniciar", "E · la partida iniciada baja el nivel de la musica");
+  llamadas.length = 0;
+  pintarFinal({ estado: "iniciada" });
+  pintarFinal({ estado: "iniciada" });
+  ok(!llamadas.includes("efecto:final"), "una resolucion fallida NO suena el final");
+  ok(!llamadas.includes("detener"), "la musica sigue durante la partida");
+  llamadas.length = 0;
+  pintarFinal({ estado: "terminada", resultado_final: "resuelto", ganador_alias: "Vera" });
+  ok(llamadas.join(",") === "detener,efecto:final", "L · el final detiene musica y suena una vez");
+  llamadas.length = 0;
+  pintarFinal({ estado: "terminada" });
+  pintarFinal({ estado: "terminada" });
+  ok(llamadas.filter((c) => c === "efecto:final").length === 0, "terminada -> terminada no repite");
+  pintarFinal = paginaSala();
+  llamadas.length = 0;
+  pintarFinal({ estado: "terminada" });
+  ok(!llamadas.includes("efecto:final"), "recargar ya terminada NO dispara el final");
+  ok(llamadas.includes("detener"), "la musica sigue detenida tras recargar");
+
+  if (fallos > 0) {
+    console.log(`${fallos} FALLO(S)`);
+    process.exit(1);
+  }
+  console.log("AUDIO FONDO OK");
 }
-// Cada carga es una PAGINA nueva: asi la recarga se prueba de verdad.
-function paginaSala() {
-  const registro = {};
-  const documentSala = {
-    getElementById(id) {
-      if (!registro[id]) registro[id] = makeElemento("div");
-      return registro[id];
-    },
-    createElement: (tag) => makeElemento(tag),
-    addEventListener() {},
-    removeEventListener() {},
-    body: makeElemento("body"),
-    activeElement: null,
-    documentElement: {},
-  };
-  registro.codigo = makeElemento("p");
-  registro.codigo.textContent = "JARA-AUDIO";
-  const sandbox = {
-    console,
-    document: documentSala,
-    window: { location: { protocol: "http:", host: "localhost:8000" }, AudioFondo: stubAudio() },
-    sessionStorage: { getItem: () => "jug-audio", setItem: () => {} },
-    fetch: () => Promise.resolve({ then: () => ({ then: () => {} }) }),
-    WebSocket: class { send() {} },
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(
-    fs.readFileSync(path.join(__dirname, "..", "app", "static", "js", "sala.js"), "utf8"),
-    sandbox,
-    { filename: "sala.js" }
-  );
-  return sandbox.pintarFinal;
-}
 
-let pintarFinal = paginaSala();
-pintarFinal({ estado: "esperando" });
-ok(llamadas.length === 0, "A/B · portada y lobby no suenan musica");
-llamadas.length = 0;
-pintarFinal({ estado: "iniciada" });
-ok(llamadas.join(",") === "iniciar", "M · la partida iniciada comienza la musica");
-
-// Resolucion fallida y eliminados: NO suenan final.
-llamadas.length = 0;
-pintarFinal({ estado: "iniciada" });
-pintarFinal({ estado: "iniciada" });
-ok(!llamadas.includes("efecto:final"), "Q · una resolucion fallida NO suena el final");
-ok(!llamadas.includes("detener"), "Q · la musica sigue durante la partida");
-
-// N · Transicion iniciada -> terminada: detiene musica y suena final UNA vez.
-llamadas.length = 0;
-pintarFinal({ estado: "terminada", resultado_final: "resuelto", ganador_alias: "Vera" });
-ok(llamadas.join(",") === "detener,efecto:final", "N · el final detiene musica y suena una vez");
-
-// O · terminada -> terminada: no se repite.
-llamadas.length = 0;
-pintarFinal({ estado: "terminada" });
-pintarFinal({ estado: "terminada" });
-ok(llamadas.filter((c) => c === "efecto:final").length === 0, "O · terminada -> terminada no repite");
-ok(llamadas.filter((c) => c === "detener").length === 2, "O · la musica se mantiene detenida");
-
-// P · Recarga con la partida ya terminada: no suena el final.
-pintarFinal = paginaSala();
-llamadas.length = 0;
-pintarFinal({ estado: "terminada" });
-ok(!llamadas.includes("efecto:final"), "P · recargar ya terminada NO dispara el final");
-ok(llamadas.includes("detener"), "P · la musica sigue detenida tras recargar");
-
-if (fallos > 0) {
-  console.log(`${fallos} FALLO(S)`);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
-}
-console.log("AUDIO FONDO OK");
+});
