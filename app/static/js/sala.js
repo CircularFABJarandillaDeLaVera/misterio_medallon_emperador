@@ -794,6 +794,10 @@ function pintarJugada(sala) {
         actualizarAccionesRefutacion(opciones.length);
       },
     });
+    // La categoría solo se marca AQUÍ, en las opciones de refutación, para que
+    // el CSS pueda distinguir un objeto sin tocar `crearCartaVisual` (que es
+    // compartido por el resto de modales). No cambia nada más.
+    boton.dataset.categoria = carta.categoria;
     opcionesRefutacion.appendChild(boton);
   });
   // Aviso server-side de plazo (humano eliminado): informativo, la

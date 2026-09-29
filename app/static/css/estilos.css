@@ -1195,6 +1195,18 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   object-fit: contain;
 }
 
+/* Refutación con VARIAS cartas: la tarjeta conserva su caja 3/4, pero la
+   base global ancla la imagen arriba (`object-position: center top`), de modo
+   que un OBJETO apaisado quedaba pegado al borde superior con todo el hueco
+   debajo. Aquí se centra verticalmente SOLO en los objetos y SOLO cuando hay
+   más de una carta: es exactamente lo que ya hacen el caso de una sola carta
+   (caja ajustada a la imagen) y SOSPECHA REFUTADA (`object-position: center`).
+   No cambia la geometría de ninguna tarjeta ni el tamaño de ninguna imagen. */
+#opciones-refutacion:not([data-total="1"])
+  .carta-selector-sospecha[data-categoria="objeto"] img {
+  object-position: center;
+}
+
 /* UNA sola carta: la caja se ajusta a la proporción real de la ilustración
    en lugar de estirarse a 3/4. Sin recorte, sin imagen agrandada y sin la
    franja azul vacía que dejaba el alto sobrante. Dos o más cartas conservan
