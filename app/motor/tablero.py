@@ -1,4 +1,4 @@
-"""Grafo lógico del tablero de Cluedo Jarandilla.
+"""Grafo lógico del tablero de El Misterio del Medallón.
 
 Independiente de Sala, WebSocket y cualquier representación visual. Un camino
 normal tiene cuatro cuadros de movimiento: ubicación -> c1 -> c2 -> c3 ->

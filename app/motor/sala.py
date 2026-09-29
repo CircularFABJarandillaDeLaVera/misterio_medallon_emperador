@@ -256,6 +256,90 @@ class Sala:
     def num_cartas(self, jugador_id: str) -> int:
         return len(self.manos.get(jugador_id, []))
 
+    def puede_volver_al_lobby(self, jugador_id: str) -> str | None:
+        """Misma autoridad que COMENZAR PARTIDA: la del anfitrión.
+
+        Idempotente por estado canónico: si la sala ya está en espera, la
+        revancha ya se pidió y no hay nada que hacer.
+        """
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None:
+            return "Jugador desconocido en esta sala."
+        if self.estado == ESTADO_ESPERANDO:
+            return None
+        if self.estado != ESTADO_TERMINADA:
+            raise ValueError("Solo se puede pedir la revancha con la partida terminada.")
+        if not jugador["es_anfitrion"]:
+            return "Solo el anfitrión puede empezar una revancha."
+        return None
+
+    def volver_al_lobby(self, jugador_id: str) -> bool:
+        """Vuelve a la MISMA sala en preparación para una revancha limpia.
+
+        Conserva código, modo, humanos conectados, alias y anfitrión. Reinicia
+        por completo todo lo que pertenece a la partida: misterio, reparto,
+        investigación, vistas y descartes, eliminaciones, refutación
+        automática, personajes elegidos, PNJ, orden y turno, fases,
+        movimientos, posiciones de fichas y de objetos, presentaciones,
+        refutaciones, plazos, resultado y ganador.
+
+        No reinicia los contadores monotonos de secuencia (presentación,
+        movimiento y aviso de inactividad): no son conocimiento de juego, solo
+        identidad interna para que el cliente detecte que un mensaje es nuevo,
+        y reiniciarlos podría hacer que un cliente reabriera un modal viejo.
+        """
+        error = self.puede_volver_al_lobby(jugador_id)
+        if error:
+            raise ValueError(error)
+        if self.estado == ESTADO_ESPERANDO:
+            return False   # ya se pidió: idempotente, sin doble transición
+        # Los PNJ eran de la partida anterior: desaparecen de la sala y de
+        # todas sus estructuras. `completar_con_pnj` los volvera a crear al
+        # comenzar la siguiente, con la logica canonica.
+        for jugador in [j for j in self.jugadores if j["tipo"] == TIPO_PNJ]:
+            self._olvidar_jugador(jugador["id"])
+        self.jugadores = [j for j in self.jugadores if j["tipo"] != TIPO_PNJ]
+        # Cada humano vuelve a empezar sin nada de la partida anterior.
+        for jugador in self.jugadores:
+            self._olvidar_jugador(jugador["id"])
+            jugador["personaje_id"] = None
+            jugador["activo_investigacion"] = True
+            jugador["refutacion_automatica"] = False
+            jugador["decision_refutacion_pendiente"] = False
+            jugador["resolucion_fallida"] = None
+        # Estado de sala equivalente al de una recien creada.
+        self.estado = ESTADO_ESPERANDO
+        self.misterio = None
+        self.manos = {}
+        self.orden_turnos = []
+        self.turno_actual = 0
+        self.descartes = {}
+        self.vistas = {}
+        self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
+        self.sospecha_pendiente = None
+        self.presentacion_sospecha = None
+        self.ultima_jugada = None
+        self.refutacion_deadline = None
+        self.cartas_sospechadas.clear()
+        self.pnj_pensando_id = None
+        self.resultado_final = None
+        self.ganador_id = None
+        self.soluciones_deducidas.clear()
+        self.posiciones = PosicionesParticipantes(TABLERO)
+        self.posiciones_objetos = {}
+        self.tirada_pendiente = None
+        self.rutas_pendientes = {}
+        self.movimiento_resuelto = None
+        self._reiniciar_bloqueo()
+        return True
+
+    def _olvidar_jugador(self, jugador_id: str) -> None:
+        """Borra todo lo que la sala guardaba de un participante."""
+        self.manos.pop(jugador_id, None)
+        self.descartes.pop(jugador_id, None)
+        self.vistas.pop(jugador_id, None)
+        self.soluciones_deducidas.pop(jugador_id, None)
+
     def personaje_ocupado_por(self, personaje_id: str) -> dict | None:
         """Jugador que ya tiene ese personaje, o None si está libre."""
         for j in self.jugadores:

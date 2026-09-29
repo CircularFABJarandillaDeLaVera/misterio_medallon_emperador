@@ -37,7 +37,7 @@ from app.motor.sala import (
     GestorSalas,
 )
 
-app = FastAPI(title="Cluedo Jarandilla — El misterio del medallón imperial")
+app = FastAPI(title="El Misterio del Medallón")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 plantillas = Jinja2Templates(directory="app/templates")
@@ -704,6 +704,27 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 programar_presentacion_sospecha(sala.codigo)
                 programar_timeout_refutacion(sala.codigo)
                 programar_bloqueo(sala.codigo)
+            elif accion == "volver_al_lobby":
+                # 8B.35 · Revancha canónica en servidor. Es idempotente y
+                # protegida por el cerrojo de la sala, igual que el inicio de
+                # partida: si dos pulsan casi a la vez, solo uno transiciona.
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        reinicio = sala.volver_al_lobby(jugador_id)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                if reinicio:
+                    # La partida anterior y la siguiente no comparten ninguna
+                    # tarea: se detienen los cuatro watchdogs de la sala.
+                    tarea_pnj = tareas_pnj.pop(sala.codigo, None)
+                    if tarea_pnj and tarea_pnj is not asyncio.current_task():
+                        tarea_pnj.cancel()
+                    cancelar_timeout_refutacion(sala.codigo)
+                    cancelar_presentacion_sospecha(sala.codigo)
+                    cancelar_bloqueo(sala.codigo)
+                # Todos los clientes vuelven al lobby de la MISMA sala.
+                await difundir(sala.codigo)
             elif accion == "marcar_investigacion":
                 try:
                     sala.marcar_investigacion(

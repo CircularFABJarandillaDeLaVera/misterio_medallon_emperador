@@ -308,6 +308,20 @@
     sincronizarControl();
   }
 
+  function reanudarAmbiental() {
+    // 8B.35: la revancha devuelve la sala al lobby, asi que la musica
+    // ambiental vuelve a su nivel de portada/lobby. Misma pista y mismo
+    // `Audio` de siempre: nada se duplica ni se solapa, y el gesto de
+    // desbloqueo se vuelve a reservar por si el navegador lo exige.
+    enPartida = false;
+    deseada = true;
+    aplicarVolumenEfectos();
+    aplicarNivel();
+    reservarGesto();
+    if (volumen > 0) intentarReproducir();
+    sincronizarControl();
+  }
+
   function iniciar() {
     // Entra la PARTIDA: la musica sigue sonando y solo baja de nivel, con
     // fundido. Idempotente: se llama en cada repintado.
@@ -494,6 +508,7 @@
 
   window.AudioFondo = {
     iniciar: iniciar,
+    reanudarAmbiental: reanudarAmbiental,
     detener: detener,
     fijarVolumen: fijarVolumen,
     volumenActual: function () { return volumen; },

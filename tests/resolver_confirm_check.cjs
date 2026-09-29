@@ -73,8 +73,16 @@ function makeElemento(tag) {
     get innerHTML() {
       return this._html || "";
     },
+    get firstChild() {
+      return this.children[0] || null;
+    },
     appendChild(hijo) {
+      if (hijo.parentNode) {
+        const indice = hijo.parentNode.children.indexOf(hijo);
+        if (indice >= 0) hijo.parentNode.children.splice(indice, 1);
+      }
       this.children.push(hijo);
+      hijo.parentNode = this;
       return hijo;
     },
     addEventListener(evento, fn) {
@@ -486,7 +494,9 @@ ok($("modal-refutacion").hidden === true, "8B.30 no abre la refutacion antes de 
 
 vm.runInContext(`RECURSOS_VISUALES = {
   vera: { principal: "/static/img/personajes/vera.png", nombre: "/static/img/personajes/vera-nombre.png" },
+  mateo: { principal: "/static/img/personajes/mateo.png", nombre: "/static/img/personajes/mateo-nombre.png" },
   parador: { principal: "/static/img/lugares/parador.jpeg" },
+  "baul-imperial": { principal: "/static/img/objetos/baul-imperial.png" },
   "cantaro-barro": { principal: "/static/img/objetos/cantaro-barro.jpeg" }
 };`, sandbox);
 
@@ -597,6 +607,129 @@ pintarJugada(salaBase(jugadaPresentacion(43)));
 ok($("modal-presentacion-sospecha").hidden === false, "otra presentación tiene identidad independiente");
 pintarJugada(salaBase({ estado: "esperando_sospecha", resultado: "sin_refutacion" }));
 ok($("modal-presentacion-sospecha").hidden, "avance canónico o timeout retira el popup");
+
+// ============================================================
+// 8B.35 · FINAL DE VICTORIA + JUGAR DE NUEVO
+// El popup es la presentacion protagonista del final, se ve desde el markup
+// real, reusa el render de tres cartas de 8B.34 y pide la revancha al
+// servidor (nunca location.reload).
+// ============================================================
+const salaFinal = (extra) => Object.assign({
+  estado: "terminada",
+  resultado_final: "resuelto",
+  ganador_alias: "Mateo",
+  es_anfitrion: true,
+  solucion: {
+    sospechoso: { id: "mateo", nombre: "Mateo, el escobero" },
+    lugar: { id: "parador", nombre: "Parador de Jarandilla" },
+    objeto: { id: "baul-imperial", nombre: "Baúl imperial" },
+  },
+  jugada: {},
+  movimiento: {},
+  jugadores: [],
+  orden: [],
+  mis_cartas: [],
+  investigacion: [],
+}, extra);
+
+ok(
+  htmlSala.includes('id="modal-victoria"') &&
+    htmlSala.includes('id="victoria-cartas"') &&
+    htmlSala.includes('id="btn-jugar-de-nuevo"') &&
+    htmlSala.includes('id="btn-victoria-investigacion"') &&
+    htmlSala.includes('id="victoria-titulo"') &&
+    htmlSala.includes('id="victoria-subtitulo"') &&
+    htmlSala.includes("EL MEDALLÓN HA SIDO ENCONTRADO"),
+  "el popup de victoria existe con su titulo, sus tres cartas y sus dos acciones"
+);
+ok(
+  htmlSala.includes('class="modal-caja modal-resolucion-fallida-caja modal-victoria-caja"'),
+  "el popup de victoria reutiliza la caja y las tarjetas de 8B.34"
+);
+ok(
+  css.includes(".resolucion-fallida-cartas") && css.includes(".resolucion-fallida-acciones"),
+  "las tres cartas y la fila de acciones usan los estilos ya validados"
+);
+ok(!fuente.includes("location.reload"), "JUGAR DE NUEVO no usa location.reload");
+
+// B/C/D: el popup se abre con el ganador correcto y las TRES cartas reales.
+const presentarVictoria = sandbox.presentarVictoria;
+presentarVictoria(salaFinal());
+const cartasVictoria = $("victoria-cartas").children;
+ok($("modal-victoria").hidden === false, "la partida terminada abre el popup final");
+ok(
+  $("victoria-titulo").textContent === "MISTERIO RESUELTO" &&
+    $("victoria-subtitulo").textContent === "Mateo HA RESUELTO EL MISTERIO",
+  "el popup nombra al ganador correcto"
+);
+ok(cartasVictoria.length === 3, `el popup muestra las 3 cartas (hay ${cartasVictoria.length})`);
+const cartasVictora = cartasVictoria.map((c) => c.getAttribute("aria-label"));
+ok(
+  cartasVictora.length === 3,
+  "cada carta del final es un nodo identificado"
+);
+ok(
+  cartasVictora.join(" | ") === "Mateo, el escobero | Parador de Jarandilla | Baúl imperial",
+  `las tres cartas son las de la solucion real (${cartasVictora.join(" | ")})`
+);
+ok(
+  cartasVictoria.every((c) => String(c.className).includes("carta-confirmacion-resolver")) &&
+    cartasVictoria.every((c) => c.children.some((h) => h.tag === "img" && h.src)),
+  "las tres cartas usan el render canonico con su recurso"
+);
+ok($("btn-jugar-de-nuevo").disabled === false, "el anfitrion puede pedir la revancha");
+
+// Sin ganador (partida sin resolver) el popup tambien aparece, sin inventar uno.
+presentarVictoria(salaFinal({ resultado_final: "sin_resolver", ganador_alias: null }));
+ok(
+  $("victoria-titulo").textContent === "EL MISTERIO QUEDA SIN RESOLVER" &&
+    $("victoria-subtitulo").textContent === "NINGÚN INVESTIGADOR RESOLVIÓ EL MISTERIO" &&
+    $("victoria-cartas").children.length === 3,
+  "el final sin ganador se presenta sin inventar un ganador"
+);
+
+// Authority: quien no es anfitrion ve el boton pero no puede usarlo.
+presentarVictoria(salaFinal({ es_anfitrion: false }));
+ok(
+  $("btn-jugar-de-nuevo").disabled === true &&
+    String($("btn-jugar-de-nuevo").title).includes("anfitrión"),
+  "sin autoridad de anfitrion el boton de revancha queda deshabilitado"
+);
+
+// E: INVESTIGACION cierra el popup y abre la hoja; el panel conserva el resumen.
+presentarVictoria(salaFinal());
+enviados.length = 0;
+$("btn-victoria-investigacion").click();
+ok(
+  $("modal-victoria").hidden === true && $("modal-hoja").hidden === false,
+  "INVESTIGACION cierra el popup y abre la hoja final"
+);
+ok(
+  sandbox.hayFinalDeVictoria(salaFinal()) === false,
+  "tras cerrar el popup el panel puede mostrar su resumen del final"
+);
+ok(enviados.length === 0, "INVESTIGACION no pide nada al servidor");
+
+// E: una recarga (cliente nuevo, mismo estado) reconstruye el popup.
+vm.runInContext("victoriaDescartada = false", sandbox);
+presentarVictoria(salaFinal());
+ok($("modal-victoria").hidden === false, "recargar con la partida terminada reconstruye el popup");
+
+// JUGAR DE NUEVO: pide la revancha al servidor y no recarga la pagina.
+enviados.length = 0;
+$("btn-jugar-de-nuevo").click();
+ok(
+  enviados.length === 1 && enviados[0].accion === "volver_al_lobby",
+  "JUGAR DE NUEVO pide la revancha al servidor"
+);
+
+// El lobby recibido cierra el popup y lo deja disponible para el proximo final.
+presentarVictoria(salaFinal({ estado: "esperando", resultado_final: null, solucion: undefined }));
+ok(
+  $("modal-victoria").hidden === true &&
+    sandbox.hayFinalDeVictoria(salaFinal()) === true,
+  "al volver al lobby el popup se cierra y queda disponible para el siguiente final"
+);
 
 if (fallos > 0) {
   console.log(`${fallos} FALLO(S)`);

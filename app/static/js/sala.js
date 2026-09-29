@@ -52,6 +52,13 @@ const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
 const confResolverCartas = document.getElementById("conf-resolver-cartas");
 const modalResolucionFallida = document.getElementById("modal-resolucion-fallida");
 const resolucionFallidaCartas = document.getElementById("resolucion-fallida-cartas");
+const modalVictoria = document.getElementById("modal-victoria");
+const victoriaTitulo = document.getElementById("victoria-titulo");
+const victoriaSubtitulo = document.getElementById("victoria-subtitulo");
+const victoriaCartas = document.getElementById("victoria-cartas");
+const victoriaNota = document.getElementById("victoria-nota");
+const btnJugarDeNuevo = document.getElementById("btn-jugar-de-nuevo");
+const btnVictoriaInvestigacion = document.getElementById("btn-victoria-investigacion");
 const btnSeguirRefutando = document.getElementById("btn-seguir-refutando");
 const btnRefutarAutomatico = document.getElementById("btn-refutar-automatico");
 const modalPresentacionSospecha = document.getElementById("modal-presentacion-sospecha");
@@ -73,6 +80,11 @@ let inactividadAvisoVigente = null;
 // 8B.33B · Último estado de partida visto por ESTE cliente. Sirve para
 // distinguir la transición real al final de un simple repintado.
 let estadoPartidaVisto = null;
+// 8B.35 · Si este cliente ya cerró el popup del final. Se reinicia al salir
+// del estado terminada (revancha o salida), de modo que una recarga con la
+// partida ya terminada vuelve a reconstruir el final, y una revancha muestra
+// el popup de su propio final.
+let victoriaDescartada = false;
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
 const resumenSala = document.getElementById("resumen-sala");
@@ -240,6 +252,7 @@ function presentarEstadoPrivado(sala) {
     ultimaSala = sala;
     pintarSala(sala);
     presentarResolucionFallida(sala);
+    presentarVictoria(sala);
     return;
   }
   if (movimientoId !== null && ultimoMovimientoId !== null && movimientoId < ultimoMovimientoId) {
@@ -255,6 +268,7 @@ function presentarEstadoPrivado(sala) {
     ultimaSala = sala;
     pintarSala(sala);
     presentarResolucionFallida(sala);
+    presentarVictoria(sala);
     return;
   }
   if (esMovimientoNuevo && movimiento && movimiento.personaje_id) {
@@ -263,6 +277,7 @@ function presentarEstadoPrivado(sala) {
   ultimaSala = sala;
   pintarSala(sala);
   presentarResolucionFallida(sala);
+  presentarVictoria(sala);
   if (esMovimientoNuevo && movimiento && movimiento.tipo === "pasadizo") {
     abrirLlegadaContextual(movimiento);
   }
@@ -1264,11 +1279,19 @@ function pintarFinal(sala) {
       }
     } else if (sala.estado === "iniciada") {
       window.AudioFondo.iniciar();
+    } else if (sala.estado === "esperando" && anterior === "terminada"
+      && typeof window.AudioFondo.reanudarAmbiental === "function") {
+      // 8B.35: la revancha devuelve la sala al lobby y la musica ambiental
+      // vuelve a acompanar, sin reiniciar su propia arquitectura.
+      window.AudioFondo.reanudarAmbiental();
     }
   }
-  finalPartida.hidden = sala.estado !== "terminada";
+  finalPartida.hidden = sala.estado !== "terminada" || hayFinalDeVictoria(sala);
   finalPartida.innerHTML = "";
-  if (sala.estado !== "terminada" || !sala.solucion) return;
+  // El popup final es la presentacion protagonista: mientras esta abierto, el
+  // panel derecho NO duplica la misma informacion. Este bloque sigue siendo el
+  // resumen que queda cuando el jugador cierra el popup.
+  if (sala.estado !== "terminada" || !sala.solucion || hayFinalDeVictoria(sala)) return;
   const titulo = document.createElement("h2");
   titulo.textContent = sala.resultado_final === "resuelto"
     ? "🏆 MISTERIO RESUELTO" : "🔒 EL MISTERIO QUEDA SIN RESOLVER";
@@ -1283,6 +1306,67 @@ function pintarFinal(sala) {
     linea.textContent = `${TITULOS[categoria]}: ${sala.solucion[categoria].nombre}`;
     finalPartida.appendChild(linea);
   });
+}
+
+function hayFinalDeVictoria(sala) {
+  // Unica fuente de verdad de "el popup del final debe verse ahora". La
+  // comparten el popup y el bloque resumen del panel, para que nunca se
+  // muestren los dos a la vez.
+  return Boolean(
+    sala && sala.estado === "terminada" && sala.solucion && !victoriaDescartada
+  );
+}
+
+function cerrarVictoria() {
+  if (modalVictoria) modalVictoria.hidden = true;
+}
+
+// 8B.35 · FINAL DE VICTORIA. Protagonista de la partida terminada y visible
+// para TODOS los humanos conectados: la solucion ya es publica y cada
+// cliente la recibe en su propio estado privado. Reutiliza el render de tres
+// cartas y el aspecto del popup de 8B.34; la revancha es canonica del
+// servidor, aqui solo se pide.
+function presentarVictoria(sala) {
+  if (!sala || sala.estado !== "terminada") {
+    // Revancha o salida del final: el popup se cierra y vuelve a estar
+    // disponible para el siguiente final de esta misma sala.
+    victoriaDescartada = false;
+    cerrarVictoria();
+    return;
+  }
+  if (victoriaDescartada || !sala.solucion) {
+    cerrarVictoria();
+    return;
+  }
+  // Las tres cartas reales de la solucion, con su recurso canonico. La
+  // solucion publica trae id y nombre; la categoria la fija la propia funcion.
+  const cartas = [
+    Object.assign({ categoria: "sospechoso" }, sala.solucion.sospechoso),
+    Object.assign({ categoria: "lugar" }, sala.solucion.lugar),
+    Object.assign({ categoria: "objeto" }, sala.solucion.objeto),
+  ];
+  pintarCartasResolucion(victoriaCartas, cartas, {
+    sospechoso: sala.solucion.sospechoso.id,
+    lugar: sala.solucion.lugar.id,
+    objeto: sala.solucion.objeto.id,
+  });
+  victoriaTitulo.textContent = sala.resultado_final === "resuelto"
+    ? "MISTERIO RESUELTO" : "EL MISTERIO QUEDA SIN RESOLVER";
+  victoriaSubtitulo.textContent = sala.ganador_alias
+    ? `${sala.ganador_alias} HA RESUELTO EL MISTERIO`
+    : "NINGÚN INVESTIGADOR RESOLVIÓ EL MISTERIO";
+  victoriaNota.textContent = "Tu investigación y tus cartas siguen disponibles "
+    + "hasta que empiece la siguiente partida.";
+  // Misma autoridad que COMENZAR PARTIDA: el botón se ve para todos, pero solo
+  // el anfitrión puede pedir la revancha (el servidor lo exige igual).
+  if (btnJugarDeNuevo) {
+    btnJugarDeNuevo.disabled = !sala.es_anfitrion;
+    btnJugarDeNuevo.title = sala.es_anfitrion
+      ? "Volver al lobby de esta sala para una revancha"
+      : "Solo el anfitrión puede empezar una revancha";
+  }
+  modalVictoria.hidden = false;
+  if (btnJugarDeNuevo.focus) btnJugarDeNuevo.focus();
 }
 
 function pintarCartas(misCartas) {
@@ -1625,6 +1709,23 @@ btnEnviarResolver.addEventListener("click", () => {
 function elegirModoRefutacion(automatica) {
   ws.send(JSON.stringify({ accion: "elegir_modo_refutacion", automatica }));
   modalResolucionFallida.hidden = true;
+}
+
+// 8B.35 · Las dos acciones del final. JUGAR DE NUEVO pide la revancha al
+// servidor, que es quien decide; INVESTIGACION deja el popup y abre la hoja,
+// y el resumen del final sigue disponible en el panel derecho.
+if (btnJugarDeNuevo) {
+  btnJugarDeNuevo.addEventListener("click", () => {
+    if (modalVictoria.hidden) return;
+    ws.send(JSON.stringify({ accion: "volver_al_lobby" }));
+  });
+}
+if (btnVictoriaInvestigacion) {
+  btnVictoriaInvestigacion.addEventListener("click", () => {
+    victoriaDescartada = true;
+    cerrarVictoria();
+    abrirHoja();
+  });
 }
 
 btnSeguirRefutando.addEventListener("click", () => elegirModoRefutacion(false));

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sala {{ codigo }} — Cluedo Jarandilla</title>
+  <title>Sala {{ codigo }} — El Misterio del Medallón</title>
   <link rel="stylesheet" href="/static/css/estilos.css?v=8b31k" />
 </head>
 <body>
@@ -103,6 +103,19 @@
           <div class="resolucion-fallida-acciones">
             <button id="btn-seguir-refutando" class="medallon medallon-secundario medallon-compacto" type="button">SEGUIR REFUTANDO</button>
             <button id="btn-refutar-automatico" class="medallon medallon-primario medallon-compacto" type="button">REFUTAR EN AUTOMÁTICO</button>
+          </div>
+        </div>
+      </div>
+      <div id="modal-victoria" class="modal" hidden>
+        <div class="modal-caja modal-resolucion-fallida-caja modal-victoria-caja" role="dialog" aria-modal="true" aria-labelledby="victoria-titulo">
+          <h2 id="victoria-titulo">MISTERIO RESUELTO</h2>
+          <p id="victoria-subtitulo" class="resolucion-fallida-etiqueta"></p>
+          <div id="victoria-cartas" class="conf-resolver-cartas resolucion-fallida-cartas" role="group" aria-label="La solución del misterio"></div>
+          <h3>EL MEDALLÓN HA SIDO ENCONTRADO</h3>
+          <p id="victoria-nota" class="nota-privada"></p>
+          <div class="resolucion-fallida-acciones">
+            <button id="btn-jugar-de-nuevo" class="medallon medallon-primario medallon-compacto" type="button">JUGAR DE NUEVO</button>
+            <button id="btn-victoria-investigacion" class="medallon medallon-secundario medallon-compacto" type="button">INVESTIGACIÓN</button>
           </div>
         </div>
       </div>
