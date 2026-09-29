@@ -228,6 +228,11 @@ class Sala:
             "personaje_id": personaje_id,
             "tipo": tipo,
             "activo_investigacion": True,
+            # Preferencia privada del humano eliminado. No cambia su tipo,
+            # identidad ni participacion en la busqueda de refutadores.
+            "refutacion_automatica": False,
+            "decision_refutacion_pendiente": False,
+            "resolucion_fallida": None,
         }
         self.jugadores.append(jugador)
         self.descartes.setdefault(jugador["id"], set())
@@ -585,11 +590,15 @@ class Sala:
             }
             return True
         jugador["activo_investigacion"] = False
+        if jugador["tipo"] == TIPO_HUMANO:
+            jugador["decision_refutacion_pendiente"] = True
+            jugador["resolucion_fallida"] = dict(acusacion)
         self.ultima_jugada = {
             "tipo": "acusacion",
             "investigador_id": jugador_id,
             "investigador_alias": jugador["alias"],
             "resultado": "acusacion_incorrecta",
+            "acusacion": dict(acusacion),
         }
         if not self.investigadores_activos():
             self.estado = ESTADO_TERMINADA
@@ -833,6 +842,15 @@ class Sala:
             return None
         return self._completar_refutacion_automatica(rng=rng)
 
+    def elegir_modo_refutacion(self, jugador_id: str, automatica: bool) -> None:
+        """Guarda la decision privada del humano tras una acusacion fallida."""
+        jugador = self._exigir_humano(jugador_id)
+        if jugador["activo_investigacion"]:
+            raise ValueError("Solo un investigador eliminado puede elegir este modo.")
+        jugador["refutacion_automatica"] = bool(automatica)
+        jugador["decision_refutacion_pendiente"] = False
+        jugador["resolucion_fallida"] = None
+
     def formular_sospecha_humano(
         self,
         jugador_id: str,
@@ -1072,13 +1090,12 @@ class Sala:
         if movimiento_pnj:
             self.sospecha_pendiente["movimiento_pnj"] = dict(movimiento_pnj)
         refutador = self.jugador_por_id(refutador_id)
-        if refutador["tipo"] == TIPO_PNJ:
-            elegida = (
-                coincidencias[0]
-                if len(coincidencias) == 1
-                else (rng or random).choice(coincidencias)
-            )
-            self._resolver_refutacion(elegida)
+        if refutador["tipo"] == TIPO_PNJ or refutador.get("refutacion_automatica", False):
+            # PNJ y humano con preferencia automatica comparten exactamente
+            # la ruta canónica de CONTINUAR/timeout: valida las coincidencias,
+            # elige una sola y resuelve con la misma transicion privada.
+            self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
+            self._completar_refutacion_automatica(rng=rng)
         else:
             self.estado_jugada = JUGADA_ESPERANDO_REFUTADOR
             # Un único plazo canónico para todo humano. Vive en la sala y
@@ -1428,6 +1445,16 @@ class Sala:
                 privada["timeout_refutacion_seg"] = (
                     TIMEOUT_REFUTACION_HUMANO_SEGUNDOS
                 )
+        jugador = self.jugador_por_id(jugador_id)
+        if (
+            jugador
+            and jugador.get("decision_refutacion_pendiente")
+            and jugador.get("resolucion_fallida")
+        ):
+            privada["resolucion_fallida"] = [
+                dict(CARTA_POR_ID[jugador["resolucion_fallida"][f"{categoria}_id"]])
+                for categoria in ("sospechoso", "lugar", "objeto")
+            ]
         ultima = self.ultima_jugada
         if ultima and ultima.get("carta_id") and ultima["investigador_id"] == jugador_id:
             privada["carta_mostrada"] = dict(CARTA_POR_ID[ultima["carta_id"]])
@@ -1525,6 +1552,9 @@ class Sala:
             "es_mi_turno": bool(en_turno and en_turno["id"] == jugador_id),
             "activo_investigacion": bool(
                 jugador and jugador["activo_investigacion"]
+            ),
+            "refutacion_automatica": bool(
+                jugador and jugador.get("refutacion_automatica", False)
             ),
             "jugadores": publico["jugadores"],
             "orden": publico["orden"],

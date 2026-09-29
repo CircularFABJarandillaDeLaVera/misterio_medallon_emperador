@@ -158,10 +158,11 @@ ok(
 );
 ok(
   htmlSala.includes('id="modal-resolucion-fallida"') &&
-    htmlSala.includes("TU RESOLUCIÓN HA SIDO REFUTADA") &&
+    htmlSala.includes("TU SOLUCIÓN NO ES CORRECTA") &&
     htmlSala.includes("HAS SIDO ELIMINADO COMO INVESTIGADOR") &&
     htmlSala.includes("Conservas tus cartas") &&
-    htmlSala.includes("hasta el final de la partida") &&
+    htmlSala.includes('id="btn-seguir-refutando"') &&
+    htmlSala.includes('id="btn-refutar-automatico"') &&
     !htmlSala.includes("Has perdido la partida"),
   "el popup explica la eliminación como investigador sin expulsar al jugador"
 );
@@ -279,7 +280,15 @@ ok(
 $('modal-resolucion-fallida').hidden = true;
 sandbox.presentarResolucionFallida({
   activo_investigacion: false,
-  jugada: { tipo: "acusacion", resultado: "acusacion_incorrecta" },
+  jugada: {
+    tipo: "acusacion",
+    resultado: "acusacion_incorrecta",
+    resolucion_fallida: [
+      { id: "vera", nombre: "Vera", categoria: "sospechoso" },
+      { id: "parador", nombre: "Parador", categoria: "lugar" },
+      { id: "baul-imperial", nombre: "Baúl Imperial", categoria: "objeto" },
+    ],
+  },
 });
 ok(
   $("modal-resolucion-fallida").hidden === false &&
@@ -296,10 +305,28 @@ ok(
     !$("resolucion-fallida-cartas").textContent.includes("✗"),
   "el popup no identifica aciertos ni fallos parciales"
 );
-$("btn-continuar-resolucion-fallida").click();
+$("btn-seguir-refutando").click();
 ok(
-  $("modal-resolucion-fallida").hidden === true,
-  "CONTINUAR solo cierra el popup y devuelve al tablero"
+  $("modal-resolucion-fallida").hidden === true &&
+    enviados.some((m) => m.accion === "elegir_modo_refutacion" && m.automatica === false),
+  "SEGUIR REFUTANDO guarda modo manual y cierra el popup"
+);
+
+sandbox.presentarResolucionFallida({
+  activo_investigacion: false,
+  jugada: {
+    resolucion_fallida: [
+      { id: "vera", nombre: "Vera", categoria: "sospechoso" },
+      { id: "parador", nombre: "Parador", categoria: "lugar" },
+      { id: "baul-imperial", nombre: "Baúl Imperial", categoria: "objeto" },
+    ],
+  },
+});
+$("btn-refutar-automatico").click();
+ok(
+  $("modal-resolucion-fallida").hidden === true &&
+    enviados.some((m) => m.accion === "elegir_modo_refutacion" && m.automatica === true),
+  "REFUTAR EN AUTOMÁTICO guarda la preferencia y cierra el popup"
 );
 
 // Sin una acusación pendiente local (recarga, rival o PNJ), el mismo
@@ -310,7 +337,7 @@ sandbox.presentarResolucionFallida({
 });
 ok(
   $("modal-resolucion-fallida").hidden === true,
-  "recarga, rival o PNJ no abren el popup local"
+  "rival o PNJ no abren el popup sin estado privado"
 );
 
 // 3. CANCELAR no envía nada y conserva la selección.

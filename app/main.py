@@ -652,6 +652,17 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 programar_turno_pnj(sala.codigo)
                 # 8B.31C: la refutación abre el resultado público.
                 programar_presentacion_sospecha(sala.codigo)
+            elif accion == "elegir_modo_refutacion":
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        sala.elegir_modo_refutacion(
+                            jugador_id, datos.get("automatica") is True
+                        )
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                # Preferencia estrictamente privada: no se difunde al resto.
+                await _enviar_privado(sala, jugador_id, ws)
             elif accion == "seguir_esperando":
                 # 8B.32: nuevo periodo canónico de 60 s para la MISMA acción
                 # bloqueante. El watchdog anterior dormía sobre el plazo

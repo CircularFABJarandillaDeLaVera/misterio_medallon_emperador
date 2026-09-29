@@ -1,4 +1,5 @@
 import copy
+import random
 
 import pytest
 
@@ -126,6 +127,74 @@ def test_humano_que_falla_conserva_eleccion_privada_si_puede_refutar_varias():
     assert "carta_mostrada" not in sala.estado_privado(c["id"])["jugada"]
     assert "carta_mostrada" not in sala.estado_publico()["jugada"]
     assert "opciones_refutacion" not in sala.estado_publico()["jugada"]
+
+
+def test_fallo_ofrece_decision_privada_y_modo_manual_conserva_selector():
+    sala, a, b, _ = sala_controlada()
+    identidad = a["id"]
+    mano = copy.deepcopy(sala.manos[a["id"]])
+
+    assert acusar(sala, a, sospechoso="bruno") is False
+    sala.ultima_jugada = None  # otra jugada no borra la decisión pendiente
+    privada = sala.estado_privado(a["id"])
+    assert len(privada["jugada"]["resolucion_fallida"]) == 3
+    assert "resolucion_fallida" not in sala.estado_privado(b["id"])["jugada"]
+
+    sala.elegir_modo_refutacion(a["id"], False)
+    assert a["id"] == identidad
+    assert a["tipo"] == "humano"
+    assert sala.manos[a["id"]] == mano
+    assert not sala.estado_privado(a["id"])["refutacion_automatica"]
+    assert "resolucion_fallida" not in sala.estado_privado(a["id"])["jugada"]
+
+    sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+    assert [
+        carta["id"]
+        for carta in sala.estado_privado(a["id"])["jugada"]["opciones_refutacion"]
+    ] == ["eulalia"]
+
+
+def test_auto_refutacion_persistida_usa_una_valida_sin_selector_y_es_privada():
+    sala, a, b, c = sala_controlada()
+    sala.manos[a["id"]] = [CARTA_POR_ID["eulalia"], CARTA_POR_ID["picota"]]
+    identidad = a["id"]
+
+    assert acusar(sala, a, sospechoso="bruno") is False
+    sala.elegir_modo_refutacion(a["id"], True)
+
+    # El estado canónico que recibe una reconexión conserva la preferencia.
+    privada_recargada = sala.estado_privado(a["id"])
+    assert privada_recargada["refutacion_automatica"] is True
+    assert a["tipo"] == "humano"
+    assert a["id"] == identidad
+    assert "refutacion_automatica" not in repr(sala.estado_publico())
+
+    sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"), rng=random.Random(7))
+
+    assert sala.ultima_jugada["carta_id"] in {"eulalia", "picota"}
+    assert "opciones_refutacion" not in sala.estado_privado(a["id"])["jugada"]
+    assert sala.refutacion_deadline is None
+    assert sala.estado_privado(b["id"])["jugada"]["carta_mostrada"]["id"] in {
+        "eulalia", "picota"
+    }
+    assert "carta_mostrada" not in sala.estado_privado(c["id"])["jugada"]
+    publico = sala.estado_publico()["jugada"]
+    assert publico["resultado"] == "refutada"
+    assert "carta_mostrada" not in publico and "opciones_refutacion" not in publico
+
+
+def test_auto_refutacion_con_una_coincidencia_usa_esa_carta():
+    sala, a, b, _ = sala_controlada()
+    assert acusar(sala, a, sospechoso="bruno") is False
+    sala.elegir_modo_refutacion(a["id"], True)
+
+    sala.formular_sospecha(b["id"], "eulalia", "picota", "baul-imperial")
+    sala.actualizar_presentacion_sospecha(ahora=float("inf"))
+
+    assert sala.ultima_jugada["carta_id"] == "eulalia"
+    assert sala.refutacion_deadline is None
 
 
 def test_ultimo_no_gana_automaticamente_y_si_falla_queda_sin_resolver():

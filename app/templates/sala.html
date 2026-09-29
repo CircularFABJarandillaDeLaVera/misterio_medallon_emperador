@@ -94,13 +94,16 @@
       </div>
       <div id="modal-resolucion-fallida" class="modal" hidden>
         <div class="modal-caja modal-resolucion-fallida-caja" role="dialog" aria-modal="true" aria-label="Resolución refutada">
-          <h2>TU RESOLUCIÓN HA SIDO REFUTADA</h2>
+          <h2>TU SOLUCIÓN NO ES CORRECTA</h2>
           <p class="resolucion-fallida-etiqueta">ESTA ERA TU RESOLUCIÓN</p>
           <div id="resolucion-fallida-cartas" class="conf-resolver-cartas resolucion-fallida-cartas" role="group" aria-label="Tu resolución refutada"></div>
           <h3>HAS SIDO ELIMINADO COMO INVESTIGADOR</h3>
           <p>Ya no puedes moverte, formular sospechas ni resolver el misterio.</p>
-          <p>Conservas tus cartas y podrás seguir refutando las sospechas de los demás hasta el final de la partida.</p>
-          <button id="btn-continuar-resolucion-fallida" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
+          <p>Conservas tus cartas y puedes seguir refutando las sospechas de los demás.</p>
+          <div class="resolucion-fallida-acciones">
+            <button id="btn-seguir-refutando" class="medallon medallon-secundario medallon-compacto" type="button">SEGUIR REFUTANDO</button>
+            <button id="btn-refutar-automatico" class="medallon medallon-primario medallon-compacto" type="button">REFUTAR EN AUTOMÁTICO</button>
+          </div>
         </div>
       </div>
       <div id="modal-presentacion-sospecha" class="modal" hidden>

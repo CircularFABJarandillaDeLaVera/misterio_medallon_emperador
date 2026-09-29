@@ -52,7 +52,8 @@ const btnEnviarResolver = document.getElementById("btn-enviar-resolver");
 const confResolverCartas = document.getElementById("conf-resolver-cartas");
 const modalResolucionFallida = document.getElementById("modal-resolucion-fallida");
 const resolucionFallidaCartas = document.getElementById("resolucion-fallida-cartas");
-const btnContinuarResolucionFallida = document.getElementById("btn-continuar-resolucion-fallida");
+const btnSeguirRefutando = document.getElementById("btn-seguir-refutando");
+const btnRefutarAutomatico = document.getElementById("btn-refutar-automatico");
 const modalPresentacionSospecha = document.getElementById("modal-presentacion-sospecha");
 const presentacionSospechaTitulo = document.getElementById("presentacion-sospecha-titulo");
 const presentacionSospechaCartas = document.getElementById("presentacion-sospecha-cartas");
@@ -1525,23 +1526,21 @@ function pintarConfirmacionResolver(cartas) {
 }
 
 function presentarResolucionFallida(sala) {
-  if (!resolucionPendienteLocal) return;
   const jugada = (sala && sala.jugada) || {};
-  if (jugada.tipo !== "acusacion" && jugada.tipo !== "final") return;
-  const pendiente = resolucionPendienteLocal;
-  resolucionPendienteLocal = null;
-  const falloConfirmado = jugada.resultado === "acusacion_incorrecta" ||
-    (jugada.tipo === "final" && jugada.resultado === "sin_resolver");
-  if (!falloConfirmado || sala.activo_investigacion !== false) {
+  const cartas = Array.isArray(jugada.resolucion_fallida)
+    ? jugada.resolucion_fallida : [];
+  if (cartas.length !== 3 || sala.activo_investigacion !== false) {
     return;
   }
+  const seleccion = Object.fromEntries(cartas.map((carta) => [carta.categoria, carta.id]));
   pintarCartasResolucion(
     resolucionFallidaCartas,
-    pendiente.cartas,
-    pendiente.seleccion
+    cartas,
+    seleccion
   );
+  resolucionPendienteLocal = null;
   modalResolucionFallida.hidden = false;
-  if (btnContinuarResolucionFallida.focus) btnContinuarResolucionFallida.focus();
+  if (btnSeguirRefutando.focus) btnSeguirRefutando.focus();
 }
 
 function pintarGrupoResolver(contenedor, cartas, categoria, clave) {
@@ -1623,9 +1622,13 @@ btnEnviarResolver.addEventListener("click", () => {
   modalConfirmarResolver.hidden = true;
 });
 
-btnContinuarResolucionFallida.addEventListener("click", () => {
+function elegirModoRefutacion(automatica) {
+  ws.send(JSON.stringify({ accion: "elegir_modo_refutacion", automatica }));
   modalResolucionFallida.hidden = true;
-});
+}
+
+btnSeguirRefutando.addEventListener("click", () => elegirModoRefutacion(false));
+btnRefutarAutomatico.addEventListener("click", () => elegirModoRefutacion(true));
 
 btnContinuarPresentacionSospecha.addEventListener("click", () => {
   if (!presentacionSospechaVisibleId || btnContinuarPresentacionSospecha.disabled) return;

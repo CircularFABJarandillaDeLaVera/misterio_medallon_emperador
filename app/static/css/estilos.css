@@ -1070,6 +1070,20 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 1px 0 0;
 }
 
+.resolucion-fallida-acciones {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.resolucion-fallida-acciones > .medallon {
+  flex: 1 1 0;
+  width: min(100%, 290px);
+  max-width: 290px;
+  margin: 1px 0 0;
+}
+
 .modal-presentacion-sospecha-caja {
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
@@ -1372,6 +1386,16 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   .modal-resolucion-fallida-caja > .medallon {
     min-height: 34px;
     padding-block: 5px;
+  }
+
+  .resolucion-fallida-acciones {
+    gap: 6px;
+  }
+
+  .resolucion-fallida-acciones > .medallon {
+    min-height: 34px;
+    padding: 5px 8px;
+    font-size: clamp(0.62rem, 1.7vw, 0.76rem);
   }
 }
 
