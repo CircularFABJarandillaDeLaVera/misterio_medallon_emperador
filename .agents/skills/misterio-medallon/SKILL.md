@@ -59,31 +59,56 @@ El código + tests mandan. Señalar la discrepancia.
 
 Detalle completo: código y tests. Esta lista no es exhaustiva.
 
+### Comentarios y docstrings
+
+Escribirlos en español natural y técnicamente preciso. Explicar decisiones,
+motivos, invariantes y casos especiales, con prioridad en lógica compleja
+(seguridad, estado de partida, temporizadores, WebSockets, PNJ y
+guardado/recuperación). Evitar comentarios obvios, redundantes o añadidos por
+cuota. Actualizarlos cuando cambie el comportamiento y documentar para quien
+mantenga el proyecto sin ayuda de IA.
+
 ## 3. Cambios visuales (procedimiento)
 
 1. Localizar el componente existente (template + JS + CSS).
 2. Buscar estilos/helpers reutilizables (§0).
 3. Comprobar qué pantallas heredan ese CSS (un cambio compartido puede
    afectar a otras: verificar alcance antes de tocar).
-4. Preservar contratos JS/backend (IDs, endpoints, payloads).
+4. Preservar el comportamiento y los contratos existentes: permisos,
+   identificadores, eventos, estados, accesibilidad, endpoints y payloads.
+   Reutilizar controles y listeners; no duplicarlos ni alterar motor,
+   WebSockets o persistencia en una microfase visual.
 5. Hacer el cambio mínimo.
 6. Validación visual humana antes del checkpoint. Un test verde no sustituye
    ver la pantalla cuando el cambio es visual.
 
+La barra inferior vigente del tablero agrupa ayuda, música, configuración
+(solo anfitrión) y pantalla completa. Se muestra únicamente en el tablero
+principal y se oculta mientras haya una ventana emergente abierta. Conserva
+esta conducta y el estado/funcionamiento de los controles salvo que una
+microfase autorice expresamente cambiarla; su presentación puede evolucionar.
+
 ## 4. Horizontal-first en vistas de juego
 
 - Referencia canónica: desktop/tablet apaisado. Aprovechar el ancho antes
-  de crecer en alto; evitar scroll del documento en el viewport de juego.
+  de crecer en alto; evitar scroll innecesario cuando el contenido cabe de
+  forma legible, pero permitir el desplazamiento necesario si el viewport es
+  demasiado pequeño.
 - En vistas inmersivas/protagonistas resolver la geometría de fuera hacia
   dentro: **viewport → contenedor limitado → controles con su mínimo →
   protagonista ocupando todo el espacio restante**. Aplica a portada, tablero
   y futuro fullscreen: el mismo patrón, con más viewport.
 - El viewport limita al contenedor, nunca el tamaño intrínseco del contenido.
   Usar alturas computables en padres y revisar `min-height: 0` / `min-width: 0`
-  en flex/grid; no compensar con alturas mágicas del protagonista.
-- En desktop/apaisado, evitar scroll del documento sin esconder una geometría
-  incorrecta con `overflow: hidden`. En móvil/vertical se puede reorganizar y
-  admitir scroll natural.
+  en flex/grid; tener en cuenta cabeceras, márgenes y controles, y reservar
+  espacio para estos. No compensar con alturas mágicas del protagonista.
+- Conservar las proporciones del tablero y las imágenes: adaptar su tamaño al
+  espacio disponible sin deformarlos. Si falta espacio para una presentación
+  legible, permitir el scroll necesario; nunca recortar contenido ni esconder
+  el desbordamiento general con `overflow: hidden` para eliminarlo.
+- El tablero debe ocupar el mayor cuadrado que quepa en su zona útil,
+  considerando anchura y altura, y quedar centrado si sobra espacio. No debe
+  invadir controles ni provocar scroll innecesario.
 - Si una medición headless contradice la captura, validar en navegador real.
 - Preferir filas/distribuciones horizontales con ancho suficiente.
 - El responsive puede hacer wrap en viewports estrechos, pero el móvil
@@ -110,10 +135,13 @@ se anota para después.
 ## 7. Git seguro (obligatorio)
 
 - Prohibido `git add .` / `git add -A`. Staging explícito por archivo.
-- Antes de staging: `git status --short`, `git diff --check`, `git diff`.
+- Antes de editar y de staging, inspeccionar `git status --short` y el diff
+  para identificar cambios preexistentes.
 - **Un cambio preexistente que no es de tu tarea no es tuyo**: no tocarlo,
-  no restaurarlo, no borrarlo, no incluirlo (aplica a recursos/carteles del
-  usuario u otros untracked/modificados ajenos).
+  sobrescribirlo, revertirlo, borrarlo ni incluirlo en un commit sin
+  autorización expresa (aplica también a archivos untracked).
+- Antes de staging: `git diff --check` y revisar `git diff`; preparar solo los
+  archivos autorizados.
 - Sin commit/tag hasta validación humana cuando la fase lo exija.
 - Sin push salvo instrucción explícita.
 

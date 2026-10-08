@@ -5,6 +5,10 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const CSS = fs.readFileSync(
+  path.join(__dirname, "..", "app", "static", "css", "estilos.css"),
+  "utf8"
+);
 
 let fallos = 0;
 function ok(condicion, nombre) {
@@ -188,8 +192,32 @@ vm.createContext(sandbox);
     "la plantilla invalida la caché del renderer Canvas animado");
   ok(html.includes('/static/js/sala.js?v=admin6'),
     "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/css/estilos.css?v=admin7'),
+  ok(html.includes('/static/css/estilos.css?v=admin10'),
     "la plantilla invalida la caché de la barra inferior");
+  ok(
+    CSS.includes("grid-template-rows: minmax(0, 1fr) auto") &&
+      CSS.includes("grid-row: 2"),
+    "el registro ocupa una fila explícita y no altera la altura de la fila del tablero"
+  );
+  ok(
+    CSS.includes("max-width: none") &&
+      CSS.includes("width: min(100cqw, 100cqh)") &&
+      CSS.includes("height: min(100cqw, 100cqh)") &&
+      CSS.includes("margin: auto"),
+    "el tablero ocupa el mayor cuadrado entre ancho y alto disponibles y queda centrado"
+  );
+  ok(
+    CSS.includes("body.modo-tablero-activo #zona-juego") &&
+      CSS.includes("row-gap: 0") &&
+      CSS.includes("padding-bottom: 10px"),
+    "en escritorio se aprovecha la fila sin registro y no se reserva bajo el tablero el espacio de la barra lateral"
+  );
+  ok(
+    CSS.includes("min-height: 320px") &&
+      CSS.includes("padding-bottom: 64px") &&
+      !/body\.en-partida\s*\{[^}]*overflow:\s*hidden/s.test(CSS),
+    "se reserva la barra, se conserva un mínimo legible y se permite scroll si falta altura"
+  );
   ok(html.includes('/static/js/audio.js?v=8b33c'),
     "la plantilla invalida la caché del control de música compartido");
   ok(html.includes('/static/js/pantalla_completa.js?v=8b19b'),

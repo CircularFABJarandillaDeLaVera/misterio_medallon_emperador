@@ -46,6 +46,10 @@ body.en-partida .tarjeta {
   padding: 8px 12px 10px;
 }
 
+body.en-partida .tarjeta {
+  padding-bottom: 64px;
+}
+
 /* Cabecera en lobby */
 .cabecera-juego {
   margin-bottom: 8px;
@@ -2516,15 +2520,20 @@ img {
 @media (min-width: 900px) {
   /* Token único: la retícula lateral comparte su ancho. */
   body.en-partida {
-    --columna-derecha: 320px;
+    --columna-derecha: 280px;
   }
 
   #zona-juego {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(260px, var(--columna-derecha, 320px));
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, var(--columna-derecha, 280px));
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 16px;
     align-items: stretch;
     margin: 0;
+  }
+
+  body.modo-tablero-activo #zona-juego {
+    row-gap: 0;
   }
 
   /* Tablero protagonista: el panel derecho ocupa la altura del Canvas
@@ -2542,6 +2551,7 @@ img {
 
   body.modo-tablero-activo #zona-juego > #jugada {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   /* Modo rápido: filas apiladas a ancho completo, sin regresión. */
@@ -3104,13 +3114,11 @@ body:not(.portada) .tarjeta {
    ============================================================ */
 @media (min-width: 900px) {
   body.en-partida {
+    height: 100vh;
     height: 100dvh;
     min-height: 0;
     padding: 8px 12px;
     align-items: stretch;
-    /* Salvaguarda: con la geometría inferior el contenido cabe
-       (verificado); nunca se oculta contenido que desborde. */
-    overflow: hidden;
   }
 
   body.en-partida .contenedor {
@@ -3125,6 +3133,7 @@ body:not(.portada) .tarjeta {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    padding-bottom: 10px;
   }
 
   body.en-partida #partida {
@@ -3136,7 +3145,7 @@ body:not(.portada) .tarjeta {
 
   body.en-partida #zona-juego {
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: 320px;
   }
 
   body.en-partida .tablero-visual {
@@ -3167,13 +3176,14 @@ body:not(.portada) .tarjeta {
    ============================================================ */
 @media (orientation: landscape) and (max-height: 560px) {
   body.en-partida {
-    /* Caja cerrada del viewport, con padding landscape y sin scroll. */
+    /* La vista se adapta a la altura, pero el contenido desbordado sigue
+       accesible mediante scroll si el viewport no permite un tablero legible. */
     display: block;
+    height: 100vh;
     height: 100dvh;
     min-height: 0;
     padding: 4px calc(6px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom))
       calc(6px + env(safe-area-inset-left));
-    overflow: hidden;
   }
 
   body.en-partida .contenedor {
@@ -3187,7 +3197,7 @@ body:not(.portada) .tarjeta {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: 4px 6px;
+    padding: 4px 6px calc(60px + env(safe-area-inset-bottom));
   }
 
   body.en-partida #partida {
@@ -3203,11 +3213,11 @@ body:not(.portada) .tarjeta {
      dependencia circular del ancho. */
   body.en-partida #zona-juego {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(240px, var(--columna-derecha, 280px));
+    grid-template-rows: minmax(320px, 1fr) auto;
     gap: 8px;
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: 320px;
     min-width: 0;
     container-type: size;
   }
@@ -3225,6 +3235,7 @@ body:not(.portada) .tarjeta {
   /* Registro de la última jugada: a ancho completo, sin robrows. */
   body.en-partida #zona-juego > #jugada {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   body.en-partida .tablero-visual {
@@ -3233,18 +3244,16 @@ body:not(.portada) .tarjeta {
     min-height: 0;
     min-width: 0;
     display: flex;
-    /* A ≥900px de ancho también aplica el bloque de escritorio, que
-       deja container-type:size; con contain:size la pista `auto` no
-       puede tomar el tamaño intrínseco del tablero (colapsa a 0). */
-    container-type: normal;
+    /* La pista izquierda ya tiene ancho explícito; el cuadrado puede
+       medirse dentro de ella sin influir en el cálculo de la cuadrícula. */
+    container-type: size;
   }
 
-  /* Cuadrado exacto desde la altura disponible; el ancho sale de la
-     proporción. Sin container query anidado (circular con pista auto). */
+  /* El cuadrado se limita por ambos ejes de su propia columna. */
   @supports (width: 1cqh) {
     body.en-partida .tablero-canvas-contenedor {
-      width: 100cqh;
-      height: 100cqh;
+      width: min(100cqw, 100cqh);
+      height: min(100cqw, 100cqh);
       margin: auto;
     }
   }
