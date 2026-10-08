@@ -79,6 +79,8 @@ function makeElemento(tag) {
       if (nodo === el) return true;
       return el.children.some((hijo) => hijo.contains(nodo));
     },
+    querySelector() { return makeElemento("div"); },
+    querySelectorAll() { return []; },
     focus() {},
     click() { (el._oyentes.click || []).forEach((fn) => fn({ target: el })); },
     dispara(evento) { (el._oyentes[evento] || []).forEach((fn) => fn({ target: el })); },
@@ -140,6 +142,9 @@ function crearEntorno({
   const marcoCompleta = makeElemento("button");
   marcoCompleta.className = "medallon control-pantalla-completa";
   tarjeta.appendChild(marcoCompleta);
+  const barra = makeElemento("nav");
+  barra.className = "barra-controles-inferior";
+  tarjeta.appendChild(barra);
   const cuerpo = makeElemento("body");
   if (portada) cuerpo.className = "portada";
   cuerpo.appendChild(tarjeta);
@@ -150,6 +155,7 @@ function crearEntorno({
     activeElement: null,
     createElement: (tag) => makeElemento(tag),
     querySelector(selector) {
+      if (selector === ".barra-controles-inferior") return barra;
       if (selector === ".control-pantalla-completa") return marcoCompleta;
       if (selector === ".tarjeta") return tarjeta;
       return null;
@@ -218,11 +224,11 @@ function crearEntorno({
     sandbox,
     { filename: "audio.js" }
   );
-  return { sandbox, instancias, almacen, sesion, documentStub, tarjeta, marcoCompleta };
+  return { sandbox, instancias, almacen, sesion, documentStub, tarjeta, barra, marcoCompleta };
 }
 
 function control(entorno) {
-  return entorno.tarjeta.children.find((hijo) => hijo.className.includes("control-sonido"));
+  return entorno.barra.children.find((hijo) => hijo.className.includes("control-sonido"));
 }
 
 function pistaDe(entorno, sufijo) {
@@ -433,6 +439,7 @@ async function main() {
         if (!registro[id]) registro[id] = makeElemento("div");
         return registro[id];
       },
+      querySelectorAll() { return []; },
       createElement: (tag) => makeElemento(tag),
       addEventListener() {},
       removeEventListener() {},

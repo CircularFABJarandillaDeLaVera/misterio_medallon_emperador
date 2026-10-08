@@ -70,9 +70,10 @@
   doc.addEventListener("webkitfullscreenchange", sincronizar);
   doc.addEventListener("fullscreenerror", sincronizar);
 
-  // El control pertenece al marco canónico de la vista (portada o sala),
-  // nunca al flujo del documento: así no reserva altura ni genera scroll.
+  // En la sala comparte una barra flexible con los demás accesos. La portada
+  // conserva su posición actual en el marco canónico.
   const anfitrion =
+    doc.querySelector(".barra-controles-inferior") ||
     doc.querySelector(".portada-escena") ||
     doc.querySelector(".tarjeta") ||
     doc.body;

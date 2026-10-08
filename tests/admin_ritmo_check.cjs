@@ -16,6 +16,7 @@ const SALA_HTML = leer("app", "templates", "sala.html");
 const CSS = leer("app", "static", "css", "estilos.css");
 
 let fallos = 0;
+let elementoActivo = null;
 function ok(condicion, nombre) {
   console.log(`${condicion ? "PASS" : "FAIL"} ${nombre}`);
   if (!condicion) fallos += 1;
@@ -35,20 +36,24 @@ function elemento(texto) {
     oyentes: {},
     appendChild() {},
     remove() {},
-    focus() {},
+    focus() {
+      elementoActivo = this;
+    },
+    setAttribute() {},
     addEventListener(tipo, fn) {
       (this.oyentes[tipo] || (this.oyentes[tipo] = [])).push(fn);
     },
     click() {
       (this.oyentes.click || []).forEach((fn) => fn({ preventDefault() {} }));
     },
-    querySelector: () => null,
+    querySelector: () => elemento(),
     querySelectorAll: () => [],
   };
 }
 
 function montar(credencial) {
   const enviados = [];
+  const eventosDocumento = {};
   let socket = null;
   class WebSocketFalso {
     constructor(url) {
@@ -71,17 +76,43 @@ function montar(credencial) {
     "admin-ritmo-valor": elemento(""),
     "btn-ritmo-mas": elemento("MÁS RÁPIDO +"),
     "btn-ritmo-menos": elemento("MÁS LENTO −"),
+    "btn-configuracion-partida": elemento("Configuración"),
+    "modal-configuracion-partida": elemento(""),
+    "dialogo-configuracion": elemento(""),
+    "btn-cerrar-configuracion-partida": elemento("Cerrar"),
+    "btn-pausar-partida": elemento("Pausar"),
+    "btn-reanudar-partida": elemento("Reanudar"),
+    "btn-guardar-partida": elemento("Guardar"),
   };
+  porId["btn-cerrar-configuracion-partida"].hidden = false;
+  porId["btn-ritmo-menos"].hidden = false;
+  porId["btn-ritmo-mas"].hidden = false;
+  porId["modal-configuracion-partida"].querySelector = () =>
+    porId["dialogo-configuracion"];
+  porId["dialogo-configuracion"].querySelectorAll = () =>
+    [
+      porId["btn-cerrar-configuracion-partida"],
+      porId["btn-ritmo-menos"],
+      porId["btn-ritmo-mas"],
+      porId["btn-pausar-partida"],
+      porId["btn-reanudar-partida"],
+      porId["btn-guardar-partida"],
+    ].filter((boton) => !boton.hidden && !boton.disabled);
   const claseBody = { add() {}, remove() {}, contains: () => false, toggle() {} };
   const sandbox = {
     console,
     document: {
       getElementById: (id) => porId[id] || (porId[id] = elemento()),
-      addEventListener: () => {},
+      addEventListener: (tipo, fn) => {
+        (eventosDocumento[tipo] || (eventosDocumento[tipo] = [])).push(fn);
+      },
       querySelector: () => null,
       querySelectorAll: () => [],
       createElement: () => elemento(),
       body: { classList: claseBody },
+      get activeElement() {
+        return elementoActivo;
+      },
     },
     sessionStorage: {
       getItem: (clave) => (clave in datos ? datos[clave] : null),
@@ -99,7 +130,7 @@ function montar(credencial) {
   sandbox.window = { location: { protocol: "http:", host: "localhost:8000" } };
   vm.createContext(sandbox);
   vm.runInContext(SALA_JS, sandbox, { filename: "sala.js" });
-  return { enviados, porId, socket, sandbox };
+  return { enviados, porId, socket, sandbox, eventosDocumento };
 }
 
 function estado(extra) {
@@ -126,20 +157,34 @@ function estado(extra) {
   ok(SALA_HTML.includes('id="btn-ritmo-menos"'), "la sala trae MÁS LENTO");
   ok(SALA_HTML.includes('id="admin-ritmo-valor"'), "la sala trae la lectura de segundos");
   ok(
-    SALA_HTML.indexOf('id="admin-ritmo"') > SALA_HTML.indexOf('id="vista-contextual"'),
-    "el panel va en el panel contextual, tras la vista de turno"
+    SALA_HTML.includes('id="modal-configuracion-partida"') &&
+      SALA_HTML.includes("CONFIGURACIÓN DE PARTIDA"),
+    "la sala ofrece el diálogo de configuración"
   );
   ok(
-    SALA_HTML.indexOf('id="admin-ritmo"') < SALA_HTML.indexOf('id="barra-herramientas"'),
-    "el panel queda antes de la barra de herramientas del jugador"
+    SALA_HTML.includes('id="btn-configuracion-partida"') &&
+      SALA_HTML.includes("control-configuracion-partida"),
+    "la sala trae el engranaje junto a los controles del marco"
+  );
+  ok(
+    SALA_HTML.indexOf('id="admin-ritmo"') >
+      SALA_HTML.indexOf('id="modal-configuracion-partida"') &&
+      SALA_HTML.indexOf('id="admin-ritmo"') <
+        SALA_HTML.indexOf('id="modal-historial"'),
+    "los controles existentes se reutilizan dentro del diálogo"
+  );
+  ok(
+    SALA_HTML.includes('aria-labelledby="configuracion-partida-titulo"') &&
+      SALA_HTML.includes('id="btn-cerrar-configuracion-partida"'),
+    "el diálogo tiene título accesible y botón X"
   );
 }
 
 // --- Estética: la familia medallón, no una nueva ------------------------
 {
   const bloque = SALA_HTML.slice(
-    SALA_HTML.indexOf('id="admin-ritmo"'),
-    SALA_HTML.indexOf('id="barra-herramientas"')
+    SALA_HTML.indexOf('id="modal-configuracion-partida"'),
+    SALA_HTML.indexOf('id="modal-historial"')
   );
   ok(
     bloque.includes("medallon medallon-secundario medallon-compacto"),
@@ -147,6 +192,17 @@ function estado(extra) {
   );
   ok(bloque.includes("nota-privada"), "el aviso usa el estilo de nota privada existente");
   ok(CSS.includes(".admin-ritmo-valor"), "la lectura de segundos tiene estilo propio");
+  ok(
+    CSS.includes("max-height: calc(100dvh - 16px)") &&
+      CSS.includes("overflow-y: auto"),
+    "la configuración se limita a la altura disponible y permite desplazarse"
+  );
+  ok(
+    CSS.includes(".barra-controles-inferior > .control-configuracion-partida") &&
+      CSS.includes("order: 3") &&
+      CSS.includes(".barra-controles-inferior > button[hidden]"),
+    "el engranaje está en la barra común y desaparece sin dejar hueco"
+  );
   ok(
     CSS.includes(".admin-ritmo-fila .medallon"),
     "el tamaño de los botones se ajusta sin crear una familia nueva"
@@ -214,8 +270,84 @@ function estado(extra) {
   );
   ok(
     /function pintarRitmo\(sala\)/.test(fuente) &&
-      /panelRitmo\.hidden = !esAnfitrion/.test(fuente),
-    "el panel se decide por rol, con el servidor como autoridad"
+      /panelRitmo\.hidden = !puedeConfigurar/.test(fuente) &&
+      /btnConfiguracionPartida\.hidden = !puedeConfigurar/.test(fuente),
+    "el panel y el engranaje se deciden por rol"
+  );
+}
+
+// --- Apertura, cierre y privacidad del modal ----------------------------
+{
+  const { sandbox, porId, eventosDocumento } = montar("secreto-admin");
+  sandbox.pintarRitmo(estado({ es_anfitrion: true }));
+  porId["btn-configuracion-partida"].click();
+  ok(
+    porId["modal-configuracion-partida"].hidden === false,
+    "el anfitrión abre la configuración con el engranaje"
+  );
+  ok(
+    elementoActivo === porId["btn-cerrar-configuracion-partida"],
+    "al abrir se enfoca el botón X"
+  );
+
+  const escapar = eventosDocumento.keydown[0];
+  escapar({ key: "Escape", preventDefault() {} });
+  ok(
+    porId["modal-configuracion-partida"].hidden === true,
+    "Escape cierra la configuración"
+  );
+  ok(
+    elementoActivo === porId["btn-configuracion-partida"],
+    "al cerrar se devuelve el foco al engranaje"
+  );
+
+  porId["btn-configuracion-partida"].click();
+  porId["modal-configuracion-partida"].oyentes.click[0]({
+    target: porId["modal-configuracion-partida"],
+  });
+  ok(
+    porId["modal-configuracion-partida"].hidden === true,
+    "pulsar fuera cierra la configuración"
+  );
+  porId["btn-configuracion-partida"].click();
+  porId["btn-cerrar-configuracion-partida"].click();
+  ok(
+    porId["modal-configuracion-partida"].hidden === true,
+    "el botón X cierra la configuración"
+  );
+
+  porId["btn-configuracion-partida"].click();
+  const primerBoton = porId["btn-cerrar-configuracion-partida"];
+  const ultimoBoton = porId["btn-guardar-partida"];
+  elementoActivo = ultimoBoton;
+  escapar({ key: "Tab", shiftKey: false, preventDefault() {} });
+  ok(elementoActivo === primerBoton, "Tab mantiene el foco dentro del diálogo");
+  elementoActivo = primerBoton;
+  escapar({ key: "Tab", shiftKey: true, preventDefault() {} });
+  ok(elementoActivo === ultimoBoton, "Mayús+Tab mantiene el foco dentro del diálogo");
+}
+
+{
+  const { sandbox, porId } = montar("secreto");
+  sandbox.pintarRitmo(estado({ es_anfitrion: false }));
+  porId["btn-configuracion-partida"].click();
+  ok(porId["btn-configuracion-partida"].hidden, "el jugador normal no ve el engranaje");
+  ok(
+    porId["modal-configuracion-partida"].hidden,
+    "el jugador normal no puede abrir el diálogo"
+  );
+}
+
+{
+  const { sandbox, porId } = montar("secreto");
+  sandbox.pintarRitmo(estado({ es_anfitrion: true, estado: "esperando" }));
+  ok(
+    porId["btn-configuracion-partida"].hidden,
+    "la configuración no aparece durante el lobby"
+  );
+  ok(
+    porId["admin-ritmo"].hidden,
+    "los controles siguen ocultos hasta que empieza la partida"
   );
 }
 

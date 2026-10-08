@@ -46,8 +46,9 @@ function montarSala({ almacen }) {
       appendChild() {},
       remove() {},
       focus() {},
+      setAttribute() {},
       addEventListener() {},
-      querySelector: () => null,
+      querySelector: () => elemento(),
       querySelectorAll: () => [],
     };
   }
@@ -177,7 +178,7 @@ function almacenInicial(conCredencial) {
   );
   const bloqueUnirse = INICIO_JS.slice(
     INICIO_JS.indexOf("async function unirsePartida"),
-    INICIO_JS.indexOf("function abrirYCentrar")
+    INICIO_JS.indexOf("// --- Microfase 6", INICIO_JS.indexOf("async function unirsePartida"))
   );
   ok(
     !bloqueUnirse.includes("credencial_admin"),

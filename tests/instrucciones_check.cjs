@@ -75,7 +75,8 @@ ok(
 );
 ok(
   inicio.includes("data-abrir-aprender") && inicio.includes("APRENDE A JUGAR") &&
-    sala.includes("data-abrir-aprender") && sala.includes("CÓMO JUGAR") &&
+    sala.includes('id="btn-aprender-sala"') && sala.includes('aria-label="Cómo jugar"') &&
+    sala.includes("data-abrir-aprender") && !sala.includes(">CÓMO JUGAR<") &&
     inicio.includes('{% include "_aprender_a_jugar.html" %}') &&
     sala.includes('{% include "_aprender_a_jugar.html" %}'),
   "portada y sala incluyen el mismo componente y sus accesos"
@@ -138,13 +139,22 @@ modal.querySelectorAll = (selector) => selector === "[data-aprender-paso]"
       ? [...indices, elementos["btn-anterior-aprender"], elementos["btn-siguiente-aprender"], elementos["btn-cerrar-aprender"]]
       : [];
 const globales = {};
+const sincronizacionesBarra = [];
 const documentStub = {
   activeElement: null,
   getElementById: (id) => elementos[id] || null,
   querySelectorAll: (selector) => selector === "[data-abrir-aprender]" ? [abrirInicio, abrirSala] : [],
   addEventListener: (tipo, fn) => { (globales[tipo] ||= []).push(fn); },
 };
-const sandbox = { document: documentStub, console };
+const sandbox = {
+  document: documentStub,
+  console,
+  window: {
+    sincronizarBarraControlesInferior() {
+      sincronizacionesBarra.push(modal.hidden);
+    },
+  },
+};
 vm.createContext(sandbox);
 vm.runInContext(js, sandbox, { filename: "aprender_a_jugar.js" });
 
@@ -152,7 +162,8 @@ const ventanaObligatoria = { hidden: false };
 abrirSala.click();
 ok(
   modal.hidden === false && paneles[0].hidden === false &&
-    elementos["aprender-progreso"].textContent === "1 DE 5" && ventanaObligatoria.hidden === false,
+    elementos["aprender-progreso"].textContent === "1 DE 5" && ventanaObligatoria.hidden === false &&
+    sincronizacionesBarra[sincronizacionesBarra.length - 1] === false,
   "abrir desde la sala conserva una ventana obligatoria y muestra el primer apartado"
 );
 elementos["btn-siguiente-aprender"].click();
@@ -171,7 +182,9 @@ ok(paneles[3].hidden === false, "ANTERIOR retrocede un apartado");
 ventanaObligatoria.hidden = true;
 elementos["btn-cerrar-aprender"].click();
 ok(
-  modal.hidden === true && ventanaObligatoria.hidden === true && documentStub.activeElement === abrirSala,
+  modal.hidden === true && ventanaObligatoria.hidden === true &&
+    documentStub.activeElement === abrirSala &&
+    sincronizacionesBarra[sincronizacionesBarra.length - 1] === true,
   "CERRAR revela el estado actualizado y devuelve el foco al acceso"
 );
 

@@ -42,13 +42,24 @@
     focoAnterior = evento && evento.currentTarget ? evento.currentTarget : document.activeElement;
     mostrarPaso(0);
     modal.hidden = false;
+    sincronizarBarraSala();
     if (cerrar.focus) cerrar.focus();
   }
 
   function cerrarInstrucciones() {
     modal.hidden = true;
+    sincronizarBarraSala();
     if (focoAnterior && focoAnterior.focus) focoAnterior.focus();
     focoAnterior = null;
+  }
+
+  function sincronizarBarraSala() {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.sincronizarBarraControlesInferior === "function"
+    ) {
+      window.sincronizarBarraControlesInferior();
+    }
   }
 
   abrir.forEach((boton) => boton.addEventListener("click", abrirInstrucciones));

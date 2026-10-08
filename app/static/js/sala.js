@@ -13,6 +13,7 @@ const btnComenzar = document.getElementById("btn-comenzar");
 const lobbyPersonajes = document.getElementById("lobby-personajes");
 const personajesDiv = document.getElementById("personajes");
 const partida = document.getElementById("partida");
+const barraControlesInferior = document.getElementById("barra-controles-inferior");
 const turnoP = document.getElementById("turno");
 const ordenOl = document.getElementById("orden");
 const cartasDiv = document.getElementById("mis-cartas");
@@ -93,6 +94,14 @@ const btnReanudarPartida = document.getElementById("btn-reanudar-partida");
 // Microfase 4 · Guardar partida.
 const btnGuardarPartida = document.getElementById("btn-guardar-partida");
 const estadoGuardar = document.getElementById("admin-guardar-estado");
+const btnConfiguracionPartida = document.getElementById("btn-configuracion-partida");
+const modalConfiguracionPartida = document.getElementById("modal-configuracion-partida");
+const dialogoConfiguracionPartida = modalConfiguracionPartida
+  ? modalConfiguracionPartida.querySelector('[role="dialog"]')
+  : null;
+const btnCerrarConfiguracionPartida = document.getElementById(
+  "btn-cerrar-configuracion-partida"
+);
 const RITMO_MINIMO = 1;
 const RITMO_MAXIMO = 10;
 // 8B.32 · Último aviso de inactividad ya tratado por ESTE cliente. El plazo
@@ -140,6 +149,10 @@ let destinoUbicacionModal = null;
 let rendererCanvas = null;
 let canvasFallido = false;
 
+const modalesSala = document.querySelectorAll
+  ? Array.from(document.querySelectorAll(".modal"))
+  : [];
+
 if (!jugadorId) {
   window.location.href = "/";
 }
@@ -171,6 +184,44 @@ let presentacionSospechaVisibleId = null;
 let presentacionSospechaDescartadaId = null;
 let cartaRefutacionSeleccionadaId = null;
 let focoAntesDeHistorial = null;
+
+function sincronizarBarraControlesInferior() {
+  if (!barraControlesInferior) return;
+  const tableroPrincipalVisible = Boolean(
+    partida &&
+    !partida.hidden &&
+    document.body &&
+    document.body.classList &&
+    document.body.classList.contains("en-partida")
+  );
+  const modalVisible = modalesSala.some((modal) => !modal.hidden);
+  barraControlesInferior.hidden = !tableroPrincipalVisible || modalVisible;
+}
+
+window.sincronizarBarraControlesInferior =
+  sincronizarBarraControlesInferior;
+sincronizarBarraControlesInferior();
+if (typeof MutationObserver !== "undefined" && document.body) {
+  const observadorBarraControles = new MutationObserver(
+    sincronizarBarraControlesInferior
+  );
+  observadorBarraControles.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  if (partida) {
+    observadorBarraControles.observe(partida, {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+  }
+  modalesSala.forEach((modal) => {
+    observadorBarraControles.observe(modal, {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+  });
+}
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -413,20 +464,105 @@ function pintarRitmo(sala) {
   }
   if (!panelRitmo) return;
   const esAnfitrion = Boolean(sala && sala.es_anfitrion);
-  panelRitmo.hidden = !esAnfitrion;
+  const partidaActiva = Boolean(
+    sala && (sala.estado === "iniciada" || sala.estado === "terminada")
+  );
+  const puedeConfigurar = esAnfitrion && partidaActiva;
+  if (btnConfiguracionPartida) btnConfiguracionPartida.hidden = !puedeConfigurar;
+  if (!puedeConfigurar && modalConfiguracionPartida) {
+    modalConfiguracionPartida.hidden = true;
+    if (btnConfiguracionPartida) {
+      btnConfiguracionPartida.setAttribute("aria-expanded", "false");
+    }
+  }
+  panelRitmo.hidden = !puedeConfigurar;
   // Solo se muestra la acción que toca: pausada -> REANUDAR. Y solo el
   // anfitrión tiene alguna de las dos.
-  if (btnPausarPartida) btnPausarPartida.hidden = !esAnfitrion || pausada;
-  if (btnReanudarPartida) btnReanudarPartida.hidden = !esAnfitrion || !pausada;
+  if (btnPausarPartida) btnPausarPartida.hidden = !puedeConfigurar || pausada;
+  if (btnReanudarPartida) btnReanudarPartida.hidden = !puedeConfigurar || !pausada;
   // GUARDAR también es solo del anfitrión, y se puede usar en pausa.
-  if (btnGuardarPartida) btnGuardarPartida.hidden = !esAnfitrion;
-  if (!esAnfitrion) return;
+  if (btnGuardarPartida) btnGuardarPartida.hidden = !puedeConfigurar;
+  if (!puedeConfigurar) return;
   const valor = Number(sala.velocidad_acciones) || 1;
   ritmoValor.textContent = `${valor} S`;
   // Los topes se muestran como deshabilitados: el servidor vuelve a validar.
   // Durante la pausa se pueden ajustar: no provoca ningún avance.
   if (btnRitmoMas) btnRitmoMas.disabled = valor >= RITMO_MAXIMO;
   if (btnRitmoMenos) btnRitmoMenos.disabled = valor <= RITMO_MINIMO;
+}
+
+function cerrarConfiguracionPartida(devolverFoco = true) {
+  if (!modalConfiguracionPartida || modalConfiguracionPartida.hidden) return;
+  modalConfiguracionPartida.hidden = true;
+  sincronizarBarraControlesInferior();
+  if (btnConfiguracionPartida) {
+    btnConfiguracionPartida.setAttribute("aria-expanded", "false");
+    if (devolverFoco && !btnConfiguracionPartida.hidden) {
+      btnConfiguracionPartida.focus();
+    }
+  }
+}
+
+function abrirConfiguracionPartida() {
+  if (
+    !btnConfiguracionPartida ||
+    btnConfiguracionPartida.hidden ||
+    !panelRitmo ||
+    panelRitmo.hidden ||
+    !modalConfiguracionPartida
+  ) {
+    return;
+  }
+  modalConfiguracionPartida.hidden = false;
+  sincronizarBarraControlesInferior();
+  btnConfiguracionPartida.setAttribute("aria-expanded", "true");
+  if (btnCerrarConfiguracionPartida) btnCerrarConfiguracionPartida.focus();
+}
+
+if (btnConfiguracionPartida) {
+  btnConfiguracionPartida.addEventListener("click", abrirConfiguracionPartida);
+}
+if (btnCerrarConfiguracionPartida) {
+  btnCerrarConfiguracionPartida.addEventListener("click", () =>
+    cerrarConfiguracionPartida()
+  );
+}
+if (modalConfiguracionPartida) {
+  modalConfiguracionPartida.addEventListener("click", (evento) => {
+    if (evento.target === modalConfiguracionPartida) {
+      cerrarConfiguracionPartida();
+    }
+  });
+}
+if (document.addEventListener) {
+  document.addEventListener("keydown", (evento) => {
+    if (!modalConfiguracionPartida || modalConfiguracionPartida.hidden) return;
+    if (evento.key === "Escape") {
+      evento.preventDefault();
+      cerrarConfiguracionPartida();
+      return;
+    }
+    if (evento.key !== "Tab" || !dialogoConfiguracionPartida) return;
+    const botones = Array.from(
+      dialogoConfiguracionPartida.querySelectorAll(
+        "button:not([hidden]):not([disabled])"
+      )
+    );
+    if (!botones.length) {
+      evento.preventDefault();
+      dialogoConfiguracionPartida.focus();
+      return;
+    }
+    const primero = botones[0];
+    const ultimo = botones[botones.length - 1];
+    if (evento.shiftKey && document.activeElement === primero) {
+      evento.preventDefault();
+      ultimo.focus();
+    } else if (!evento.shiftKey && document.activeElement === ultimo) {
+      evento.preventDefault();
+      primero.focus();
+    }
+  });
 }
 
 function moverRitmo(accion) {

@@ -383,7 +383,7 @@
     reproducirEfecto(NOMBRE_CLIC);
   }, true);
 
-  /* --- Control compacto junto al de pantalla completa --- */
+  /* --- Control compacto compartido con la barra inferior de sala --- */
   const enPortada = doc.body && doc.body.classList
     && doc.body.classList.contains("portada");
   const boton = doc.createElement("button");
@@ -464,9 +464,9 @@
   // de PARTIDA. En portada el modulo se carga para la musica y el clic, pero
   // no pinta nada: la portada no debe cambiar visualmente.
   if (!enPortada) {
-    const referencia = doc.querySelector(".control-pantalla-completa");
     const anfitrion =
-      (referencia && referencia.parentElement) ||
+      doc.querySelector(".barra-controles-inferior") ||
+      (doc.querySelector(".control-pantalla-completa") || {}).parentElement ||
       doc.querySelector(".tarjeta") ||
       doc.body;
     boton.appendChild(panel);

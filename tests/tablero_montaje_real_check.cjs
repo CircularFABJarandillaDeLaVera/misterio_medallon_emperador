@@ -25,6 +25,7 @@ function elemento(tag) {
     addEventListener(tipo, fn) { (this._oyentes[tipo] ||= []).push(fn); },
     click() { if (!this.disabled) (this._oyentes.click || []).forEach((fn) => fn({ target: this })); },
     setAttribute(k, v) { this.attributes[k] = String(v); if (k === "class") this.className = String(v); },
+    querySelector() { return elemento("div"); },
   };
   e.classList = {
     add(...cs) { const s = new Set(e.className.split(/\s+/).filter(Boolean)); cs.forEach((c) => s.add(c)); e.className = [...s].join(" "); },
@@ -69,9 +70,19 @@ const documentStub = {
   createElementNS(_ns, tag) { return elemento(tag); },
   addEventListener(tipo, fn) { (this._oyentes[tipo] ||= []).push(fn); },
   dispatch(tipo, evento) { (this._oyentes[tipo] || []).forEach((fn) => fn(evento)); },
+  querySelectorAll(selector) {
+    if (selector !== ".modal") return [];
+    return Object.entries(registro)
+      .filter(([id]) => id.startsWith("modal-"))
+      .map(([, modal]) => modal);
+  },
 };
 registro.codigo = elemento("p");
 registro.codigo.textContent = "JARA-REAL";
+registro["modal-aprender"] = elemento("div");
+registro["modal-aprender"].hidden = true;
+registro["barra-controles-inferior"] = elemento("nav");
+registro["barra-controles-inferior"].hidden = false;
 
 const exteriores = [
   "parador", "iglesia-san-agustin", "ermita-sopetran", "cristo-humilladero",
@@ -113,6 +124,7 @@ const descriptor = {
 
 let resolverTablero;
 let socket;
+let sincronizarBarra;
 const enviados = [];
 const peticionesFetch = [];
 const temporizadores = [];
@@ -161,6 +173,10 @@ const sandbox = {
   },
   sessionStorage: { getItem: () => "jug-real", setItem() {} },
   fetch: fetchFalso, WebSocket: WebSocketFalso, Set, Map,
+  MutationObserver: class {
+    constructor(callback) { sincronizarBarra = callback; }
+    observe() {}
+  },
 };
 vm.createContext(sandbox);
 
@@ -170,18 +186,26 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=admin4'),
+  ok(html.includes('/static/js/sala.js?v=admin6'),
     "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/css/estilos.css?v=admin4'),
-    "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/js/pantalla_completa.js?v=8b19'),
+  ok(html.includes('/static/css/estilos.css?v=admin7'),
+    "la plantilla invalida la caché de la barra inferior");
+  ok(html.includes('/static/js/audio.js?v=8b33c'),
+    "la plantilla invalida la caché del control de música compartido");
+  ok(html.includes('/static/js/pantalla_completa.js?v=8b19b'),
     "la plantilla incluye el control global de pantalla completa");
+  ok(html.includes('id="barra-controles-inferior"') &&
+      html.includes('id="btn-configuracion-partida"') &&
+      html.includes('id="btn-aprender-sala"'),
+    "la barra común contiene la configuración y la ayuda reutilizada");
   ok(!html.includes('id="tablero-superficie"') && !html.includes('id="tablero-nodos"'),
     "la plantilla ya no contiene el renderer HTML/SVG descartado");
 
   sandbox.window.window = sandbox.window;
   vm.runInContext(fs.readFileSync(path.join(raiz, "app", "static", "js", "tablero_canvas.js"), "utf8"), sandbox, { filename: "tablero_canvas.js" });
   vm.runInContext(fs.readFileSync(path.join(raiz, "app", "static", "js", "sala.js"), "utf8"), sandbox, { filename: "sala.js" });
+  ok(registro["barra-controles-inferior"].hidden === true,
+    "el lobby mantiene la barra oculta");
   const jugadores = personajes.map((id, i) => ({
     alias: `Jugador ${i + 1}`, personaje_id: id, personaje: id,
     tipo: i ? "pnj" : "humano", activo: i !== 5, num_cartas: 3,
@@ -205,7 +229,58 @@ vm.createContext(sandbox);
 
   socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
   ok(registro["tablero-visual"].hidden === false, "el estado WS real de modo tablero muestra el contenedor");
+  sincronizarBarra();
+  ok(registro["barra-controles-inferior"].hidden === false,
+    "la barra aparece en el tablero principal del anfitrión");
+  ok(registro["btn-configuracion-partida"].hidden === false,
+    "el anfitrión ve la configuración en la barra");
   ok(vm.runInContext("rendererCanvas", sandbox) === null, "la carrera se reproduce: el estado puede llegar antes del descriptor");
+
+  registro["modal-aprender"].hidden = false;
+  sincronizarBarra();
+  ok(registro["barra-controles-inferior"].hidden === true,
+    "abrir Cómo jugar oculta la barra y la saca del orden de tabulación");
+  registro["modal-aprender"].hidden = true;
+  sincronizarBarra();
+  ok(registro["barra-controles-inferior"].hidden === false,
+    "cerrar Cómo jugar restaura la barra");
+
+  for (const id of [
+    "modal-configuracion-partida",
+    "modal-confirmar-resolver",
+    "modal-resolucion-fallida",
+    "modal-presentacion-sospecha",
+    "modal-revelacion-refutacion",
+    "modal-sospecha",
+    "modal-refutacion",
+    "modal-cartas",
+    "modal-ubicacion",
+    "modal-hoja",
+    "modal-inactividad",
+    "modal-historial",
+    "modal-resolver",
+    "modal-victoria",
+  ]) {
+    const modal = registro[id];
+    modal.hidden = false;
+    sincronizarBarra();
+    ok(registro["barra-controles-inferior"].hidden === true,
+      `${id} oculta la barra`);
+    modal.hidden = true;
+    sincronizarBarra();
+    ok(registro["barra-controles-inferior"].hidden === false,
+      `cerrar ${id} restaura la barra`);
+  }
+
+  sala.es_anfitrion = false;
+  socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  sincronizarBarra();
+  ok(registro["barra-controles-inferior"].hidden === false &&
+    registro["btn-configuracion-partida"].hidden === true,
+  "el invitado ve la barra, pero no el acceso de configuración");
+  sala.es_anfitrion = true;
+  socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  sincronizarBarra();
 
   resolverTablero();
   await new Promise((resolve) => setImmediate(resolve));

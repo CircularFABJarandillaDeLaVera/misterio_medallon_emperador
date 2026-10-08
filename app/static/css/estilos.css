@@ -640,6 +640,38 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 0 0 6px;
 }
 
+.modal-configuracion-partida {
+  z-index: 80;
+  padding: 8px;
+}
+
+.modal-configuracion-caja {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 24px 16px 16px;
+}
+
+.modal-configuracion-caja h2 {
+  padding: 0 32px;
+}
+
+#btn-cerrar-configuracion-partida {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+
+.modal-configuracion-caja .admin-ritmo {
+  margin-top: 10px;
+}
+
 /* Fase 2 · Historial público. Se apila por encima de cualquier ventana de
    juego sin cerrar ni confirmar la que permanezca debajo. */
 .modal-historial {
@@ -2866,20 +2898,54 @@ body:not(.portada) .tarjeta {
   position: relative;
 }
 
-.medallon.control-pantalla-completa {
+.barra-controles-inferior {
   position: absolute;
-  /* Esquina inferior derecha interior del marco (patrón reproductor).
-     Una sola posición para todas las vistas: desde 8B.21 el panel ya
-     no ocupa el fondo, así que no hace falta desplazarlo. */
-  bottom: 10px;
   right: 10px;
+  bottom: 10px;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+}
+
+.barra-controles-inferior[hidden] {
+  display: none;
+}
+
+.barra-controles-inferior > button {
+  position: relative;
+  flex: 0 0 44px;
   width: 44px;
+  min-width: 44px;
+  max-width: 44px;
   height: 44px;
   min-height: 44px;
-  max-width: none;
   padding: 0;
   gap: 0;
+}
+
+.barra-controles-inferior > .control-aprender-sala {
+  order: 1;
+  font-size: 1.35rem;
+  font-weight: bold;
+}
+
+.barra-controles-inferior > .control-sonido {
+  order: 2;
+}
+
+.barra-controles-inferior > .control-configuracion-partida {
+  order: 3;
+}
+
+.barra-controles-inferior > .control-pantalla-completa {
+  order: 4;
+}
+
+.barra-controles-inferior > button[hidden] {
+  display: none;
 }
 
 .control-pantalla-icono {
@@ -2900,19 +2966,30 @@ body:not(.portada) .tarjeta {
   height: 100%;
 }
 
-/* En pantallas estrechas sigue dentro del marco, con zona táctil fija. */
+/* En pantallas estrechas se reducen todos los accesos por igual. */
 @media (max-width: 480px) {
-  .medallon.control-pantalla-completa {
-    bottom: 8px;
+  .barra-controles-inferior {
     right: 8px;
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
+    bottom: 8px;
+    gap: 4px;
   }
 
   .control-pantalla-icono {
     width: 18px;
     height: 18px;
+  }
+
+  .barra-controles-inferior > button {
+    flex-basis: 40px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .barra-controles-inferior > .control-aprender-sala {
+    font-size: 1.2rem;
   }
 }
 
@@ -2925,20 +3002,6 @@ body:not(.portada) .tarjeta {
    el documento, ni desplaza el tablero. El slider vive en un panel
    flotante que se abre sobre el marco.
    ============================================================ */
-.medallon.control-sonido {
-  position: absolute;
-  /* 10 px del borde + 44 px del control de pantalla completa + 8 px de aire. */
-  bottom: 10px;
-  right: 62px;
-  z-index: 40;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  max-width: none;
-  padding: 0;
-  gap: 0;
-}
-
 .medallon.control-sonido.silenciado .control-pantalla-icono {
   color: rgba(200, 200, 214, 0.55);
 }
@@ -2982,23 +3045,6 @@ body:not(.portada) .tarjeta {
   font-size: 0.6rem;
   color: var(--dorado-claro);
   text-align: right;
-}
-
-@media (max-width: 899px) {
-  body.en-partida .medallon.control-sonido {
-    /* Mismo tratamiento que el de pantalla completa: se ancla al viewport. */
-    position: fixed;
-  }
-}
-
-@media (max-width: 480px) {
-  .medallon.control-sonido {
-    bottom: 8px;
-    right: 56px;
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
 }
 
 /* ============================================================
@@ -3109,16 +3155,6 @@ body:not(.portada) .tarjeta {
       height: min(100cqw, 100cqh);
       margin: auto;
     }
-  }
-}
-
-/* Móvil vertical: el panel se apila a ancho completo y llega al borde
-   inferior del marco, de modo que la esquina interior está ocupada
-   (medido: solapa con RESOLVER). Ahí el control se ancla al viewport,
-   cuyo espacio libre lo mantiene accesible sin tocar el layout. */
-@media (max-width: 899px) {
-  body.en-partida .medallon.control-pantalla-completa {
-    position: fixed;
   }
 }
 
@@ -3234,11 +3270,9 @@ body:not(.portada) .tarjeta {
     display: none;
   }
 
-  /* El control ⛶ vuelve al marco: ya no hay panel a ancho completo. */
-  body.en-partida .medallon.control-pantalla-completa {
-    position: absolute;
-    bottom: calc(4px + env(safe-area-inset-bottom));
+  body.en-partida .barra-controles-inferior {
     right: calc(4px + env(safe-area-inset-right));
+    bottom: calc(4px + env(safe-area-inset-bottom));
   }
 }
 
@@ -4397,4 +4431,3 @@ body.historia-abierta {
     transition: none;
   }
 }
-

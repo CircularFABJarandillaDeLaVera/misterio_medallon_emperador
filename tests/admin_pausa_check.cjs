@@ -51,13 +51,14 @@ function elemento(texto) {
     appendChild() {},
     remove() {},
     focus() {},
+    setAttribute() {},
     addEventListener(tipo, fn) {
       (this.oyentes[tipo] || (this.oyentes[tipo] = [])).push(fn);
     },
     click() {
       (this.oyentes.click || []).forEach((fn) => fn({ preventDefault() {} }));
     },
-    querySelector: () => null,
+    querySelector: () => elemento(),
     querySelectorAll: () => [],
   };
 }

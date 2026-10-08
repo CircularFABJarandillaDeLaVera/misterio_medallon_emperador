@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=admin4" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=admin7" />
 </head>
 <body>
   <main class="contenedor">
@@ -59,36 +59,10 @@
                  lo ve todo el mundo, por eso vive fuera del panel de
                  administración. -->
             <p id="admin-pausa-aviso" class="admin-pausa-aviso" role="status" hidden>PARTIDA EN PAUSA</p>
-            <!-- Microfase 2 · Ritmo de las acciones automáticas. Provisional
-                 y solo del anfitrión: el servidor lo comprueba igual. -->
-            <div id="admin-ritmo" class="grupo-cartas admin-ritmo" aria-label="Ritmo de las acciones automáticas" hidden>
-              <div class="admin-ritmo-fila">
-                <button id="btn-ritmo-menos" type="button" class="medallon medallon-secundario medallon-compacto"
-                        title="Más lento: un segundo más de espera">MÁS LENTO −</button>
-                <output id="admin-ritmo-valor" class="admin-ritmo-valor" aria-live="polite">3 S</output>
-                <button id="btn-ritmo-mas" type="button" class="medallon medallon-secundario medallon-compacto"
-                        title="Más rápido: un segundo menos de espera">MÁS RÁPIDO +</button>
-              </div>
-              <p class="nota-privada admin-ritmo-nota">Solo afecta a las acciones automáticas. Los turnos de los jugadores no cambian.</p>
-              <div class="admin-pausa-fila">
-                <button id="btn-pausar-partida" type="button" class="medallon medallon-fantasma medallon-compacto"
-                        title="Detener la partida. Los tiempos pendientes se congelan">PAUSAR PARTIDA</button>
-                <button id="btn-reanudar-partida" type="button" class="medallon medallon-primario medallon-compacto"
-                        title="Continuar la partida donde estaba" hidden>REANUDAR PARTIDA</button>
-              </div>
-              <!-- Microfase 4 · Guardar partida. Solo el anfitrión, y la
-                   credencial va en una cabecera, nunca en la URL. -->
-              <div class="admin-guardar-fila">
-                <button id="btn-guardar-partida" type="button" class="medallon medallon-secundario medallon-compacto"
-                        title="Descargar el archivo de guardado de esta partida">GUARDAR PARTIDA</button>
-                <p id="admin-guardar-estado" class="nota-privada admin-guardar-estado" role="status" hidden></p>
-              </div>
-            </div>
             <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
               <button id="btn-ver-cartas" type="button" class="medallon medallon-secundario medallon-compacto" title="Mis cartas" hidden>CARTAS</button>
               <button id="btn-ver-hoja" type="button" class="medallon medallon-secundario medallon-compacto" title="Hoja de investigación">INVESTIGACIÓN</button>
               <button id="btn-historial" type="button" class="medallon medallon-secundario medallon-compacto" title="Historial de la investigación">HISTORIAL</button>
-              <button id="btn-aprender-sala" type="button" class="medallon medallon-secundario medallon-compacto" data-abrir-aprender title="Aprende a jugar">CÓMO JUGAR</button>
               <button id="btn-resolver" type="button" class="medallon medallon-secundario medallon-compacto" title="Resolver el misterio" hidden>RESOLVER</button>
             </div>
           </aside>
@@ -230,6 +204,35 @@
           <button id="btn-seguir-esperando" class="medallon medallon-fantasma medallon-compacto" type="button">SEGUIR ESPERANDO</button>
         </div>
       </div>
+      <div id="modal-configuracion-partida" class="modal modal-configuracion-partida" hidden>
+        <section class="modal-caja modal-configuracion-caja" role="dialog" aria-modal="true"
+                 aria-labelledby="configuracion-partida-titulo" tabindex="-1">
+          <button id="btn-cerrar-configuracion-partida" class="medallon medallon-fantasma medallon-compacto"
+                  type="button" aria-label="Cerrar configuración de partida" title="Cerrar">×</button>
+          <h2 id="configuracion-partida-titulo">CONFIGURACIÓN DE PARTIDA</h2>
+          <div id="admin-ritmo" class="grupo-cartas admin-ritmo" aria-label="Controles de administración" hidden>
+            <div class="admin-ritmo-fila">
+              <button id="btn-ritmo-menos" type="button" class="medallon medallon-secundario medallon-compacto"
+                      title="Más lento: un segundo más de espera">MÁS LENTO −</button>
+              <output id="admin-ritmo-valor" class="admin-ritmo-valor" aria-live="polite">3 S</output>
+              <button id="btn-ritmo-mas" type="button" class="medallon medallon-secundario medallon-compacto"
+                      title="Más rápido: un segundo menos de espera">MÁS RÁPIDO +</button>
+            </div>
+            <p class="nota-privada admin-ritmo-nota">Solo afecta a las acciones automáticas. Los turnos de los jugadores no cambian.</p>
+            <div class="admin-pausa-fila">
+              <button id="btn-pausar-partida" type="button" class="medallon medallon-fantasma medallon-compacto"
+                      title="Detener la partida. Los tiempos pendientes se congelan">PAUSAR PARTIDA</button>
+              <button id="btn-reanudar-partida" type="button" class="medallon medallon-primario medallon-compacto"
+                      title="Continuar la partida donde estaba" hidden>REANUDAR PARTIDA</button>
+            </div>
+            <div class="admin-guardar-fila">
+              <button id="btn-guardar-partida" type="button" class="medallon medallon-secundario medallon-compacto"
+                      title="Descargar el archivo de guardado de esta partida">GUARDAR PARTIDA</button>
+              <p id="admin-guardar-estado" class="nota-privada admin-guardar-estado" role="status" hidden></p>
+            </div>
+          </div>
+        </section>
+      </div>
       <div id="modal-historial" class="modal modal-historial" hidden>
         <div class="modal-caja modal-historial-caja" role="dialog" aria-modal="true" aria-labelledby="historial-titulo">
           <h2 id="historial-titulo">HISTORIAL DE LA INVESTIGACIÓN</h2>
@@ -238,12 +241,32 @@
         </div>
       </div>
       {% include "_aprender_a_jugar.html" %}
+      <nav id="barra-controles-inferior" class="barra-controles-inferior"
+           aria-label="Accesos de la partida" hidden>
+        <button id="btn-configuracion-partida" type="button"
+                class="medallon medallon-fantasma control-configuracion-partida"
+                aria-label="Configuración de partida" title="Configuración de partida"
+                aria-haspopup="dialog" aria-expanded="false"
+                aria-controls="modal-configuracion-partida" hidden>
+          <span class="control-pantalla-icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm8.1 4.9 1.1.8-1.8 3.1-1.3-.5a7.7 7.7 0 0 1-1.5.9l-.2 1.4h-3.6l-.2-1.4a7.7 7.7 0 0 1-1.5-.9l-1.3.5L8 14l1.1-.8a7.8 7.8 0 0 1 0-1.8L8 10.6l1.8-3.1 1.3.5a7.7 7.7 0 0 1 1.5-.9l.2-1.4h3.6l.2 1.4a7.7 7.7 0 0 1 1.5.9l1.3-.5 1.8 3.1-1.1.8a7.8 7.8 0 0 1 0 1.8Z"
+                    fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        <button id="btn-aprender-sala" type="button"
+                class="medallon medallon-fantasma control-aprender-sala"
+                data-abrir-aprender aria-label="Cómo jugar" title="Cómo jugar">
+          <span aria-hidden="true">?</span>
+        </button>
+      </nav>
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
-  <script src="/static/js/audio.js?v=8b33b"></script>
-  <script src="/static/js/sala.js?v=admin4"></script>
-  <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
-  <script src="/static/js/pantalla_completa.js?v=8b19"></script>
+  <script src="/static/js/audio.js?v=8b33c"></script>
+  <script src="/static/js/sala.js?v=admin6"></script>
+  <script src="/static/js/aprender_a_jugar.js?v=fase3b"></script>
+  <script src="/static/js/pantalla_completa.js?v=8b19b"></script>
 </body>
 </html>

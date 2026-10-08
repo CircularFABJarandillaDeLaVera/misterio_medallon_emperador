@@ -46,6 +46,7 @@ function montar(opciones) {
     createElement: nodo,
     addEventListener(e, fn) { (oyentesDoc[e] = oyentesDoc[e] || []).push(fn); },
     querySelector(sel) {
+      if (sel === ".barra-controles-inferior" && marco.className === "barra-controles-inferior") return marco;
       if (sel === ".portada-escena" && marco.className === "portada-escena") return marco;
       if (sel === ".tarjeta" && marco.className === "tarjeta") return marco;
       return null;
@@ -148,17 +149,25 @@ ok(lobby.marco.children.length === 1 && lobby.cuerpo.children.length === 0,
 ok(lobby.boton().className === boton.className,
   "mismo control y mismo lenguaje visual en ambas vistas");
 
+const sala = montar({ soportado: true, marcoClase: "barra-controles-inferior" });
+ok(sala.marco.children.length === 1 && sala.cuerpo.children.length === 0,
+  "en la sala el control se monta dentro de la barra inferior compartida");
+
 // Sin marco identificado: degradación sin romper la aplicación.
 const suelto = montar({ soportado: true, sinMarco: true });
 ok(suelto.boton() !== undefined, "sin marco reconocido el control no se pierde");
 
-// La定位 no depende del flujo: el CSS debe gained la specificity de .medallon.
+// La barra compartida controla distribución y tamaño uniforme.
 const css = fs.readFileSync(
   path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
-ok(/\.medallon\.control-pantalla-completa\s*\{[^}]*position:\s*absolute[^}]*bottom:\s*10px/.test(css),
-  "el control es absolute y se ancla abajo (patrón reproductor)");
-ok(/right:\s*calc\(var\(--columna-derecha, 0px\)\s*\+\s*\d+px\)/.test(css),
-  "el desplazamiento lateral usa el token único de columna derecha");
+ok(/\.barra-controles-inferior\s*\{[^}]*display:\s*flex[^}]*gap:\s*6px/.test(css),
+  "la barra usa Flexbox y separación uniforme");
+ok(/\.barra-controles-inferior > button\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/.test(css),
+  "los accesos comparten dimensiones en escritorio");
+ok(/\.barra-controles-inferior > \.control-pantalla-completa\s*\{[^}]*order:\s*4/.test(css),
+  "pantalla completa queda en el extremo derecho");
+ok(/\.barra-controles-inferior > \.control-aprender-sala\s*\{[^}]*order:\s*1/.test(css),
+  "instrucciones quedan a la izquierda y se recolocan sin huecos");
 ok(/body\.en-partida\s*\{[^}]*--columna-derecha:\s*\d+px/.test(css),
   "el token de columna derecha se define para la partida");
 ok(/grid-template-columns:[^;]*var\(--columna-derecha, 320px\)/.test(css),
