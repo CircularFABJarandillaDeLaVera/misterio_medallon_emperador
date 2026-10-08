@@ -6,10 +6,11 @@ no tienen conexiones simuladas y el misterio nunca sale del servidor.
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -25,8 +26,10 @@ from app.datos.recursos import (
     RECURSO_TABLERO,
 )
 from app.datos.tablero_visual import TABLERO_VISUAL
+from app.motor import persistencia
 from app.motor.sala import (
     ESTADO_ESPERANDO,
+    ESTADO_INICIADA,
     ESTADO_TERMINADA,
     JUGADA_ESPERANDO_MOVIMIENTO,
     JUGADA_ESPERANDO_REFUTADOR,
@@ -34,10 +37,19 @@ from app.motor.sala import (
     JUGADA_PRESENTANDO_SOSPECHA,
     TIPO_PNJ,
     MODO_TABLERO,
+    MENSAJE_SIN_AUTORIDAD_ADMIN,
     GestorSalas,
 )
 
 app = FastAPI(title="El Misterio del Medallón")
+
+# Cabecera con la credencial administrativa. En la URL nunca: una URL queda
+# en el historial, en los registros del servidor y en el Referer.
+CABECERA_CREDENCIAL_ADMIN = "X-Token-Admin"
+
+# Tope del archivo de guardado al cargarlo. Una partida de 6 personas ocupa
+# unos pocos kilobytes; 2 MB es de sobra y corta cualquier abuso.
+TAMANO_MAXIMO_CARGA = 2 * 1024 * 1024
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 plantillas = Jinja2Templates(directory="app/templates")
@@ -60,6 +72,11 @@ def pausa_antes_de_turno_pnj(sala) -> float:
     -> siguiente PNJ = ~5 s. Otro caso PNJ (o sin jugada previa) -> ~3 s.
     Nunca bloquea: solo indica la duración del asyncio.sleep exterior
     al cerrojo.
+
+    Microfase 2: las tres duraciones son esperas AUTOMÁTICAS y siguen la
+    velocidad de la sala. Sus diferencias entre sí (los 2 s de lectura)
+    se conservan porque se desplazan por el mismo delta. Con la velocidad
+    inicial el resultado es idéntico al de antes.
     """
     ultima = getattr(sala, "ultima_jugada", None)
     if ultima:
@@ -71,10 +88,26 @@ def pausa_antes_de_turno_pnj(sala) -> float:
             and ultima.get("sospecha")
             and ultima.get("resultado") in {"refutada", "sin_refutacion"}
         ):
-            return PAUSA_LECTURA_SOSPECHA_PNJ_SEGUNDOS
+            return sala.espera_automatica(PAUSA_LECTURA_SOSPECHA_PNJ_SEGUNDOS)
         if investigador is not None and investigador.get("tipo") != TIPO_PNJ:
-            return PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS
-    return PAUSA_TURNO_PNJ_SEGUNDOS
+            return sala.espera_automatica(PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS)
+    return sala.espera_automatica(PAUSA_TURNO_PNJ_SEGUNDOS)
+
+
+async def _esperar_turno_pnj(sala, segundos: float) -> None:
+    """La ÚNICA espera de la cadena de PNJ, envuelta para poder congelarla.
+
+    Registra lo que queda en curso para que una pausa no lo pierda al
+    cancelar la tarea. El `asyncio.sleep` sigue siendo UNO solo, con su
+    duración ya calculada: no se trocea en fracciones ni se relee la
+    velocidad a mitad de espera.
+    """
+    inicio = time.monotonic()
+    sala.espera_pnj_en_curso = {"segundos": segundos, "inicio": inicio}
+    try:
+        await asyncio.sleep(segundos)
+    finally:
+        sala.espera_pnj_en_curso = None
 
 
 async def _cadena_turnos_pnj(codigo: str) -> None:
@@ -86,6 +119,8 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
             if sala is None:
                 return
             async with cerrojos.setdefault(codigo, asyncio.Lock()):
+                if sala.pausada:
+                    return
                 jugador = sala.jugador_en_turno()
                 if (
                     jugador is None
@@ -99,10 +134,19 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
                     return
                 jugador_id = jugador["id"]
                 sala.pnj_pensando_id = jugador_id
-                pausa = pausa_antes_de_turno_pnj(sala)
+                # Microfase 3: si la pausa interrumpió una espera, se retoma
+                # con el tiempo que le QUEDABA, no con uno nuevo. Nadie acts
+                # antes de tiempo; y si ya había-consumerado su espera, actúa
+                # de inmediato, que es lo que le correspondía.
+                restante = sala.turno_pnj_espera_restante
+                if restante is not None:
+                    sala.turno_pnj_espera_restante = None
+                    pausa = max(0.0, restante)
+                else:
+                    pausa = pausa_antes_de_turno_pnj(sala)
             # El resultado anterior sigue en ultima_jugada durante toda la
             # pausa. No sostenemos el cerrojo mientras los humanos lo leen.
-            await asyncio.sleep(pausa)
+            await _esperar_turno_pnj(sala, pausa)
             async with cerrojos[codigo]:
                 jugador = sala.jugador_en_turno()
                 if (
@@ -137,6 +181,11 @@ async def _cadena_turnos_pnj(codigo: str) -> None:
 def programar_turno_pnj(codigo: str) -> None:
     sala = gestor.obtener(codigo)
     if sala is None or sala.estado == ESTADO_TERMINADA:
+        return
+    # Microfase 3: con la partida en pausa no arranca ninguna tarea
+    # automática. Es la ÚNICA puerta de arranque, así que vale también para
+    # una reconexión o para una acción que llegue durante la pausa.
+    if sala.pausada:
         return
     existente = tareas_pnj.get(codigo)
     if existente is None or existente.done():
@@ -202,6 +251,8 @@ def programar_timeout_refutacion(codigo: str) -> None:
     """Programa el watchdog sin reiniciar jamás el deadline de la sala."""
     sala = gestor.obtener(codigo)
     if sala is None or sala.estado == ESTADO_TERMINADA:
+        return
+    if sala.pausada:
         return
     if not _necesita_timeout_refutacion(sala):
         return
@@ -270,6 +321,7 @@ def programar_presentacion_sospecha(codigo: str) -> None:
     if (
         sala is None
         or sala.estado == ESTADO_TERMINADA
+        or sala.pausada
         or sala.estado_jugada != JUGADA_PRESENTANDO_SOSPECHA
         or sala.presentacion_sospecha is None
     ):
@@ -342,6 +394,8 @@ def programar_bloqueo(codigo: str) -> None:
     sala = gestor.obtener(codigo)
     if sala is None or sala.estado == ESTADO_TERMINADA:
         return
+    if sala.pausada:
+        return
     if not _necesita_bloqueo(sala):
         return
     existente = tareas_bloqueo.get(codigo)
@@ -359,9 +413,83 @@ def cancelar_bloqueo(codigo: str) -> None:
         tarea.cancel()
 
 
+# --- Pausa de la partida (Microfase 3) ------------------------------------
+# La sala congela sus propios plazos (desplazar_plazos) y aquí se detienen
+# las CUATRO tareas automáticas. Se reanudan con los mismos chores de
+# programación de siempre: son idempotentes y nunca reinician un plazo, que
+# es justo lo que hace falta para no saltarse ni duplicar nada.
+
+
+def detener_tareas_automaticas(codigo: str) -> None:
+    """Cancela la cadena PNJ y los tres watchdogs de la sala."""
+    tarea = tareas_pnj.pop(codigo, None)
+    try:
+        actual = asyncio.current_task()
+    except RuntimeError:
+        actual = None
+    if tarea and tarea is not actual:
+        tarea.cancel()
+    cancelar_timeout_refutacion(codigo)
+    cancelar_presentacion_sospecha(codigo)
+    cancelar_bloqueo(codigo)
+
+
+def pausar_partida(sala) -> None:
+    """Detiene la sala: primero conserva lo pendiente, después corta tareas."""
+    if not sala.pausada:
+        return
+    # Un PNJ que ya estaba esperando sigue esperando lo que le quedaba: se
+    # calcula ANTES de cancelar la tarea, que es cuando desaparece el dato.
+    en_curso = sala.espera_pnj_en_curso
+    sala.turno_pnj_espera_restante = (
+        max(0.0, en_curso["segundos"] - (time.monotonic() - en_curso["inicio"]))
+        if en_curso
+        else None
+    )
+    sala.pnj_pensando_id = None
+    detener_tareas_automaticas(sala.codigo)
+
+
+def reanudar_partida(sala) -> None:
+    """Rearma las tareas que hagan falta. Los plazos ya vienen desplazados."""
+    if sala.pausada:
+        return
+    codigo = sala.codigo
+    programar_turno_pnj(codigo)
+    programar_timeout_refutacion(codigo)
+    programar_presentacion_sospecha(codigo)
+    programar_bloqueo(codigo)
+
+
+def registrar_sala(sala) -> None:
+    """Prepara las estructuras internas de una sala recién importada.
+
+    Solo el cerrojo y el registro de conexiones: NUNCA las tareas. Importar no
+    es jugar, y arrancar aquí una cadena de PNJ sería ejecutar una acción que
+    el administrador no ha pedido.
+    """
+    conexiones.setdefault(sala.codigo, {})
+    cerrojos.setdefault(sala.codigo, asyncio.Lock())
+
+
+def reactivar_sala(sala) -> None:
+    """Vuelve a armar las tareas automáticas de una sala importada.
+
+    Los cuatro `programar_*` son idempotentes y respetan la pausa, así que
+    llamarlos dos veces no duplica nada y una sala en pausa no arranca nada.
+    """
+    if sala.estado == ESTADO_TERMINADA:
+        return
+    programar_turno_pnj(sala.codigo)
+    programar_timeout_refutacion(sala.codigo)
+    programar_presentacion_sospecha(sala.codigo)
+    programar_bloqueo(sala.codigo)
+
+
 class EntradaAlias(BaseModel):
     alias: str = ""
     modo: str = "rapido"
+
 
 
 class EntradaUnirse(BaseModel):
@@ -390,6 +518,29 @@ async def _enviar_privado(sala, jugador_id: str, ws: WebSocket) -> bool:
     try:
         await ws.send_json(
             {"tipo": "estado_privado", "sala": sala.estado_privado(jugador_id)}
+        )
+        return True
+    except Exception:
+        return False
+
+
+async def _enviar_credencial_admin(sala, jugador_id: str, ws: WebSocket) -> bool:
+    """Entrega el secreto administrativo solo al asiento anfitrión.
+
+    Va en un mensaje propio, dirigido únicamente a esa conexión. Nunca entra
+    en estado_privado(), en estado_publico() ni en difundir(), de modo que
+    ningún otro jugador puede recibirlo por el WebSocket.
+
+    No se empuja al conectar: solo se entrega si el propio anfitrión lo
+    pide, para que recuperar el secreto tras una recarga no altere el flujo
+    de mensajes de ninguna otra acción.
+    """
+    credencial = sala.credencial_admin_de(jugador_id)
+    if credencial is None:
+        return False
+    try:
+        await ws.send_json(
+            {"tipo": "credencial_admin", "credencial": credencial}
         )
         return True
     except Exception:
@@ -437,10 +588,13 @@ async def crear_partida(entrada: EntradaAlias):
         return _respuesta_error(str(exc))
     conexiones.setdefault(sala.codigo, {})
     cerrojos.setdefault(sala.codigo, asyncio.Lock())
+    # Quien crea la partida ES el anfitrión: es el único que recibe el
+    # secreto administrativo, y solo en esta respuesta.
     return {
         "codigo": sala.codigo,
         "jugador_id": anfitrion["id"],
         "alias": anfitrion["alias"],
+        "credencial_admin": sala.credencial_admin_de(anfitrion["id"]),
         "sala": sala.estado_publico(),
     }
 
@@ -455,6 +609,7 @@ async def unirse_partida(codigo: str, entrada: EntradaUnirse):
     except ValueError as exc:
         return _respuesta_error(str(exc))
     await difundir(sala.codigo)
+    # Quien se une no es anfitrión: no recibe ninguna credencial administrativa.
     return {
         "codigo": sala.codigo,
         "jugador_id": jugador["id"],
@@ -499,6 +654,87 @@ def estado_partida(codigo: str):
     return {"sala": sala.estado_publico()}
 
 
+@app.post("/api/cargar")
+async def cargar_partida(request: Request):
+    """Restaura una partida guardada (Microfase 6).
+
+    El CUERPO de la petición ES el archivo de guardado, en JSON. Se lee en
+    crudo y con límite de tamaño antes de hacer nada: un archivo enorme se
+    rechaza sin llegar a analizarlo.
+
+    Quien carga el archivo demuestra tener la copia, y eso autoriza a
+    restaurar ESA copia. La credencial que viaja dentro solo vale para la
+    sala que se reconstruye aquí: nunca para otra sala activa distinta, que
+    tiene su propio secreto.
+
+    Las tareas NO se reactivan aquí: eso ocurre cuando el anfitrión abre su
+    sala y se conecta. Así ninguna acción automática puede dispararse antes
+    de que haya recuperado su sesión.
+    """
+    cuerpo = await request.body()
+    if len(cuerpo) > TAMANO_MAXIMO_CARGA:
+        return _respuesta_error(
+            "El archivo es demasiado grande para ser una partida guardada.", 413
+        )
+    if not cuerpo.strip():
+        return _respuesta_error("No has elegido ningún archivo.", 400)
+    try:
+        datos = json.loads(cuerpo)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return _respuesta_error("El archivo no es un JSON válido.", 400)
+    try:
+        sala, reenumerada = gestor.importar_partida(datos)
+    except ValueError as exc:
+        # El mensaje del motor ya es claro y no incluye cartas ni secretos.
+        return _respuesta_error(str(exc), 400)
+    registrar_sala(sala)
+    anfitrion = sala.anfitrion()
+    return {
+        "codigo": sala.codigo,
+        "jugador_id": anfitrion["id"],
+        "alias": anfitrion["alias"],
+        "credencial_admin": sala.credencial_admin,
+        "codigo_original": datos.get("estado", {}).get("codigo", sala.codigo),
+        "codigo_reenumerado": reenumerada,
+        "resumen": datos.get("resumen", {}),
+        "sala": sala.estado_publico(),
+    }
+
+
+@app.get("/api/partidas/{codigo}/guardar")
+async def guardar_partida(codigo: str, request: Request):
+    """Descarga el archivo de guardado de la sala (Microfase 4).
+
+    La credencial del anfitrión viaja en la CABECERA `X-Token-Admin`, nunca
+    en la URL: una URL queda en el historial del navegador, en los registros
+    y en el `Referer`. Sin esa cabecera no se descarga nada, aunque se conozca
+    el código de la sala.
+
+    El volcado se hace dentro del cerrojo para que sea coherente, y nunca se
+    manda por el WebSocket: el archivo lleva la solución, las manos y las
+    notas privadas, así que sale solo por aquí y con `no-store`.
+    """
+    sala = gestor.obtener(codigo)
+    if sala is None:
+        return _respuesta_error("La sala no existe. Revisa el código.", 404)
+    credencial = request.headers.get(CABECERA_CREDENCIAL_ADMIN)
+    if not sala.credencial_admin_valida(credencial):
+        return _respuesta_error(MENSAJE_SIN_AUTORIDAD_ADMIN, 403)
+    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+        archivo = persistencia.exportar(sala)
+    return Response(
+        content=persistencia.a_json(archivo),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{persistencia.nombre_archivo(sala.codigo)}"'
+            ),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @app.websocket("/ws/{codigo}/{jugador_id}")
 async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     sala = gestor.obtener(codigo)
@@ -521,6 +757,14 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
         while True:
             datos = await ws.receive_json()
             accion = datos.get("accion")
+            # Microfase 3: con la partida en pausa el servidor RECHAZA toda
+            # acción de juego, venga del botón que venga. Solo se acepta
+            # reanudar (y pedir la credencial). Va antes de tocar nada.
+            try:
+                sala.comprobar_accion_en_pausa(accion)
+            except ValueError as exc:
+                await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                continue
             if accion == "iniciar":
                 try:
                     async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
@@ -737,6 +981,55 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                     continue
                 # Privado: solo se actualiza al autor, nunca al resto.
                 await _enviar_privado(sala, jugador_id, ws)
+            elif accion in ("pausar_partida", "reanudar_partida"):
+                # Microfase 3. Ambas pasan por la credencial del anfitrión.
+                # Pausar congela los plazos y corta las cuatro tareas; reanudar
+                # las rearma con los plazos ya desplazados.
+                credencial = datos.get("credencial_admin")
+                try:
+                    async with cerrojos.setdefault(sala.codigo, asyncio.Lock()):
+                        if accion == "pausar_partida":
+                            if sala.pausar_partida(jugador_id, credencial):
+                                pausar_partida(sala)
+                        else:
+                            if sala.reanudar_partida(jugador_id, credencial):
+                                reanudar_partida(sala)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+            elif accion in ("acelerar_acciones", "ralentizar_acciones"):
+                # Microfase 2. La velocidad es de la SALA: se valida con la
+                # credencial del anfitrión (nunca por el botón) y se difunde
+                # a todos para que el ritmo sea el mismo en cada pantalla.
+                #
+                # No se recalcula una espera ya en curso: la cadena PNJ tomó
+                # su duración ANTES de dormir y la respeta entera. Solo la
+                # siguiente espera usa el valor nuevo. Así un MÁS RÁPIDO no
+                # puede adelantar un PNJ por encima de la lectura pendiente y
+                # provocar una carrera o un turno duplicado.
+                credencial = datos.get("credencial_admin")
+                try:
+                    mover = (
+                        sala.acelerar_acciones
+                        if accion == "acelerar_acciones"
+                        else sala.ralentizar_acciones
+                    )
+                    mover(jugador_id, credencial)
+                except ValueError as exc:
+                    await ws.send_json({"tipo": "error", "detalle": str(exc)})
+                    continue
+                await difundir(sala.codigo)
+            elif accion == "pedir_credencial_admin":
+                # Recuperar el secreto tras una recarga no altera el estado
+                # de la partida. Solo se lo pide el propio anfitrión, desde
+                # esta misma conexión, y solo se le responde a él.
+                if not sala.es_anfitrion(jugador_id):
+                    await ws.send_json(
+                        {"tipo": "error", "detalle": MENSAJE_SIN_AUTORIDAD_ADMIN}
+                    )
+                    continue
+                await _enviar_credencial_admin(sala, jugador_id, ws)
             else:
                 # Ante mensajes desconocidos se reenvía su estado privado.
                 await _enviar_privado(sala, jugador_id, ws)

@@ -13,6 +13,7 @@ Seguridad:
 """
 from __future__ import annotations
 
+import hashlib
 import random
 import secrets
 import time
@@ -100,6 +101,53 @@ ACCION_POR_ESTADO_BLOQUEANTE = {
 }
 ESTADOS_BLOQUEANTES = frozenset(ACCION_POR_ESTADO_BLOQUEANTE)
 
+# --- Administración (Microfase 1) ---------------------------------------
+# La autoridad administrativa NO depende de que un botón esté visible: se
+# comprueba en el servidor, con un secreto que solo posee el anfitrión.
+#
+# Hay UN secreto por SALA, nunca uno por jugador. Los PNJ no lo tienen. Se
+# compara en tiempo constante y jamás sale en estado_publico(),
+# estado_privado() ni en ninguna difusión: solo se entrega al asiento que
+# es anfitrión, por un mensaje privado al abrir su conexión.
+BYTES_CREDENCIAL_ADMIN = 32  # 256 bits de entropía por sala
+# Un único mensaje para toda negativa administrativa: no dice si falla el
+# asiento o el secreto, para no regalar un oráculo.
+MENSAJE_SIN_AUTORIDAD_ADMIN = "Solo el anfitrión puede administrar la partida."  # noqa: E501
+
+# Velocidad de las acciones automáticas (Microfase 2). Es un AJUSTE de la sala,
+# compartido por todos los participantes y modificable solo por el anfitrión.
+#
+# Cada espera automática conserva su duración propia: el ajuste NO reescribe
+# las constantes, las desplaza todas por el MISMO delta. Con el valor inicial
+# el delta es cero y el juego se comporta exactamente igual que antes.
+#
+#   espera(base) = base + (velocidad - VELOCIDAD_AUTOMATICA_INICIAL)
+#
+# Con la inicial (3): ritmo PNJ 3 s, lectura de jugada 5 s, lectura de
+# sospecha PNJ 5 s, ventana de los PNJ 3 s. Los dos segundos de diferencia
+# entre el ritmo y la lectura se respetan en todos los valores.
+#
+# NO se tocan NUNCA los plazos de decisión humana: ni la refutación, ni las
+# ventanas obligatorias de lectura (sospecha 10 s, resultado 14 s), ni el
+# antibloqueo de 60 s.
+VELOCIDAD_AUTOMATICA_INICIAL = 3
+VELOCIDAD_AUTOMATICA_MINIMA = 1
+VELOCIDAD_AUTOMATICA_MAXIMA = 10
+
+# Pausa de la partida (Microfase 3). El estado vive en la sala: sobrevive a
+# recargas y reconexiones, y solo lo mueve el anfitrión, con su credencial.
+#
+# Congelar es DESPLAZAR los plazos: los pendientes suman la duración de la
+# pausa, así que al reanudar cada uno conserva el tiempo que le quedaba.
+MENSAJE_PARTIDA_EN_PAUSA = "La partida está en pausa. Espera a que el anfitrión la reanude."
+MENSAJE_PARTIDA_NO_PAUSA = "La partida no está en pausa."
+# Durante la pausa solo se acepta esto: ni turnos, ni sospechas, ni refutar,
+# ni acusar, ni anotar. La nota privada es una acción más de partida.
+ACCIONES_PERMITIDAS_EN_PAUSA = frozenset(
+    {"reanudar_partida", "pedir_credencial_admin"}
+)
+
+
 # Hoja de investigación privada (Microfase 3B). Terminología de OBJETOS.
 INV_SIN_INFORMACION = "sin_informacion"
 INV_DESCARTADA = "descartada"
@@ -114,6 +162,19 @@ def generar_codigo() -> str:
     """Genera un código corto tipo JARA-XXXX."""
     sufijo = "".join(secrets.choice(_ALFABETO_CODIGO) for _ in range(4))
     return f"JARA-{sufijo}"
+
+
+def generar_credencial_admin() -> str:
+    """Secreto administrativo de una sala (alfabeto URL-safe)."""
+    return secrets.token_urlsafe(BYTES_CREDENCIAL_ADMIN)
+
+
+def resumen_credencial_admin(credencial: str) -> str:
+    """Huella del secreto: es lo que se compara en tiempo constante.
+
+    Nunca se compara ni se registra el secreto en claro.
+    """
+    return hashlib.sha256(credencial.encode("utf-8")).hexdigest()
 
 
 def normalizar_alias(alias: str) -> str:
@@ -157,6 +218,28 @@ class Sala:
         self.modo = modo
         self.estado = ESTADO_ESPERANDO
         self.jugadores: list[dict] = []  # humanos y PNJ comparten estructura
+        # Autoridad administrativa de la sala. El secreto en claro se conserva
+        # para poder reentregárselo al anfitrión cuando reconecta; la
+        # comparación de las futuras acciones se hace contra el resumen, en
+        # tiempo constante. No viaja en ningún estado ni en ninguna difusión.
+        self.credencial_admin = generar_credencial_admin()
+        self.credencial_admin_resumen = resumen_credencial_admin(
+            self.credencial_admin
+        )
+        # Espera automática configurada para TODA la sala, en segundos. Vive en
+        # la sala (no en el navegador): cada participante ve el mismo número y
+        # el anfitrión es el único que puede moverlo.
+        self.velocidad_acciones = VELOCIDAD_AUTOMATICA_INICIAL
+        # Microfase 3 · Pausa. `pausa_marca` es el instante monotónico en el
+        # que empezó; `turno_pnj_espera_restante` conserva lo que le quedaba
+        # a un PNJ que ya estaba esperando cuando se pausó.
+        self.pausada = False
+        self.pausa_marca: float | None = None
+        self.turno_pnj_espera_restante: float | None = None
+        # Datos de la espera del PNJ en curso, los escribe la orquestación.
+        # Vive en la sala (como `pnj_pensando_id`) para que una pausa pueda
+        # calcular lo que le quedaba antes de cancelar la tarea.
+        self.espera_pnj_en_curso: dict | None = None
         self.misterio: dict | None = None  # SECRETO: nunca sale del servidor
         self.manos: dict[str, list[dict]] = {}  # jugador_id -> sus cartas
         self.orden_turnos: list[str] = []  # jugador_ids sorteados una sola vez
@@ -215,6 +298,157 @@ class Sala:
                 return j
         return None
 
+    # --- Autoridad administrativa (Microfase 1) ---------------------------
+    # Base de las acciones administrativas de las próximas fases (pausar,
+    # velocidad, guardar). La comprobación vive aquí, no en la interfaz: un
+    # jugador que manipule la petición desde el navegador recibe el mismo
+    # rechazo que si el botón no existiera.
+
+    def anfitrion(self) -> dict | None:
+        """El asiento que hoy administra la sala, o None si no queda ninguno."""
+        for j in self.jugadores:
+            if j["es_anfitrion"]:
+                return j
+        return None
+
+    def es_anfitrion(self, jugador_id: str) -> bool:
+        jugador = self.jugador_por_id(jugador_id)
+        return bool(jugador is not None and jugador["es_anfitrion"])
+
+    def rotar_credencial_admin(self, jugador_id: str) -> str:
+        """Emite un secreto nuevo para el anfitrión indicado.
+
+        Se usa cuando el rol cambia de manos (herencia al irse el
+        anfitrión): el secreto anterior deja de valer para todo el mundo.
+        """
+        self.credencial_admin = generar_credencial_admin()
+        self.credencial_admin_resumen = resumen_credencial_admin(
+            self.credencial_admin
+        )
+        return self.credencial_admin
+
+    def credencial_admin_de(self, jugador_id: str) -> str | None:
+        """Entrega el secreto SOLO al asiento anfitrión. Nadie más lo recibe."""
+        if not self.es_anfitrion(jugador_id):
+            return None
+        return self.credencial_admin
+
+    def credencial_admin_valida(self, credencial) -> bool:
+        """Compara el secreto recibido con el de la sala, en tiempo constante."""
+        if not isinstance(credencial, str) or not credencial:
+            return False
+        return secrets.compare_digest(
+            resumen_credencial_admin(credencial), self.credencial_admin_resumen
+        )
+
+    def exigir_credencial_admin(self, jugador_id: str, credencial) -> None:
+        """Exige a la vez el ASIENTO y el SECRETO del anfitrión.
+
+        WebSocket: `datos.get("token_admin")` del mensaje de la acción.
+        HTTP: la cabecera `X-Token-Admin` de la petición. En ninguno de los
+        dos casos la credencial viaja en la URL.
+
+        El rechazo es el mismo para un jugador sin rol y para un secreto
+        equivocado, y no distingue cuál de los dos falla.
+        """
+        if not self.es_anfitrion(jugador_id):
+            raise ValueError(MENSAJE_SIN_AUTORIDAD_ADMIN)
+        if not self.credencial_admin_valida(credencial):
+            raise ValueError(MENSAJE_SIN_AUTORIDAD_ADMIN)
+
+    # --- Velocidad de las acciones automáticas (Microfase 2) --------------
+    # El ajuste es de la SALA, no de cada navegador. Solo lo mueve el
+    # anfitrión, y solo con su credencial: ocultar los botones no es la
+    # protección, la validación del servidor sí.
+
+    def espera_automatica(self, base: float) -> float:
+        """Espera automática de la sala a partir de la base canónica.
+
+        `base` es la constante original (3 s del ritmo PNJ, 5 s de lectura,
+        3 s de la ventana de los PNJ). Todas se desplazan por el MISMO delta,
+        de modo que sus diferencias entre sí se conservan siempre y con la
+        velocidad inicial el juego se comporta como antes de esta fase.
+        """
+        return base + (self.velocidad_acciones - VELOCIDAD_AUTOMATICA_INICIAL)
+
+    def acelerar_acciones(self, jugador_id: str, credencial) -> int:
+        """MÁS RÁPIDO: un segundo menos de espera automática."""
+        return self._mover_velocidad(jugador_id, credencial, -1)
+
+    def ralentizar_acciones(self, jugador_id: str, credencial) -> int:
+        """MÁS LENTO: un segundo más de espera automática."""
+        return self._mover_velocidad(jugador_id, credencial, +1)
+
+    def _mover_velocidad(self, jugador_id: str, credencial, paso: int) -> int:
+        self.exigir_credencial_admin(jugador_id, credencial)
+        self.velocidad_acciones = min(
+            VELOCIDAD_AUTOMATICA_MAXIMA,
+            max(VELOCIDAD_AUTOMATICA_MINIMA, self.velocidad_acciones + paso),
+        )
+        return self.velocidad_acciones
+
+    # --- Pausa y reanudación (Microfase 3) -------------------------------
+    # Congelar no es cancelar: es correr el reloj. Todos los plazos
+    # pendientes suman la duración de la pausa, así que al reanudar cada
+    # operación conserva exactamente el tiempo que le quedaba.
+
+    def desplazar_plazos(self, delta: float) -> None:
+        """Suma `delta` (segundos) a TODOS los plazos vivos de la sala.
+
+        Único sitio donde se tocan los relojes: presentación (inicio y el
+        deadline de cada participante), refutación pendiente y antibloqueo.
+        Los que no están en marcha se quedan como están.
+        """
+        if delta <= 0:
+            return
+        if self.refutacion_deadline is not None:
+            self.refutacion_deadline += delta
+        if self.bloqueo_deadline is not None:
+            self.bloqueo_deadline += delta
+        presentacion = self.presentacion_sospecha
+        if presentacion is not None:
+            presentacion["inicio"] += delta
+            for datos in presentacion["participantes"].values():
+                if datos.get("deadline") is not None:
+                    datos["deadline"] += delta
+
+    def pausar_partida(self, jugador_id: str, credencial, ahora=None) -> bool:
+        """Detiene la partida. Idempotente: pausar dos veces no hace nada.
+
+        Devuelve True si esta llamada ha sido la que la ha pausado.
+        """
+        self.exigir_credencial_admin(jugador_id, credencial)
+        if self.estado != ESTADO_INICIADA:
+            raise ValueError("Solo se puede pausar una partida en curso.")
+        if self.pausada:
+            return False
+        self.pausada = True
+        self.pausa_marca = time.monotonic() if ahora is None else ahora
+        return True
+
+    def reanudar_partida(self, jugador_id: str, credencial, ahora=None) -> bool:
+        """Continúa desde el estado anterior, con los tiempos que quedaban."""
+        self.exigir_credencial_admin(jugador_id, credencial)
+        if self.estado != ESTADO_INICIADA:
+            raise ValueError("Solo se puede reanudar una partida en curso.")
+        if not self.pausada:
+            raise ValueError(MENSAJE_PARTIDA_NO_PAUSA)
+        instante = time.monotonic() if ahora is None else ahora
+        marca = self.pausa_marca if self.pausa_marca is not None else instante
+        self.desplazar_plazos(max(0.0, instante - marca))
+        self.pausa_marca = None
+        self.pausada = False
+        return True
+
+    def comprobar_accion_en_pausa(self, accion) -> None:
+        """El servidor rechaza toda acción de partida mientras está en pausa.
+
+        Se llama al entrar en el WebSocket, antes de tocar nada: no depende
+        de que el botón esté visible ni de lo que haya en el navegador.
+        """
+        if self.pausada and accion not in ACCIONES_PERMITIDAS_EN_PAUSA:
+            raise ValueError(MENSAJE_PARTIDA_EN_PAUSA)
+
     def cambiar_modo(self, modo: str) -> None:
         if self.estado != ESTADO_ESPERANDO:
             raise ValueError("El modo no puede cambiarse después de iniciar.")
@@ -262,6 +496,10 @@ class Sala:
                 # Si se va el anfitrión, el más antiguo hereda el rol.
                 if eliminado["es_anfitrion"] and self.jugadores:
                     self.jugadores[0]["es_anfitrion"] = True
+                    # El rol cambia de manos, así que también cambia el
+                    # secreto: el anfitrión saliente deja de poder
+                    # administrar la sala.
+                    self.rotar_credencial_admin(self.jugadores[0]["id"])
                 return eliminado
         return None
 
@@ -1034,8 +1272,10 @@ class Sala:
         participantes = {}
         for participante in self.jugadores:
             es_autor = participante["id"] == jugador_id
+            # Solo la espera automática de los PNJ sigue la velocidad de la
+            # sala. La ventana del humano (10 s) es obligatoria y no se toca.
             espera = (
-                PAUSA_PRESENTACION_PNJ_SEGUNDOS
+                self.espera_automatica(PAUSA_PRESENTACION_PNJ_SEGUNDOS)
                 if participante["tipo"] == TIPO_PNJ
                 else PAUSA_PRESENTACION_HUMANO_SEGUNDOS
             )
@@ -1144,7 +1384,7 @@ class Sala:
             # menor que el plazo de lectura humano, no añade ninguna espera
             # adicional: el resultado avanza cuando todos o el plazo lo digan.
             espera = (
-                PAUSA_PRESENTACION_PNJ_SEGUNDOS
+                self.espera_automatica(PAUSA_PRESENTACION_PNJ_SEGUNDOS)
                 if participante["tipo"] == TIPO_PNJ
                 else PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
             )
@@ -1724,6 +1964,11 @@ class Sala:
             "modo": self.modo,
             "alias": jugador["alias"] if jugador else "",
             "es_anfitrion": bool(jugador and jugador["es_anfitrion"]),
+            # Espera automática compartida: la ven todos para que el ritmo
+            # sea el mismo en todas las pantallas. No es una credencial.
+            "velocidad_acciones": self.velocidad_acciones,
+            # Microfase 3: todos ven que la partida está detenida.
+            "pausada": self.pausada,
             "personaje_id": jugador["personaje_id"] if jugador else None,
             "personaje": self.nombre_personaje(
                 jugador["personaje_id"] if jugador else None
@@ -1832,6 +2077,37 @@ class GestorSalas:
         if not codigo:
             return None
         return self.salas.get(codigo.strip().upper())
+
+    def importar_partida(self, datos) -> tuple[Sala, bool]:
+        """Reconstruye una partida guardada (Microfase 5).
+
+        Devuelve la sala y si ha habido que renumerar su código.
+
+        Es ATÓMICA: primero valida y luego construye la sala entera en local.
+        Si algo falla no queda ninguna sala a medias, y una partida que ya
+        existe no se toca nunca. Si el código está ocupado se genera otro y
+        se avisa con el segundo valor, sin alterar la partida en marcha.
+
+        NO reparte cartas, NO genera misterio y NO rearma tareas: eso es
+        trabajo de quien la abre, con los mecanismos de siempre.
+        """
+        # Importación diferida: persistencia necesita a Sala, y no puede
+        # importarse arriba sin formar un círculo.
+        from app.motor import persistencia
+
+        estado = dict(persistencia.validar(datos))
+        codigo_original = estado["codigo"]
+        reenumerada = codigo_original in self.salas
+        if reenumerada:
+            codigo = generar_codigo()
+            while codigo in self.salas:
+                codigo = generar_codigo()
+            estado["codigo"] = codigo
+        # Hasta aquí no existe nada en el registro: si `restaurar_sala`
+        # falla, la excepción sale y el registro sigue como estaba.
+        sala = persistencia.restaurar_sala(estado)
+        self.salas[sala.codigo] = sala
+        return sala, reenumerada
 
     def unirse(self, codigo: str, alias: str) -> tuple[Sala, dict]:
         sala = self.obtener(codigo)

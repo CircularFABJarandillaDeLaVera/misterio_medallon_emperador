@@ -1,13 +1,29 @@
-/* Portada videojuego (8B.15): dos acciones + popups de crear/unirse. */
+/* Portada videojuego (8B.15): crear/unirse/cargar + sus popups. */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
 
+// Microfase 6 · Los tres popups de la portada. La lista es la ÚNICA fuente:
+// abrir, cerrar con Escape, cerrar con el velo y devolver el foco salen de
+// aquí, así que una ventana nueva queda registrada por las cuatro vías.
+const MODALES_PORTADA = ["modal-nueva", "modal-unirse", "modal-cargar"];
+const BOTON_QUE_ABRE = {
+  "modal-nueva": "btn-nueva",
+  "modal-unirse": "btn-unirse",
+  "modal-cargar": "btn-cargar",
+};
+const ERROR_DE_MODAL = {
+  "modal-nueva": "error-nueva",
+  "modal-unirse": "error",
+  "modal-cargar": "error-cargar",
+};
+
 let modoDesbloqueado = false;
 let ultimoFoco = null;
+let cargandoPartida = false;
 
 function modalAbierto() {
-  for (const id of ["modal-nueva", "modal-unirse"]) {
+  for (const id of MODALES_PORTADA) {
     const modal = $(id);
     if (modal && !modal.hidden) return modal;
   }
@@ -29,9 +45,11 @@ function cerrarModal(idModal) {
   const modal = $(idModal);
   if (!modal) return;
   modal.hidden = true;
-  if (idModal === "modal-nueva" && $("error-nueva")) $("error-nueva").textContent = "";
-  if (idModal === "modal-unirse" && $("error")) $("error").textContent = "";
-  const opener = idModal === "modal-nueva" ? $("btn-nueva") : $("btn-unirse");
+  const error = $(ERROR_DE_MODAL[idModal]);
+  if (error) error.textContent = "";
+  // La selección de archivo no sobrevive a cancelar: se empieza de cero.
+  if (idModal === "modal-cargar") limpiarArchivoElegido();
+  const opener = $(BOTON_QUE_ABRE[idModal]);
   if (!modalAbierto() && opener && opener.focus) opener.focus();
 }
 
@@ -94,6 +112,11 @@ async function crearPartida() {
     const datos = await respuesta.json();
     sessionStorage.setItem("jugador_id", datos.jugador_id);
     sessionStorage.setItem("alias", datos.alias);
+    // Solo quien crea la partida es anfitrión y recibe el secreto
+    // administrativo. Se guarda para las futuras acciones de administración.
+    if (datos.credencial_admin) {
+      sessionStorage.setItem("credencial_admin", datos.credencial_admin);
+    }
     window.location.href = `/sala/${datos.codigo}`;
   } finally {
     if (boton) boton.disabled = false;
@@ -135,6 +158,92 @@ async function unirsePartida() {
   }
 }
 
+// --- Microfase 6 · CARGAR PARTIDA -----------------------------------------
+// Se elige un archivo local y se manda TAL CUAL al servidor, que es quien
+// lo valida entero. Aquí no se interpreta nada del contenido.
+
+function archivoElegido() {
+  const campo = $("archivo-partida");
+  return campo && campo.files && campo.files.length ? campo.files[0] : null;
+}
+
+function limpiarArchivoElegido() {
+  const campo = $("archivo-partida");
+  if (campo) campo.value = "";
+  const elegido = $("archivo-elegido");
+  if (elegido) {
+    elegido.hidden = true;
+    elegido.textContent = "";
+  }
+}
+
+function marcarArchivoElegido() {
+  const archivo = archivoElegido();
+  const elegido = $("archivo-elegido");
+  if (!elegido) return;
+  if (!archivo) {
+    elegido.hidden = true;
+    elegido.textContent = "";
+    return;
+  }
+  elegido.textContent = `ARCHIVO ELEGIDO: ${archivo.name}`;
+  elegido.hidden = false;
+}
+
+async function cargarPartida() {
+  if (cargandoPartida) return; // sin envíos duplicados mientras se procesa
+  const error = $("error-cargar");
+  if (error) error.textContent = "";
+  const archivo = archivoElegido();
+  if (!archivo) {
+    if (error) error.textContent = "ELIGE EL ARCHIVO DE LA PARTIDA GUARDADA.";
+    return;
+  }
+  const boton = $("btn-confirmar-cargar");
+  cargandoPartida = true;
+  if (boton) boton.disabled = true;
+  try {
+    const texto = await archivo.text();
+    const respuesta = await fetch("/api/cargar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: texto,
+    });
+    if (!respuesta.ok) {
+      if (error) error.textContent = await leerError(respuesta);
+      return;
+    }
+    const datos = await respuesta.json();
+    // Recupera su identidad original: no es un jugador nuevo y no se
+    // reparten cartas. Solo vuelve a su propio asiento.
+    sessionStorage.setItem("jugador_id", datos.jugador_id);
+    sessionStorage.setItem("alias", datos.alias);
+    if (datos.credencial_admin) {
+      sessionStorage.setItem("credencial_admin", datos.credencial_admin);
+    }
+    window.location.href = `/sala/${datos.codigo}`;
+  } catch (e) {
+    if (error) error.textContent = "NO SE PUDO LEER EL ARCHIVO.";
+  } finally {
+    cargandoPartida = false;
+    if (boton) boton.disabled = false;
+  }
+}
+
+$("btn-cargar").addEventListener("click", () => {
+  if ($("error-cargar")) $("error-cargar").textContent = "";
+  limpiarArchivoElegido();
+  abrirModal("modal-cargar", "archivo-partida");
+});
+
+$("btn-cancelar-cargar").addEventListener("click", () => cerrarModal("modal-cargar"));
+
+$("btn-confirmar-cargar").addEventListener("click", cargarPartida);
+
+if ($("archivo-partida") && $("archivo-partida").addEventListener) {
+  $("archivo-partida").addEventListener("change", marcarArchivoElegido);
+}
+
 $("btn-nueva").addEventListener("click", () => {
   if ($("error-nueva")) $("error-nueva").textContent = "";
   abrirModal("modal-nueva", "alias");
@@ -152,7 +261,7 @@ $("btn-crear").addEventListener("click", crearPartida);
 $("btn-confirmar-unirse").addEventListener("click", unirsePartida);
 
 // Clic en el velo (fuera de la caja) equivale a CANCELAR: sin fetch.
-for (const idModal of ["modal-nueva", "modal-unirse"]) {
+for (const idModal of MODALES_PORTADA) {
   const modal = $(idModal);
   if (modal && modal.addEventListener) {
     modal.addEventListener("click", (evento) => {

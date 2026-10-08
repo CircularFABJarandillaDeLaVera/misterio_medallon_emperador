@@ -55,7 +55,9 @@ def sala_tablero_controlada():
 
 
 def test_creacion_api_rapido_por_defecto_y_tablero_explicito():
-    assert "/static/js/inicio.js?v=8b15" in cliente.get("/").text
+    # El parámetro ?v= sube con cada cambio de inicio.js para que el
+    # navegador no sirva una copia antigua (Microfase 1 de administración).
+    assert "/static/js/inicio.js?v=admin6" in cliente.get("/").text
     rapido = cliente.post(
         "/api/partidas", json={"alias": "R", "modo": "rapido"}
     ).json()

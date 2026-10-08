@@ -80,6 +80,21 @@ const modalInactividad = document.getElementById("modal-inactividad");
 const inactividadTexto = document.getElementById("inactividad-texto");
 const btnPasarAPnj = document.getElementById("btn-pasar-a-pnj");
 const btnSeguirEsperando = document.getElementById("btn-seguir-esperando");
+// Microfase 2 · Ritmo de las acciones automáticas. Control provisional del
+// anfitrión: la autoridad real la comprueba el servidor con la credencial.
+const panelRitmo = document.getElementById("admin-ritmo");
+const ritmoValor = document.getElementById("admin-ritmo-valor");
+const btnRitmoMas = document.getElementById("btn-ritmo-mas");
+const btnRitmoMenos = document.getElementById("btn-ritmo-menos");
+// Microfase 3 · Pausa. El aviso NO es del anfitrión: lo ve todo el mundo.
+const avisoPausa = document.getElementById("admin-pausa-aviso");
+const btnPausarPartida = document.getElementById("btn-pausar-partida");
+const btnReanudarPartida = document.getElementById("btn-reanudar-partida");
+// Microfase 4 · Guardar partida.
+const btnGuardarPartida = document.getElementById("btn-guardar-partida");
+const estadoGuardar = document.getElementById("admin-guardar-estado");
+const RITMO_MINIMO = 1;
+const RITMO_MAXIMO = 10;
 // 8B.32 · Último aviso de inactividad ya tratado por ESTE cliente. El plazo
 // es canónico del servidor: aquí solo se recuerda qué id se ha visto para que
 // una redifusión no reabra el popup (mismo patrón que la presentación).
@@ -203,7 +218,18 @@ const ws = new WebSocket(
 ws.onmessage = (evento) => {
   const mensaje = JSON.parse(evento.data);
   if (mensaje.tipo === "estado_privado") {
+    // El anfitrión recupera su secreto si aún no lo tiene (por ejemplo
+    // tras abrir la sala en una pestaña nueva). Nadie más lo pide y la
+    // petición no altera el estado de la partida.
+    if (
+      mensaje.sala.es_anfitrion &&
+      !sessionStorage.getItem("credencial_admin")
+    ) {
+      ws.send(JSON.stringify({ accion: "pedir_credencial_admin" }));
+    }
     presentarEstadoPrivado(mensaje.sala);
+  } else if (mensaje.tipo === "credencial_admin") {
+    sessionStorage.setItem("credencial_admin", mensaje.credencial);
   } else if (mensaje.tipo === "error") {
     error.textContent = mensaje.detalle;
   }
@@ -376,6 +402,105 @@ function cerrarInactividad() {
   inactividadAvisoVigente = null;
 }
 
+function pintarRitmo(sala) {
+  // Microfase 3: el aviso de pausa es para TODOS. El panel con los botones
+  // es solo del anfitrión. Un jugador normal puede ver el aviso, pero no
+  // tocar nada: el servidor rechaza sus acciones con o sin botones.
+  const pausada = Boolean(sala && sala.pausada);
+  if (avisoPausa) avisoPausa.hidden = !pausada;
+  if (document.body && document.body.classList) {
+    document.body.classList.toggle("partida-en-pausa", pausada);
+  }
+  if (!panelRitmo) return;
+  const esAnfitrion = Boolean(sala && sala.es_anfitrion);
+  panelRitmo.hidden = !esAnfitrion;
+  // Solo se muestra la acción que toca: pausada -> REANUDAR. Y solo el
+  // anfitrión tiene alguna de las dos.
+  if (btnPausarPartida) btnPausarPartida.hidden = !esAnfitrion || pausada;
+  if (btnReanudarPartida) btnReanudarPartida.hidden = !esAnfitrion || !pausada;
+  // GUARDAR también es solo del anfitrión, y se puede usar en pausa.
+  if (btnGuardarPartida) btnGuardarPartida.hidden = !esAnfitrion;
+  if (!esAnfitrion) return;
+  const valor = Number(sala.velocidad_acciones) || 1;
+  ritmoValor.textContent = `${valor} S`;
+  // Los topes se muestran como deshabilitados: el servidor vuelve a validar.
+  // Durante la pausa se pueden ajustar: no provoca ningún avance.
+  if (btnRitmoMas) btnRitmoMas.disabled = valor >= RITMO_MAXIMO;
+  if (btnRitmoMenos) btnRitmoMenos.disabled = valor <= RITMO_MINIMO;
+}
+
+function moverRitmo(accion) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(
+    JSON.stringify({
+      accion,
+      credencial_admin: sessionStorage.getItem("credencial_admin"),
+    })
+  );
+}
+
+// Microfase 3 · Pausar y reanudar. Solo envían: el estado congelado lo
+// decide el servidor, y el botón visible depende de lo que diga la sala.
+if (btnPausarPartida) {
+  btnPausarPartida.addEventListener("click", () => moverRitmo("pausar_partida"));
+}
+if (btnReanudarPartida) {
+  btnReanudarPartida.addEventListener("click", () => moverRitmo("reanudar_partida"));
+}
+
+// --- Microfase 4 · Guardar partida ---------------------------------------
+// El archivo lleva la solución, las manos y las notas privadas: se descarga
+// por HTTP y NO se manda por el WebSocket. La credencial viaja en una
+// CABECERA, nunca en la URL.
+function avisarGuardado(texto, esError) {
+  if (!estadoGuardar) return;
+  estadoGuardar.textContent = texto;
+  estadoGuardar.hidden = !texto;
+  estadoGuardar.classList.toggle("error", Boolean(esError));
+}
+
+async function guardarPartida() {
+  if (btnGuardarPartida) btnGuardarPartida.disabled = true;
+  avisarGuardado("GUARDANDO...", false);
+  try {
+    const credencial = sessionStorage.getItem("credencial_admin");
+    const respuesta = await fetch(`/api/partidas/${encodeURIComponent(codigo)}/guardar`, {
+      headers: { "X-Token-Admin": credencial || "" },
+    });
+    if (!respuesta.ok) {
+      let detalle = "NO SE PUDO GUARDAR LA PARTIDA.";
+      try {
+        const cuerpo = await respuesta.json();
+        if (cuerpo && cuerpo.detalle) detalle = cuerpo.detalle.toUpperCase();
+      } catch (e) {
+        /* respuesta sin cuerpo JSON: se queda el texto por defecto */
+      }
+      avisarGuardado(detalle, true);
+      return;
+    }
+    const texto = await respuesta.text();
+    const url = URL.createObjectURL(
+      new Blob([texto], { type: "application/json" })
+    );
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `misterio-medallon-${codigo}.json`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+    URL.revokeObjectURL(url);
+    avisarGuardado("PARTIDA GUARDADA.", false);
+  } catch (e) {
+    avisarGuardado("NO SE PUDO GUARDAR LA PARTIDA.", true);
+  } finally {
+    if (btnGuardarPartida) btnGuardarPartida.disabled = false;
+  }
+}
+
+if (btnGuardarPartida) {
+  btnGuardarPartida.addEventListener("click", guardarPartida);
+}
+
 function pintarSala(sala) {
   error.textContent = "";
   // Modo de partida
@@ -411,6 +536,7 @@ function pintarSala(sala) {
     pintarPanel(sala);
     pintarFinal(sala);
     pintarInactividad(sala);
+    pintarRitmo(sala);
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
@@ -422,6 +548,7 @@ function pintarSala(sala) {
     total.hidden = false;
     if (resumenSala) resumenSala.hidden = true;
     partida.hidden = true;
+    pintarRitmo(sala);
     btnComenzar.style.display = "";
     lobbyPersonajes.style.display = "";
     pintarPersonajes(sala);
@@ -851,6 +978,14 @@ btnSeguirEsperando.addEventListener("click", () => {
   cerrarInactividad();
   ws.send(JSON.stringify({ accion: "seguir_esperando", aviso_id: avisoId }));
 });
+
+// Microfase 2 · Los dos botones solo envían; el valor llega del servidor.
+if (btnRitmoMas) {
+  btnRitmoMas.addEventListener("click", () => moverRitmo("acelerar_acciones"));
+}
+if (btnRitmoMenos) {
+  btnRitmoMenos.addEventListener("click", () => moverRitmo("ralentizar_acciones"));
+}
 
 btnPasarAPnj.addEventListener("click", () => {
   if (modalInactividad.hidden || inactividadAvisoVigente === null) return;

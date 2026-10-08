@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=fase2presentacion" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=admin4" />
 </head>
 <body>
   <main class="contenedor">
@@ -55,6 +55,35 @@
             <div id="vista-contextual" class="grupo-cartas" hidden></div>
             <button id="btn-sospecha" class="medallon medallon-primario medallon-compacto" type="button" hidden>🔎 FORMULAR SOSPECHA</button>
             <div id="final-partida" class="grupo-cartas" hidden></div>
+            <!-- Microfase 3 · Aviso de pausa. Este bloque NO es del anfitrión:
+                 lo ve todo el mundo, por eso vive fuera del panel de
+                 administración. -->
+            <p id="admin-pausa-aviso" class="admin-pausa-aviso" role="status" hidden>PARTIDA EN PAUSA</p>
+            <!-- Microfase 2 · Ritmo de las acciones automáticas. Provisional
+                 y solo del anfitrión: el servidor lo comprueba igual. -->
+            <div id="admin-ritmo" class="grupo-cartas admin-ritmo" aria-label="Ritmo de las acciones automáticas" hidden>
+              <div class="admin-ritmo-fila">
+                <button id="btn-ritmo-menos" type="button" class="medallon medallon-secundario medallon-compacto"
+                        title="Más lento: un segundo más de espera">MÁS LENTO −</button>
+                <output id="admin-ritmo-valor" class="admin-ritmo-valor" aria-live="polite">3 S</output>
+                <button id="btn-ritmo-mas" type="button" class="medallon medallon-secundario medallon-compacto"
+                        title="Más rápido: un segundo menos de espera">MÁS RÁPIDO +</button>
+              </div>
+              <p class="nota-privada admin-ritmo-nota">Solo afecta a las acciones automáticas. Los turnos de los jugadores no cambian.</p>
+              <div class="admin-pausa-fila">
+                <button id="btn-pausar-partida" type="button" class="medallon medallon-fantasma medallon-compacto"
+                        title="Detener la partida. Los tiempos pendientes se congelan">PAUSAR PARTIDA</button>
+                <button id="btn-reanudar-partida" type="button" class="medallon medallon-primario medallon-compacto"
+                        title="Continuar la partida donde estaba" hidden>REANUDAR PARTIDA</button>
+              </div>
+              <!-- Microfase 4 · Guardar partida. Solo el anfitrión, y la
+                   credencial va en una cabecera, nunca en la URL. -->
+              <div class="admin-guardar-fila">
+                <button id="btn-guardar-partida" type="button" class="medallon medallon-secundario medallon-compacto"
+                        title="Descargar el archivo de guardado de esta partida">GUARDAR PARTIDA</button>
+                <p id="admin-guardar-estado" class="nota-privada admin-guardar-estado" role="status" hidden></p>
+              </div>
+            </div>
             <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
               <button id="btn-ver-cartas" type="button" class="medallon medallon-secundario medallon-compacto" title="Mis cartas" hidden>CARTAS</button>
               <button id="btn-ver-hoja" type="button" class="medallon medallon-secundario medallon-compacto" title="Hoja de investigación">INVESTIGACIÓN</button>
@@ -213,7 +242,7 @@
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
   <script src="/static/js/audio.js?v=8b33b"></script>
-  <script src="/static/js/sala.js?v=fase2historial"></script>
+  <script src="/static/js/sala.js?v=admin4"></script>
   <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>

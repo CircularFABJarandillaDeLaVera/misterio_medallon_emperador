@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
   <title>El misterio del medallón — Juego de misterio y deducción</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=fase3b" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=admin4" />
 </head>
 <body class="portada">
   <div class="portada-fondo" aria-hidden="true"></div>
@@ -38,6 +38,17 @@
                 stroke-width="1.8" stroke-linecap="round" />
         </svg>
         <span>UNIRSE A UNA PARTIDA</span>
+      </button>
+      <!-- Microfase 6 · CARGAR PARTIDA. Entra como tercera acción
+           principal, sin tocar el resto de la portada. -->
+      <button id="btn-cargar" class="medallon medallon-secundario" type="button">
+        <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 15.5V19a1 1 0 001 1h14a1 1 0 001-1v-3.5" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" />
+          <path d="M12 4.5v10.2M8.3 11l3.7 3.7 3.7-3.7" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>CARGAR PARTIDA</span>
       </button>
       <div class="portada-menu-secundario">
         <button id="btn-aprender-inicio" class="medallon medallon-fantasma medallon-compacto" type="button" data-abrir-aprender>
@@ -235,7 +246,22 @@
     </div>
   </div>
 
-  <script src="/static/js/inicio.js?v=8b15"></script>
+  <div id="modal-cargar" class="modal portada-modal" hidden>
+    <div class="modal-caja portada-modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-cargar">
+      <h2 id="titulo-cargar">CARGAR PARTIDA</h2>
+      <label class="portada-etiqueta" for="archivo-partida">ARCHIVO DE LA PARTIDA GUARDADA</label>
+      <input id="archivo-partida" class="portada-campo" type="file" accept=".json,application/json" />
+      <p id="archivo-elegido" class="portada-nota" hidden></p>
+      <p class="portada-nota">EL ARCHIVO CONTIENE LA SOLUCIÓN DEL MISTERIO.<br />GUÁRDALO EN UN LUGAR SEGURO.</p>
+      <p id="error-cargar" class="error" role="alert"></p>
+      <div class="portada-modal-acciones">
+        <button id="btn-confirmar-cargar" class="medallon medallon-primario medallon-compacto" type="button">CARGAR</button>
+        <button id="btn-cancelar-cargar" class="medallon medallon-fantasma medallon-compacto" type="button">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/inicio.js?v=admin6"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
   <!-- 8B.33B: solo la infraestructura de EFECTOS (clic). La musica
        ambiental sigue existiendo solo en la sala y no se descarga aqui:

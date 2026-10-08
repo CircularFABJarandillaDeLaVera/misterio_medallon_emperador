@@ -438,6 +438,116 @@ button.discreto {
   text-overflow: ellipsis;
 }
 
+/* Microfase 2 · Ritmo de las acciones automáticas. Control provisional del
+   anfitrión dentro del panel derecho: reusa la familia medallón y se apoya
+   en la barra inferior (margin-top:auto) para no competir con el turno. */
+.admin-ritmo {
+  background: rgba(6, 12, 22, 0.55);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  margin-top: 8px;
+}
+
+.admin-ritmo-titulo {
+  margin: 0 0 6px;
+  color: var(--dorado-claro);
+  font-size: 0.66rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.admin-ritmo-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-ritmo-fila .medallon {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 38px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.admin-ritmo-valor {
+  flex: 1 1 auto;
+  text-align: center;
+  color: #f2d16b;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.admin-ritmo-nota {
+  margin: 7px 0 0;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+/* Microfase 3 · Pausa. El aviso vive FUERA del panel del anfitrión: lo ve
+   todo el mundo, también los que no pueden administrarla. */
+.admin-pausa-aviso {
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  background: rgba(60, 40, 4, 0.55);
+  border: 1px solid var(--dorado);
+  border-radius: 6px;
+  color: #f2d16b;
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 3px;
+  text-align: center;
+}
+.admin-pausa-fila {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201, 162, 39, 0.28);
+}
+
+.admin-pausa-fila .medallon {
+  min-height: 40px;
+  margin: 0;
+  font-size: 0.66rem;
+}
+
+/* Microfase 4 · Guardar partida: el botón y su aviso de resultado. */
+.admin-guardar-fila {
+  margin-top: 6px;
+}
+
+.admin-guardar-fila .medallon {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.64rem;
+}
+
+.admin-guardar-estado {
+  margin: 6px 0 0;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.admin-guardar-estado.error {
+  color: #e08a7a;
+}
+
+@media (max-width: 760px) {
+  .admin-ritmo-fila .medallon {
+    padding: 6px;
+    font-size: 0.55rem;
+  }
+}
+
 /* Panel derecho = acción actual: sin cajas acumuladas (Microfase 8B.2).
    Solo el contexto del turno; el registro narrativo vive fuera. */
 .panel-contextual > #movimiento.grupo-cartas,
