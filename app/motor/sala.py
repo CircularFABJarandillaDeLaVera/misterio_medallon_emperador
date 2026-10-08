@@ -73,7 +73,11 @@ PERFILES_PNJ = {
 # Timeout server-side único para cualquier refutador humano.
 TIMEOUT_REFUTACION_HUMANO_SEGUNDOS = 10.0
 PAUSA_PRESENTACION_PNJ_SEGUNDOS = 3.0
+# Sospecha: solo hay que leer QUIÉN y QUÉ, así que 10 s es suficiente.
 PAUSA_PRESENTACION_HUMANO_SEGUNDOS = 10.0
+# Resultado público: hay que leer además QUIÉN refutó y el estado de las tres
+# cartas sospechadas, así que necesita más tiempo de lectura.
+PAUSA_PRESENTACION_RESULTADO_SEGUNDOS = 14.0
 
 # Antibloqueo por inactividad (8B.32). Plazo CANÓNICO del servidor para un
 # humano que bloquea la partida con una acción obligatoria. NO ejecuta la
@@ -157,6 +161,10 @@ class Sala:
         self.manos: dict[str, list[dict]] = {}  # jugador_id -> sus cartas
         self.orden_turnos: list[str] = []  # jugador_ids sorteados una sola vez
         self.turno_actual: int = 0
+        # Número humano del turno real de la partida. A diferencia de
+        # `turno_actual` (índice circular), es monotónico y también cuenta los
+        # turnos de PNJ o los turnos que terminan sin sospecha.
+        self.numero_turno: int = 1
         # Hoja privada: solo descartes manuales + vistas automáticas
         # por refutaciones. LA TENGO se deriva de la mano y
         # SIN INFORMACIÓN es la ausencia de marca. Nada de esto es público.
@@ -167,6 +175,10 @@ class Sala:
         self.presentacion_sospecha: dict | None = None
         self.secuencia_presentacion = 0
         self.ultima_jugada: dict | None = None
+        # Registro público, cronológico y deliberadamente JSON-serializable.
+        # Solo contiene hechos ya públicos; nunca cartas mostradas ni manos.
+        self.secuencia_historial = 0
+        self.historial: list[dict] = []
         # Deadline monotónico de la refutación humana pendiente. Vive en
         # la sala y sobrevive a recargas/reconexiones: solo cambia con una
         # nueva sospecha o al resolver la actual.
@@ -313,12 +325,14 @@ class Sala:
         self.manos = {}
         self.orden_turnos = []
         self.turno_actual = 0
+        self.numero_turno = 1
         self.descartes = {}
         self.vistas = {}
         self.estado_jugada = JUGADA_ESPERANDO_SOSPECHA
         self.sospecha_pendiente = None
         self.presentacion_sospecha = None
         self.ultima_jugada = None
+        self.historial = []
         self.refutacion_deadline = None
         self.cartas_sospechadas.clear()
         self.pnj_pensando_id = None
@@ -422,6 +436,7 @@ class Sala:
             [j["id"] for j in self.jugadores], len(self.jugadores)
         )
         self.turno_actual = 0
+        self.numero_turno = 1
         self.estado = ESTADO_INICIADA
         self.estado_jugada = (
             JUGADA_ESPERANDO_MOVIMIENTO
@@ -430,6 +445,7 @@ class Sala:
         )
         self.sospecha_pendiente = None
         self.ultima_jugada = None
+        self.historial = []
         self.refutacion_deadline = None
         self.cartas_sospechadas.clear()
         self.pnj_pensando_id = None
@@ -490,6 +506,7 @@ class Sala:
                 candidato = self.jugador_por_id(self.orden_turnos[indice])
                 if candidato and candidato["activo_investigacion"]:
                     self.turno_actual = indice
+                    self.numero_turno += 1
                     break
         self.sospecha_pendiente = None
         self.presentacion_sospecha = None
@@ -854,6 +871,7 @@ class Sala:
             investigador_alias=self.jugador_por_id(investigador_id)["alias"],
             sospecha=pendiente["sospecha"],
             resultado="refutada",
+            refutador_id=pendiente["refutador_id"],
             refutador_alias=self.jugador_por_id(pendiente["refutador_id"])["alias"],
             movimiento_pnj=pendiente.get("movimiento_pnj"),
         )
@@ -1084,6 +1102,7 @@ class Sala:
         investigador_alias: str,
         sospecha: dict,
         resultado: str,
+        refutador_id: str | None = None,
         refutador_alias: str | None = None,
         movimiento_pnj: dict | None = None,
         ahora: float | None = None,
@@ -1096,10 +1115,18 @@ class Sala:
         formuló, quién refutó y que la sospecha quedó refutada: la carta
         mostrada sigue siendo privada del investigador.
 
+        Plazos: 14 s de lectura para cada humano (autor incluido, que aquí sí
+        confirma) y 3 s para los PNJ, igual que en la presentación de sospecha.
         El turno NO avanza aquí: avanza al cerrarse la presentación, de modo
         que el resultado forma parte del flujo canónico y avanza UNA sola vez.
         """
         inicio = time.monotonic() if ahora is None else ahora
+        self._registrar_historial_sospecha(
+            investigador_id=investigador_id,
+            sospecha=sospecha,
+            resultado=resultado,
+            refutador_id=refutador_id,
+        )
         # La refutación ya está resuelta: nadie puede volver a refutar.
         self.sospecha_pendiente = None
         self.refutacion_deadline = None
@@ -1110,11 +1137,20 @@ class Sala:
         self.secuencia_presentacion += 1
         participantes = {}
         for participante in self.jugadores:
-            # Los PNJ no ven popup: quedan listos de inmediato.
-            listo = participante["tipo"] == TIPO_PNJ
+            # Ni el investigador ni el resto quedan listos de salida: TODOS los
+            # humanos confirman la lectura del resultado, autor incluido. Los
+            # PNJ no ven la ventana, pero tampoco avanzan de inmediato: su
+            # pausa es la MISMA que en la presentación de sospecha y, al ser
+            # menor que el plazo de lectura humano, no añade ninguna espera
+            # adicional: el resultado avanza cuando todos o el plazo lo digan.
+            espera = (
+                PAUSA_PRESENTACION_PNJ_SEGUNDOS
+                if participante["tipo"] == TIPO_PNJ
+                else PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
+            )
             participantes[participante["id"]] = {
-                "listo": listo,
-                "deadline": inicio if listo else inicio + PAUSA_PRESENTACION_HUMANO_SEGUNDOS,
+                "listo": False,
+                "deadline": inicio + espera,
             }
         self.presentacion_sospecha = {
             "id": self.secuencia_presentacion,
@@ -1431,6 +1467,66 @@ class Sala:
         personaje = PERSONAJE_POR_ID.get(personaje_id)
         return personaje["nombre"] if personaje else None
 
+    def _identidad_publica_historial(self, jugador_id: str) -> dict:
+        """Identidad pública estable, simple y apta para un futuro JSON."""
+        jugador = self.jugador_por_id(jugador_id)
+        if jugador is None:
+            raise ValueError("Jugador desconocido al registrar el historial.")
+        personaje_id = jugador["personaje_id"]
+        return {
+            "personaje_id": personaje_id,
+            "nombre": self.nombre_personaje(personaje_id),
+            "tipo": jugador["tipo"],
+        }
+
+    def _registrar_historial_sospecha(
+        self,
+        *,
+        investigador_id: str,
+        sospecha: dict,
+        resultado: str,
+        refutador_id: str | None = None,
+    ) -> None:
+        """Añade una sospecha ya resuelta exactamente una vez.
+
+        La entrada contiene únicamente tipos JSON básicos y solo información
+        pública. Se crea en la transición autoritativa al resultado, nunca al
+        serializar o difundir el estado.
+        """
+        self.secuencia_historial += 1
+        entrada = {
+            "id": self.secuencia_historial,
+            "turno": self.numero_turno,
+            "investigador": self._identidad_publica_historial(investigador_id),
+            "sospecha": self._sospecha_publica(sospecha),
+            "resultado": resultado,
+            "refutador": (
+                self._identidad_publica_historial(refutador_id)
+                if refutador_id else None
+            ),
+        }
+        self.historial.append(entrada)
+
+    def historial_publico(self) -> list[dict]:
+        """Copia pública en orden de consulta: más reciente primero."""
+        return [
+            {
+                "id": entrada["id"],
+                "turno": entrada["turno"],
+                "investigador": dict(entrada["investigador"]),
+                "sospecha": {
+                    clave: dict(carta)
+                    for clave, carta in entrada["sospecha"].items()
+                },
+                "resultado": entrada["resultado"],
+                "refutador": (
+                    dict(entrada["refutador"])
+                    if entrada["refutador"] is not None else None
+                ),
+            }
+            for entrada in reversed(self.historial)
+        ]
+
     def describir_posicion(self, posicion: str | None) -> dict | None:
         if not posicion:
             return None
@@ -1597,6 +1693,7 @@ class Sala:
             "fase_tablero": self.estado_jugada if self.modo == MODO_TABLERO else None,
             "tirada": self.tirada_pendiente,
             "jugada": self.jugada_publica(),
+            "historial": self.historial_publico(),
             "resultado_final": self.resultado_final,
             "ganador_alias": (
                 self.jugador_por_id(self.ganador_id)["alias"]
@@ -1651,6 +1748,7 @@ class Sala:
                 if "posiciones_objetos" in publico else {}
             ),
             "jugada": self.jugada_privada(jugador_id),
+            "historial": publico["historial"],
             # 8B.32: el aviso de inactividad es privado del ANFITRIÓN y solo
             # travels con su alias. Nunca mano, ni opciones, ni conocimiento.
             "inactividad": self._inactividad_privada(jugador_id),

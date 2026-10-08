@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b31k" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=fase2presentacion" />
 </head>
 <body>
   <main class="contenedor">
@@ -58,6 +58,7 @@
             <div class="accesos" id="barra-herramientas" aria-label="Herramientas del jugador">
               <button id="btn-ver-cartas" type="button" class="medallon medallon-secundario medallon-compacto" title="Mis cartas" hidden>CARTAS</button>
               <button id="btn-ver-hoja" type="button" class="medallon medallon-secundario medallon-compacto" title="Hoja de investigación">INVESTIGACIÓN</button>
+              <button id="btn-historial" type="button" class="medallon medallon-secundario medallon-compacto" title="Historial de la investigación">HISTORIAL</button>
               <button id="btn-resolver" type="button" class="medallon medallon-secundario medallon-compacto" title="Resolver el misterio" hidden>RESOLVER</button>
             </div>
           </aside>
@@ -124,7 +125,9 @@
           <h2 id="presentacion-sospecha-titulo">SOSPECHA</h2>
           <p id="presentacion-resultado-texto" class="presentacion-resultado-texto" hidden></p>
           <div id="presentacion-resultado-cartas" class="presentacion-resultado-cartas" role="group" aria-label="Cartas de la sospecha y lo que sabes de cada una" hidden></div>
+          <p id="presentacion-sospecha-aviso" class="presentacion-sospecha-aviso" hidden>No puedes refutar esta sospecha. Observa las cartas y utiliza la información para tu investigación.</p>
           <div id="presentacion-sospecha-cartas" class="conf-resolver-cartas resolucion-fallida-cartas" role="group" aria-label="Cartas de la sospecha"></div>
+          <button id="btn-historial-presentacion" class="medallon medallon-secundario medallon-compacto historial-desde-modal" type="button">HISTORIAL</button>
           <button id="btn-continuar-presentacion-sospecha" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
         </div>
       </div>
@@ -143,6 +146,7 @@
           <h2 id="refutacion-titulo">PUEDES REFUTAR</h2>
           <div id="opciones-refutacion" role="group" aria-label="Cartas con las que puedes refutar"></div>
           <p id="aviso-timeout-refutacion" class="nota-privada" hidden></p>
+          <button id="btn-historial-refutacion" class="medallon medallon-secundario medallon-compacto historial-desde-modal" type="button">HISTORIAL</button>
           <button id="btn-confirmar-refutacion" class="medallon medallon-primario medallon-compacto" type="button">REFUTAR</button>
           <button id="btn-continuar-refutacion" class="medallon medallon-fantasma medallon-compacto" type="button" hidden>CONTINUAR</button>
         </div>
@@ -153,6 +157,7 @@
           <img id="revelacion-carta-imagen" alt="" />
           <p id="revelacion-carta-nombre"></p>
           <p class="nota-privada">Esta carta queda anotada en tu investigación.</p>
+          <button id="btn-historial-revelacion" class="medallon medallon-secundario medallon-compacto historial-desde-modal" type="button">HISTORIAL</button>
           <button id="btn-continuar-revelacion" class="medallon medallon-primario medallon-compacto" type="button">CONTINUAR</button>
         </div>
       </div>
@@ -195,11 +200,18 @@
           <button id="btn-seguir-esperando" class="medallon medallon-fantasma medallon-compacto" type="button">SEGUIR ESPERANDO</button>
         </div>
       </div>
+      <div id="modal-historial" class="modal modal-historial" hidden>
+        <div class="modal-caja modal-historial-caja" role="dialog" aria-modal="true" aria-labelledby="historial-titulo">
+          <h2 id="historial-titulo">HISTORIAL DE LA INVESTIGACIÓN</h2>
+          <div id="historial-lista" class="historial-lista" aria-live="polite"></div>
+          <button id="btn-cerrar-historial" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
+        </div>
+      </div>
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
   <script src="/static/js/audio.js?v=8b33b"></script>
-  <script src="/static/js/sala.js?v=8b31k"></script>
+  <script src="/static/js/sala.js?v=fase2historial"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>
 </html>

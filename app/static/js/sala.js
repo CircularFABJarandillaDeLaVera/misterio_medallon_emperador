@@ -25,6 +25,13 @@ const btnVerHoja = document.getElementById("btn-ver-hoja");
 const btnVerCartas = document.getElementById("btn-ver-cartas");
 const btnCerrarHoja = document.getElementById("btn-cerrar-hoja");
 const btnCerrarCartas = document.getElementById("btn-cerrar-cartas");
+const btnHistorial = document.getElementById("btn-historial");
+const btnHistorialPresentacion = document.getElementById("btn-historial-presentacion");
+const btnHistorialRefutacion = document.getElementById("btn-historial-refutacion");
+const btnHistorialRevelacion = document.getElementById("btn-historial-revelacion");
+const modalHistorial = document.getElementById("modal-historial");
+const historialLista = document.getElementById("historial-lista");
+const btnCerrarHistorial = document.getElementById("btn-cerrar-historial");
 const jugadaDiv = document.getElementById("jugada");
 const btnSospecha = document.getElementById("btn-sospecha");
 const modalSospecha = document.getElementById("modal-sospecha");
@@ -66,6 +73,7 @@ const presentacionSospechaTitulo = document.getElementById("presentacion-sospech
 const presentacionSospechaCartas = document.getElementById("presentacion-sospecha-cartas");
 const presentacionResultadoTexto = document.getElementById("presentacion-resultado-texto");
 const presentacionResultadoCartas = document.getElementById("presentacion-resultado-cartas");
+const presentacionSospechaAviso = document.getElementById("presentacion-sospecha-aviso");
 const btnContinuarPresentacionSospecha = document.getElementById("btn-continuar-presentacion-sospecha");
 const avisoTimeoutRefutacion = document.getElementById("aviso-timeout-refutacion");
 const modalInactividad = document.getElementById("modal-inactividad");
@@ -147,6 +155,7 @@ let resolucionPendienteLocal = null;
 let presentacionSospechaVisibleId = null;
 let presentacionSospechaDescartadaId = null;
 let cartaRefutacionSeleccionadaId = null;
+let focoAntesDeHistorial = null;
 
 const cargaTableroVisual = fetch("/api/tablero")
   .then((r) => {
@@ -395,6 +404,7 @@ function pintarSala(sala) {
     pintarTurno(sala);
     pintarCartas(sala.mis_cartas);
     pintarHoja(sala.investigacion || [], sala.mis_cartas || []);
+    pintarHistorial(sala.historial || []);
     pintarJugada(sala);
     pintarMovimiento(sala);
     pintarTablero(sala);
@@ -936,6 +946,9 @@ function pintarPresentacionSospecha(sala) {
     presentacionSospechaCartas.innerHTML = "";
     presentacionResultadoTexto.hidden = false;
     presentacionResultadoCartas.hidden = false;
+    // El cierre público nunca es fase informativa de este tipo: aquí la
+    // refutación ya está resuelta y este aviso no aplica.
+    presentacionSospechaAviso.hidden = true;
     pintarResultadoConocimiento(sala, sospecha);
     const refutada = jugada.resultado === "refutada";
     presentacionSospechaTitulo.textContent = refutada
@@ -956,6 +969,10 @@ function pintarPresentacionSospecha(sala) {
   presentacionResultadoCartas.innerHTML = "";
   presentacionResultadoTexto.hidden = true;
   presentacionResultadoTexto.textContent = "";
+  // Esta presentación es informativa para TODOS los participantes: la
+  // elección de cartas para refutar llega después, en su propia ventana. Aquí
+  // no hay nada que elegir, así que el aviso se muestra siempre.
+  presentacionSospechaAviso.hidden = false;
   const cartas = [
     { ...sospecha.sospechoso_id, categoria: "sospechoso" },
     { ...sospecha.lugar_id, categoria: "lugar" },
@@ -1527,6 +1544,61 @@ function cerrarCartas() {
   }
 }
 
+function pintarHistorial(historial) {
+  historialLista.innerHTML = "";
+  if (!Array.isArray(historial) || historial.length === 0) {
+    const vacio = document.createElement("p");
+    vacio.className = "historial-vacio";
+    vacio.textContent = "Todavía no hay movimientos registrados en la investigación";
+    historialLista.appendChild(vacio);
+    return;
+  }
+  historial.forEach((entrada) => {
+    const investigador = entrada.investigador || {};
+    const sospecha = entrada.sospecha || {};
+    const articulo = document.createElement("article");
+    articulo.className = "historial-entrada";
+
+    const titulo = document.createElement("h3");
+    const marcaPnj = investigador.tipo === "pnj" ? " (PNJ)" : "";
+    titulo.textContent = `Turno ${entrada.turno} — ${investigador.nombre || "Investigador"}${marcaPnj}`;
+    articulo.appendChild(titulo);
+
+    const detalle = document.createElement("p");
+    const sospechoso = sospecha.sospechoso_id && sospecha.sospechoso_id.nombre;
+    const lugar = sospecha.lugar_id && sospecha.lugar_id.nombre;
+    const objeto = sospecha.objeto_id && sospecha.objeto_id.nombre;
+    detalle.textContent = `Sospecha: ${sospechoso} escondió el medallón en ${lugar}, dentro de ${objeto}.`;
+    articulo.appendChild(detalle);
+
+    const resultado = document.createElement("p");
+    resultado.className = "historial-resultado";
+    resultado.textContent = entrada.resultado === "refutada" && entrada.refutador
+      ? `Resultado: ${entrada.refutador.nombre} pudo refutar la sospecha.`
+      : "Resultado: Nadie pudo refutar la sospecha.";
+    articulo.appendChild(resultado);
+    historialLista.appendChild(articulo);
+  });
+}
+
+function abrirHistorial(evento) {
+  focoAntesDeHistorial = evento && evento.currentTarget
+    ? evento.currentTarget : document.activeElement;
+  pintarHistorial((ultimaSala && ultimaSala.historial) || []);
+  modalHistorial.hidden = false;
+  if (btnCerrarHistorial.focus) btnCerrarHistorial.focus();
+}
+
+function cerrarHistorial() {
+  modalHistorial.hidden = true;
+  // El estado recibido mientras esta capa estaba abierta ya se ha pintado
+  // detrás de ella. No se confirma ni se reabre ninguna ventana de juego.
+  if (focoAntesDeHistorial && focoAntesDeHistorial.focus) {
+    focoAntesDeHistorial.focus();
+  }
+  focoAntesDeHistorial = null;
+}
+
 if (btnVerHoja) {
   btnVerHoja.addEventListener("click", abrirHoja);
 }
@@ -1538,6 +1610,17 @@ if (btnCerrarHoja) {
 }
 if (btnCerrarCartas) {
   btnCerrarCartas.addEventListener("click", cerrarCartas);
+}
+[
+  btnHistorial,
+  btnHistorialPresentacion,
+  btnHistorialRefutacion,
+  btnHistorialRevelacion,
+].forEach((boton) => {
+  if (boton) boton.addEventListener("click", abrirHistorial);
+});
+if (btnCerrarHistorial) {
+  btnCerrarHistorial.addEventListener("click", cerrarHistorial);
 }
 
 function abrirSospecha() {

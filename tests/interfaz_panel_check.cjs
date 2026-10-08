@@ -85,6 +85,7 @@ vm.runInContext(
 
 const $ = (id) => documentStub.getElementById(id);
 const css = fs.readFileSync(path.join(__dirname, "..", "app", "static", "css", "estilos.css"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "..", "app", "templates", "sala.html"), "utf8");
 ok(
   /acciones-contextuales:not\(:has\([\s\S]*#btn-sospecha-ubicacion:not\(\[hidden\]\)[\s\S]*#btn-mover-ubicacion-canvas:not\(\[hidden\]\)[\s\S]*\)\) #btn-cerrar-ubicacion\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*justify-self:\s*center[^}]*width:\s*calc\(50% - 5px\)/.test(css) &&
     /\.medallon\[hidden\]\s*\{[^}]*display:\s*none/.test(css),
@@ -462,6 +463,98 @@ ok($("modal-cartas").hidden === false, "MIS CARTAS funciona");
 ok($("barra-herramientas") && $("btn-ver-cartas").hidden, "panel oculta CARTAS y conserva herramientas");
 sandbox.pintarSala({ ...sala, jugada: { estado: "esperando_sospecha" } });
 ok($("btn-resolver").hidden === false, "resolver visible cuando el servidor lo permite");
+
+// Fase 2. Historial público: render idempotente y capa sobre ventanas obligatorias.
+enviados.length = 0;
+$("btn-historial").click();
+ok($("modal-historial").hidden === false, "HISTORIAL abre su modal");
+ok(
+  $("historial-lista").textContent === "Todavía no hay movimientos registrados en la investigación",
+  "historial vacío muestra el mensaje previsto"
+);
+ok(enviados.length === 0, "abrir historial no envía acciones WebSocket");
+$("btn-cerrar-historial").click();
+
+const historial = [
+  {
+    id: 2, turno: 5,
+    investigador: { personaje_id: "eulalia", nombre: "Eulalia, la pimentonera", tipo: "pnj" },
+    sospecha: {
+      sospechoso_id: { id: "mateo", nombre: "Mateo, el escobero" },
+      lugar_id: { id: "picota", nombre: "La Picota" },
+      objeto_id: { id: "zurron-cuero", nombre: "Zurrón de cuero" },
+    },
+    resultado: "sin_refutacion", refutador: null,
+  },
+  {
+    id: 1, turno: 4,
+    investigador: { personaje_id: "bruno", nombre: "Bruno, el cantero", tipo: "humano" },
+    sospecha: {
+      sospechoso_id: { id: "vera", nombre: "Vera, la cronista" },
+      lugar_id: { id: "parador", nombre: "Parador" },
+      objeto_id: { id: "baul-imperial", nombre: "Baúl imperial" },
+    },
+    resultado: "refutada",
+    refutador: { personaje_id: "lucia", nombre: "Lucía, la boticaria", tipo: "humano" },
+  },
+];
+const salaConHistorial = { ...sala, historial };
+vm.runInContext(`ultimaSala = ${JSON.stringify(salaConHistorial)};`, sandbox);
+sandbox.pintarSala(salaConHistorial);
+$("modal-presentacion-sospecha").hidden = false;
+$("btn-historial-presentacion").click();
+ok(
+  $("modal-historial").hidden === false && $("modal-presentacion-sospecha").hidden === false,
+  "historial se superpone sin cerrar la presentación obligatoria"
+);
+ok(
+  $("historial-lista").children.length === 2 &&
+    $("historial-lista").children[0].textContent.includes("Turno 5") &&
+    $("historial-lista").children[0].textContent.includes("(PNJ)") &&
+    $("historial-lista").children[1].textContent.includes("Turno 4") &&
+    $("historial-lista").children[1].textContent.includes("Lucía, la boticaria pudo refutar"),
+  "historial conserva el orden reciente, los nombres canónicos y el resultado público"
+);
+// Una redifusión vuelve a pintar desde el estado completo, no acumula entradas.
+sandbox.pintarSala(salaConHistorial);
+ok($("historial-lista").children.length === 2, "redifusión no duplica entradas");
+// Si el servidor vence el plazo, actualiza la ventana inferior mientras la capa sigue abierta.
+const salaTrasPlazo = { ...salaConHistorial, jugada: { estado: "esperando_movimiento" } };
+sandbox.pintarSala(salaTrasPlazo);
+ok(
+  $("modal-historial").hidden === false && $("modal-presentacion-sospecha").hidden === true,
+  "el estado obligatorio se actualiza detrás del historial"
+);
+$("btn-cerrar-historial").click();
+ok($("modal-historial").hidden === true, "cerrar historial revela el estado actual");
+ok(enviados.length === 0, "consultar y cerrar historial no consume el turno");
+[
+  ["modal-refutacion", "btn-historial-refutacion", "refutación"],
+  ["modal-revelacion-refutacion", "btn-historial-revelacion", "revelación privada"],
+].forEach(([modalId, botonId, nombre]) => {
+  $(modalId).hidden = false;
+  $(botonId).click();
+  ok(
+    $("modal-historial").hidden === false && $(modalId).hidden === false,
+    `historial se superpone sin cerrar la ${nombre}`
+  );
+  $("btn-cerrar-historial").click();
+  $(modalId).hidden = true;
+});
+ok(
+  [
+    "btn-historial", "modal-historial", "historial-lista",
+    "btn-historial-presentacion", "btn-historial-refutacion",
+    "btn-historial-revelacion", "btn-cerrar-historial",
+  ].every((id) => html.includes(`id="${id}"`)),
+  "la plantilla contiene el historial y sus accesos obligatorios"
+);
+ok(
+  /\.modal-historial\s*\{[^}]*z-index:\s*70/.test(css) &&
+    /\.historial-lista\s*\{[^}]*overflow-y:\s*auto/.test(css) &&
+    /@media\s*\(max-width:\s*480px\)[\s\S]*?\.modal-historial-caja\s*\{/.test(css),
+  "historial queda por encima, tiene scroll propio y adaptación móvil"
+);
 
 // CERRAR limpia el modal y mantiene el panel derecho en su vista general.
 sandbox.verUbicacion("parador");

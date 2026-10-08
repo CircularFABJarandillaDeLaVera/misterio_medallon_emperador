@@ -8,6 +8,9 @@ from app.motor.sala import (
 
     ESTADO_INICIADA,
     JUGADA_PRESENTANDO_SOSPECHA,
+    PAUSA_PRESENTACION_HUMANO_SEGUNDOS,
+    PAUSA_PRESENTACION_PNJ_SEGUNDOS,
+    PAUSA_PRESENTACION_RESULTADO_SEGUNDOS,
     TIPO_PNJ,
     Sala,
 )
@@ -217,8 +220,14 @@ def test_humano_sospecha_pnj_refuta_abre_resultado_publico():
     resultado = _resultado_pendiente(sala)
     assert resultado["resultado"] == "refutada"
     assert resultado["refutador_alias"] == "Pnj"
-    # Los PNJ quedan listos de inmediato: solo los humanos esperan.
-    assert resultado["participantes"][pnj["id"]]["listo"]
+    # Los PNJ ya no avanzan de inmediato: tienen su pausa, igual que en la
+    # presentación de sospecha. Al ser menor que el plazo humano, el resultado
+    # lo sigue gobernando el humano.
+    assert not resultado["participantes"][pnj["id"]]["listo"]
+    assert (
+        resultado["participantes"][pnj["id"]]["deadline"] - resultado["inicio"]
+        == PAUSA_PRESENTACION_PNJ_SEGUNDOS
+    )
     assert not resultado["participantes"][inv["id"]]["listo"]
     cerrar_resultado(sala)
     assert sala.turno_actual == 1
@@ -282,17 +291,52 @@ def test_eliminado_refuta_y_abre_resultado_publico():
     assert sala.jugador_en_turno()["id"] != ref["id"]  # el eliminado no recibe turno
 
 
-# 7. CONTINUAR humano cierra el resultado.
+# 7. CONTINUAR humano cierra el resultado. Los dos humanos confirman
+# dentro del plazo y la partida avanza sin esperar a que venza.
 def test_continuar_humano_cierra_el_resultado_publico():
     sala, inv, ref, _ = mesa_sospecha_con_refutador()
     abrir_ciclo(sala, inv)
     sala.mostrar_carta(ref["id"], "vera")
     resultado = _resultado_pendiente(sala)
     pid = resultado["id"]
-    assert not sala.confirmar_presentacion_sospecha(inv["id"], pid, ahora=200.0)
+    inicio = resultado["inicio"]
+    # El popup llega también al investigador: en el resultado público TODOS los
+    # humanos lo ven, autor incluido, y su estado privado lo pide.
+    pendiente_inv = sala.estado_privado(inv["id"])["jugada"]
+    assert pendiente_inv["presentacion_pendiente"]
+    assert pendiente_inv["presentacion_id"] == pid
+    # Ambos confirman, incluido el investigador, autor de la sospecha, y
+    # también antes de que venza el plazo de 14 s.
+    assert not sala.confirmar_presentacion_sospecha(inv["id"], pid, ahora=inicio)
     assert sala.presentacion_sospecha["participantes"][inv["id"]]["listo"]
-    assert sala.confirmar_presentacion_sospecha(ref["id"], pid, ahora=200.0)
+    # El PNJ todavía tiene su pausa propia: la mesa aún no avanza.
+    assert not sala.confirmar_presentacion_sospecha(
+        ref["id"], pid, ahora=inicio + 1.0
+    )
+    assert sala.turno_actual == 0
+    # Vencida la pausa del PNJ, el resultado cierra y el turno avanza YA.
+    assert sala.actualizar_presentacion_sospecha(ahora=inicio + 3.0)
     assert sala.presentacion_sospecha is None
+    assert sala.turno_actual == 1
+
+
+# 7B. Con TODOS los humanos confirmados, el resultado cierra en cuanto vence
+# la pausa mínima del PNJ, sin esperar a los 14 s de lectura.
+def test_todos_los_humanos_confirmados_no_esperan_a_los_catorce_segundos():
+    sala, inv, ref, pnj = mesa_sospecha_con_refutador()
+    abrir_ciclo(sala, inv)
+    sala.mostrar_carta(ref["id"], "vera")
+    resultado = _resultado_pendiente(sala)
+    pid, inicio = resultado["id"], resultado["inicio"]
+    sala.confirmar_presentacion_sospecha(inv["id"], pid, ahora=inicio + 0.1)
+    assert not sala.confirmar_presentacion_sospecha(
+        ref["id"], pid, ahora=inicio + 0.2
+    )
+    assert not sala.actualizar_presentacion_sospecha(ahora=inicio + 0.2)
+    assert sala.turno_actual == 0
+    assert sala.actualizar_presentacion_sospecha(
+        ahora=inicio + PAUSA_PRESENTACION_PNJ_SEGUNDOS
+    )
     assert sala.turno_actual == 1
 
 
@@ -303,10 +347,45 @@ def test_humano_sin_responder_cierra_el_resultado_en_el_plazo():
     sala.mostrar_carta(ref["id"], "vera")
     resultado = _resultado_pendiente(sala)
     inicio = resultado["inicio"]
-    assert 0 < resultado["participantes"][ref["id"]]["deadline"] - inicio <= 10.0
-    assert not sala.actualizar_presentacion_sospecha(ahora=inicio + 9.999)
-    assert sala.actualizar_presentacion_sospecha(ahora=inicio + 10.0)
+    assert (
+        resultado["participantes"][ref["id"]]["deadline"] - inicio
+        == PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
+    )
+    assert not sala.actualizar_presentacion_sospecha(
+        ahora=inicio + PAUSA_PRESENTACION_RESULTADO_SEGUNDOS - 0.001
+    )
+    assert sala.actualizar_presentacion_sospecha(
+        ahora=inicio + PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
+    )
     assert sala.turno_actual == 1
+
+
+# 8B. El plazo del resultado (14 s) es propio: no reinicia el de la sospecha
+# (10 s) ni el de la refutación privada (10 s), y el autor mantiene 10 s al
+# presentar su sospecha.
+def test_cada_paso_conserva_su_propio_plazo():
+    assert PAUSA_PRESENTACION_HUMANO_SEGUNDOS == 10.0
+    assert PAUSA_PRESENTACION_RESULTADO_SEGUNDOS == 14.0
+    assert PAUSA_PRESENTACION_PNJ_SEGUNDOS < PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
+    sala, inv, ref, _ = mesa_sospecha_con_refutador()
+    sala.formular_sospecha(inv["id"], *SOSPECHA, ahora=100.0)
+    sospecha = sala.presentacion_sospecha
+    # El autor ya está listo; el resto de humanos dispone de 10 s.
+    assert sospecha["participantes"][inv["id"]]["listo"]
+    assert (
+        sospecha["participantes"][ref["id"]]["deadline"] - 100.0
+        == PAUSA_PRESENTACION_HUMANO_SEGUNDOS
+    )
+    assert sala.actualizar_presentacion_sospecha(ahora=110.0)
+    # La refutación privada del humano conserva sus 10 s.
+    assert sala.refutacion_deadline is not None
+    sala.mostrar_carta(ref["id"], "vera")
+    # Y el resultado público abre su propio plazo de 14 s desde cero.
+    resultado = _resultado_pendiente(sala)
+    assert (
+        resultado["participantes"][ref["id"]]["deadline"] - resultado["inicio"]
+        == PAUSA_PRESENTACION_RESULTADO_SEGUNDOS
+    )
 
 
 # 9. Reload conserva el deadline original (no se reinicia).

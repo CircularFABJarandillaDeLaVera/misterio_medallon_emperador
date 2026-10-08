@@ -569,12 +569,13 @@ ok(
 
 // 8B.30: presentación pública previa a la refutación, con confirmación
 // asociada inequívocamente al id canónico del servidor.
-function jugadaPresentacion(id, pendiente = true) {
+function jugadaPresentacion(id, pendiente = true, opciones = []) {
   return {
     estado: "presentando_sospecha",
     investigador_alias: "Bruno",
     presentacion_id: id,
     presentacion_pendiente: pendiente,
+    opciones_refutacion: opciones,
     sospecha: {
       sospechoso_id: { id: "vera", nombre: "Vera" },
       lugar_id: { id: "parador", nombre: "Parador" },
@@ -607,6 +608,66 @@ pintarJugada(salaBase(jugadaPresentacion(43)));
 ok($("modal-presentacion-sospecha").hidden === false, "otra presentación tiene identidad independiente");
 pintarJugada(salaBase({ estado: "esperando_sospecha", resultado: "sin_refutacion" }));
 ok($("modal-presentacion-sospecha").hidden, "avance canónico o timeout retira el popup");
+
+// Microcorrección visual · La presentación de la sospecha es informativa
+// para TODOS los participantes: la elección para refutar llega después, en su
+// propia ventana. Así que el aviso no depende de `opciones_refutacion`.
+const AVISO_OBSERVADOR =
+  "No puedes refutar esta sospecha. Observa las cartas y utiliza la " +
+  "información para tu investigación.";
+ok(
+  htmlSala.includes('id="presentacion-sospecha-aviso"') &&
+    htmlSala.includes(AVISO_OBSERVADOR) &&
+    css.includes(".presentacion-sospecha-aviso") &&
+    css.includes("#modal-presentacion-sospecha:has("),
+  "el aviso informativo vive en el modal, con su estilo y su ventana proporcionada"
+);
+const reglaPresentacionSospecha = css.match(
+  /#modal-presentacion-sospecha:has\(#presentacion-sospecha-cartas:not\(\[hidden\]\)\)\s+\.modal-presentacion-sospecha-caja\s*\{([^}]*)\}/
+);
+ok(
+  reglaPresentacionSospecha &&
+    /height:\s*min\(calc\(100dvh - 24px\),\s*660px\)/.test(reglaPresentacionSospecha[1]) &&
+    /max-height:\s*calc\(100dvh - 24px\)/.test(reglaPresentacionSospecha[1]) &&
+    /grid-template-rows:[\s\S]*max-content[\s\S]*minmax\(3rem, max-content\)[\s\S]*minmax\(0, 1fr\)[\s\S]*max-content/.test(reglaPresentacionSospecha[1]) &&
+    /row-gap:\s*clamp\(8px, 1\.8dvh, 16px\)/.test(reglaPresentacionSospecha[1]),
+  "SOSPECHA DE separa título y aviso con cuatro filas flexibles limitadas por viewport"
+);
+pintarJugada(salaBase(jugadaPresentacion(61)));
+ok(
+  $("modal-presentacion-sospecha").hidden === false &&
+    $("presentacion-sospecha-aviso").hidden === false &&
+    $("presentacion-sospecha-cartas").children.length === 3,
+  "quien solo observa ve el aviso y conserva las tres cartas"
+);
+pintarJugada(
+  salaBase(
+    jugadaPresentacion(62, true, [
+      { id: "bruno", nombre: "Bruno", categoria: "sospechoso" },
+    ])
+  )
+);
+ok(
+  $("modal-presentacion-sospecha").hidden === false &&
+    $("presentacion-sospecha-aviso").hidden === false &&
+    $("presentacion-sospecha-cartas").children.length === 3,
+  "quien después podrá refutar también ve el aviso durante la presentación"
+);
+$("btn-continuar-refutacion").click();
+pintarJugada(
+  salaBase(
+    Object.assign(jugadaPresentacion(63), {
+      presentacion_tipo: "resultado",
+      resultado: "refutada",
+      refutador_alias: "Vera",
+    })
+  )
+);
+ok(
+  $("modal-presentacion-sospecha").hidden === false &&
+    $("presentacion-sospecha-aviso").hidden === true,
+  "el cierre público nunca muestra el aviso de solo observación"
+);
 
 // ============================================================
 // 8B.35 · FINAL DE VICTORIA + JUGAR DE NUEVO

@@ -17,6 +17,9 @@ from app.motor.sala import (
     JUGADA_ESPERANDO_REFUTADOR,
     JUGADA_ESPERANDO_SOSPECHA,
     JUGADA_PRESENTANDO_SOSPECHA,
+    PAUSA_PRESENTACION_HUMANO_SEGUNDOS,
+    PAUSA_PRESENTACION_PNJ_SEGUNDOS,
+    PAUSA_PRESENTACION_RESULTADO_SEGUNDOS,
     TIMEOUT_REFUTACION_HUMANO_SEGUNDOS,
     TIPO_HUMANO,
     TIPO_PNJ,
@@ -656,9 +659,19 @@ def test_timeout_real_dispara_en_flujo_pnj(monkeypatch):
     assert sala.refutacion_deadline is None
     assert sala.codigo not in main.tareas_refutacion
     assert sala.codigo not in main.tareas_pnj
-    # Ritmo PNJ + presentación de sospecha + timeout de refutación + plazo del
-    # resultado público, sin reinicios. El cuarto plazo es 8B.31C.
-    assert duraciones == [3.0, 10.0, 10.0, 10.0]
+    # Ritmo PNJ + presentación de sospecha + timeout de refutación + los dos
+    # tramos del plazo del resultado público, sin reinicios. El watchdog
+    # duerme siempre hasta el deadline pendiente MÁS PRÓXIMO: primero el de
+    # los PNJ (3 s) y después el que le queda al humano (14 s − 3 s ya
+    # consumidos). Los 10 s de la sospecha y los 10 s de la refutación
+    # siguen siendo los de antes.
+    assert duraciones == [
+        3.0,
+        PAUSA_PRESENTACION_HUMANO_SEGUNDOS,
+        TIMEOUT_REFUTACION_HUMANO_SEGUNDOS,
+        PAUSA_PRESENTACION_PNJ_SEGUNDOS,
+        PAUSA_PRESENTACION_RESULTADO_SEGUNDOS - PAUSA_PRESENTACION_PNJ_SEGUNDOS,
+    ]
 
 
 # 14. Con investigador PNJ la elección manual previa también gana.

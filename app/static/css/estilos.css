@@ -530,6 +530,132 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 0 0 6px;
 }
 
+/* Fase 2 · Historial público. Se apila por encima de cualquier ventana de
+   juego sin cerrar ni confirmar la que permanezca debajo. */
+.modal-historial {
+  z-index: 70;
+}
+
+.modal-historial-caja {
+  width: min(100%, 620px);
+  max-width: 620px;
+  height: min(calc(100dvh - 32px), 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.modal-historial-caja > h2 {
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.historial-lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 6px 2px 2px;
+}
+
+.historial-entrada {
+  padding: 12px 10px;
+  border-bottom: 1px solid #3d3558;
+}
+
+.historial-entrada:first-child {
+  padding-top: 4px;
+}
+
+.historial-entrada:last-child {
+  border-bottom: 0;
+}
+
+.historial-entrada h3 {
+  margin: 0 0 8px;
+  color: var(--dorado-claro);
+  font-size: 0.98rem;
+  letter-spacing: 0.5px;
+}
+
+.historial-entrada p {
+  margin: 4px 0;
+  line-height: 1.45;
+}
+
+.historial-resultado {
+  color: var(--texto-suave);
+}
+
+.historial-vacio {
+  margin: auto;
+  padding: 28px 12px;
+  color: var(--texto-suave);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modal-historial-caja > #btn-cerrar-historial {
+  flex: 0 0 auto;
+  align-self: center;
+  width: min(100%, 260px);
+  margin: 0;
+}
+
+/* Acceso durante presentaciones y refutaciones obligatorias. Al ser absoluto
+   no añade una fila ni altera la geometría o los controles canónicos. */
+.modal-presentacion-sospecha-caja,
+.modal-refutacion-caja,
+.modal-carta-revelacion {
+  position: relative;
+}
+
+.modal-presentacion-sospecha-caja > .historial-desde-modal.medallon,
+.modal-refutacion-caja > .historial-desde-modal.medallon,
+.modal-carta-revelacion > .historial-desde-modal.medallon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: auto;
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 9px;
+  font-size: 0.68rem;
+}
+
+.modal-presentacion-sospecha-caja > h2,
+.modal-refutacion-caja > h2,
+.modal-carta-revelacion > h2 {
+  padding-left: 92px;
+  padding-right: 92px;
+}
+
+@media (max-width: 480px) {
+  .modal-historial {
+    padding: 8px;
+  }
+
+  .modal-historial-caja {
+    height: calc(100dvh - 16px);
+    padding: 13px 10px;
+  }
+
+  .historial-entrada {
+    padding: 11px 6px;
+  }
+
+  .historial-entrada h3 {
+    font-size: 0.9rem;
+  }
+
+  .historial-entrada p {
+    font-size: 0.86rem;
+  }
+}
+
 .modal-caja label {
   display: block;
   margin: 10px 0 4px;
@@ -1085,7 +1211,51 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 }
 
 .modal-presentacion-sospecha-caja {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Título, aviso, cartas y CONTINUAR. El aviso y el panel de deducción son
+     mutuamente excluyentes: uno de los dos nodos queda `hidden` y su fila
+     se colapsa, así que las cuatro filas sirven a las dos ramas. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+/* Mikrocorrección visual · El mensaje informativo ocupa el hueco que quedaba
+   entre el título y las tres cartas cuando el jugador solo observa. Centrado,
+   con el ancho de lectura cómodo y los colores ya de la familia del modal. */
+.presentacion-sospecha-aviso {
+  align-self: center;
+  justify-self: center;
+  margin: 0;
+  padding: 0 10px;
+  max-width: 44ch;
+  text-align: center;
+  font-size: clamp(0.8rem, 1.9vw, 0.98rem);
+  line-height: 1.35;
+  color: var(--texto-suave);
+}
+
+.presentacion-sospecha-aviso[hidden] {
+  display: none;
+}
+
+/* Presentación previa a la refutación: cuatro zonas reales (título, aviso,
+   cartas y CONTINUAR). La rama se limita con `:has`, de modo que el cierre
+   público SOSPECHA REFUTADA conserva intacta su composición aprobada. */
+#modal-presentacion-sospecha:has(#presentacion-sospecha-cartas:not([hidden])) {
+  padding: 12px;
+}
+
+#modal-presentacion-sospecha:has(#presentacion-sospecha-cartas:not([hidden]))
+  .modal-presentacion-sospecha-caja {
+  /* El viewport manda en pantallas bajas; 660 px es solo el techo cómodo en
+     pantallas amplias. Así las cartas absorben el espacio flexible sin que
+     título, aviso o acciones puedan solaparse. */
+  height: min(calc(100dvh - 24px), 660px);
+  max-height: calc(100dvh - 24px);
+  grid-template-rows:
+    max-content
+    minmax(3rem, max-content)
+    minmax(0, 1fr)
+    max-content;
+  row-gap: clamp(8px, 1.8dvh, 16px);
 }
 
 /* 8B.31C · Cierre público de la sospecha: titular protagonista y una frase
@@ -1287,6 +1457,13 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 @media (orientation: landscape) and (max-height: 560px) {
   .presentacion-resultado-texto {
     font-size: clamp(0.8rem, 2.1vw, 1.05rem);
+  }
+
+  /* La ventana de la sospecha ya es compacta: en apaisado bajo se le permite
+     encogerse algo más para que el aviso y las cartas quepan sin recorte. */
+  .presentacion-sospecha-aviso {
+    font-size: clamp(0.72rem, 1.7vw, 0.9rem);
+    padding: 0 6px;
   }
 
   /* 8B.32: 844x390. El popup cabe entero sin scroll ni recorte. */
