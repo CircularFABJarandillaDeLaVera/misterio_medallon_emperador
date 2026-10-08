@@ -604,6 +604,434 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   margin: 0;
 }
 
+/* Fase 3A · Instrucciones locales. Esta capa independiente puede permanecer
+   abierta mientras la sala sigue actualizando sus ventanas obligatorias. */
+.modal-aprender {
+  z-index: 80;
+  padding: 12px;
+}
+
+.aprender-caja {
+  width: min(calc(100dvw - 24px), 980px);
+  max-width: 980px;
+  height: min(calc(100dvh - 24px), 760px);
+  max-height: 760px;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  overflow: hidden;
+  padding: 16px 18px;
+  text-align: left;
+}
+
+.aprender-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  text-align: left;
+}
+
+.aprender-cabecera h2 {
+  margin-bottom: 2px;
+  text-align: left;
+}
+
+.aprender-cabecera p {
+  margin: 0;
+  color: var(--texto-tenue);
+  font-size: 0.86rem;
+}
+
+.aprender-cabecera .aprender-antetitulo {
+  margin-bottom: 3px;
+  color: var(--dorado);
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 1.8px;
+}
+
+.aprender-cerrar-superior.medallon {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 38px;
+  padding: 7px 12px;
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.aprender-indices {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.aprender-indice.medallon {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  font-size: 0.88rem;
+}
+
+.aprender-indice[aria-current="step"] {
+  color: #141021;
+  transform: translateY(-2px);
+}
+
+.aprender-indice[aria-current="step"]::before {
+  background: linear-gradient(180deg, #f3d46a, #b98714);
+  box-shadow: inset 0 0 0 2px #2b1c04, inset 0 0 0 3px #fff0b3;
+}
+
+.aprender-contenido {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 8px 4px 2px;
+  scrollbar-gutter: stable;
+}
+
+.aprender-paso {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(320px, 1.1fr);
+  align-items: center;
+  gap: clamp(20px, 4vw, 48px);
+}
+
+.aprender-paso[hidden] {
+  display: none;
+}
+
+.aprender-numero {
+  margin: 0 0 5px;
+  color: var(--dorado);
+  font-size: 0.76rem;
+  font-weight: bold;
+  letter-spacing: 1.6px;
+}
+
+.aprender-texto h3 {
+  margin: 0 0 14px;
+  color: var(--dorado-claro);
+  font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+  letter-spacing: 1px;
+}
+
+.aprender-texto > p:not(.aprender-numero) {
+  margin: 8px 0;
+  line-height: 1.45;
+}
+
+.aprender-recuerda {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 11px 13px;
+  background: rgba(201, 162, 39, 0.09);
+  border-left: 3px solid var(--dorado);
+  line-height: 1.35;
+}
+
+.aprender-recuerda strong {
+  color: var(--dorado-claro);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+}
+
+.aprender-cartas {
+  display: grid;
+  justify-content: center;
+}
+
+.aprender-cartas-trio {
+  grid-template-columns: repeat(3, minmax(0, 150px));
+  gap: 10px;
+}
+
+.aprender-cartas .carta-selector-sospecha {
+  cursor: default;
+  text-align: center;
+}
+
+.aprender-cartas .carta-selector-sospecha img {
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: #101727;
+}
+
+.aprender-cartas .carta-selector-nombre {
+  min-height: 2.5em;
+  padding: 6px 2px 3px;
+  font-size: 0.7rem;
+}
+
+.aprender-paso-investiga {
+  grid-template-columns: minmax(210px, 0.68fr) minmax(430px, 1.32fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.aprender-ejemplo {
+  padding: 12px 14px;
+  background: rgba(10, 15, 28, 0.62);
+  border: 1px solid rgba(201, 162, 39, 0.38);
+  border-radius: 9px;
+}
+
+.aprender-ejemplo h4 {
+  margin: 0 0 9px;
+  color: var(--dorado-claro);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.aprender-ejemplo-pasos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aprender-ejemplo-pasos li {
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  gap: 8px;
+  margin: 7px 0;
+  font-size: 0.82rem;
+  line-height: 1.32;
+}
+
+.aprender-ejemplo-pasos li div {
+  display: grid;
+  gap: 2px;
+}
+
+.aprender-ejemplo-numero {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  color: #141021;
+  background: var(--dorado-claro);
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.aprender-cartas-ejemplo {
+  grid-template-columns: repeat(3, minmax(0, 94px));
+  gap: 7px;
+  width: min(100%, 330px);
+  margin: 8px auto;
+}
+
+.aprender-cartas-ejemplo .carta-selector-nombre {
+  font-size: 0.58rem;
+}
+
+.aprender-refutacion-privada {
+  display: grid;
+  grid-template-columns: minmax(0, 76px) minmax(100px, 128px) minmax(0, 76px);
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 9px auto;
+}
+
+.aprender-refutacion-privada figure {
+  margin: 0;
+  text-align: center;
+}
+
+.aprender-refutacion-privada figure img,
+.aprender-pista-privada img {
+  display: block;
+  width: 100%;
+  max-height: 104px;
+  object-fit: contain;
+  background: #101727;
+  border: 1px solid #4a5368;
+  border-radius: 5px;
+}
+
+.aprender-refutacion-privada figcaption,
+.aprender-pista-privada span {
+  display: block;
+  margin-top: 3px;
+  color: var(--dorado-claro);
+  font-size: 0.52rem;
+  font-weight: bold;
+  line-height: 1.15;
+  letter-spacing: 0.3px;
+}
+
+.aprender-pista-privada {
+  position: relative;
+  padding: 5px;
+  background: rgba(76, 57, 113, 0.38);
+  border: 1px solid #765ca4;
+  border-radius: 7px;
+  text-align: center;
+}
+
+.aprender-pista-privada span {
+  margin: 0 0 4px;
+}
+
+.aprender-pista-privada::before,
+.aprender-pista-privada::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  border-top: 1px solid var(--dorado);
+}
+
+.aprender-pista-privada::before { left: -10px; }
+.aprender-pista-privada::after { right: -10px; }
+
+.aprender-estados {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.aprender-estados > div {
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px;
+  background: #151d31;
+  border: 1px solid #4a5368;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.aprender-estados small {
+  color: var(--texto-tenue);
+}
+
+.aprender-marca {
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: #fff8dc;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.aprender-marca-tengo { background: rgba(37, 91, 66, 0.94); }
+.aprender-marca-vista { background: rgba(76, 57, 113, 0.94); }
+.aprender-marca-descartada { background: rgba(115, 42, 42, 0.94); }
+.aprender-marca-publica { background: rgba(20, 52, 65, 0.98); border: 1px solid var(--dorado); }
+
+.aprender-resolucion {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) auto minmax(0, 132px) auto minmax(0, 132px) 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.aprender-resolucion img {
+  display: block;
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  border: 1px solid #4a5368;
+  border-radius: 7px;
+  background: #101727;
+}
+
+.aprender-resolucion span,
+.aprender-resolucion strong {
+  color: var(--dorado-claro);
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.aprender-acciones {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) 1fr minmax(120px, 190px);
+  align-items: center;
+  gap: 12px;
+}
+
+.aprender-acciones .medallon {
+  min-height: 42px;
+  margin: 0;
+}
+
+.aprender-acciones p {
+  margin: 0;
+  color: var(--texto-tenue);
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 1.4px;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .modal-aprender { padding: 6px; }
+
+  .aprender-caja {
+    width: calc(100dvw - 12px);
+    height: calc(100dvh - 12px);
+    max-height: none;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .aprender-cabecera h2 { font-size: 1rem; }
+  .aprender-cabecera #aprender-intro,
+  .aprender-cabecera .aprender-antetitulo { display: none; }
+  .aprender-cerrar-superior.medallon { min-height: 34px; padding: 5px 8px; }
+  .aprender-indices { gap: 7px; }
+  .aprender-indice.medallon { width: 38px; min-width: 38px; height: 38px; min-height: 38px; }
+
+  .aprender-paso,
+  .aprender-paso-investiga {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+
+  .aprender-texto h3 { margin-bottom: 9px; }
+  .aprender-texto > p:not(.aprender-numero) { margin: 6px 0; font-size: 0.9rem; }
+  .aprender-recuerda { margin-top: 11px; padding: 9px 10px; font-size: 0.86rem; }
+  .aprender-cartas-trio { grid-template-columns: repeat(3, minmax(0, 118px)); }
+  .aprender-cartas { overflow-x: auto; justify-content: start; padding-bottom: 4px; }
+  .aprender-cartas-ejemplo { justify-content: center; overflow: visible; }
+  .aprender-refutacion-privada { grid-template-columns: 64px minmax(92px, 112px) 64px; gap: 7px; }
+  .aprender-estados { gap: 7px; }
+  .aprender-estados > div { min-height: 78px; padding: 8px; }
+  .aprender-resolucion { grid-template-columns: repeat(3, minmax(80px, 118px)); gap: 7px; }
+  .aprender-resolucion span { display: none; }
+  .aprender-resolucion strong { grid-column: 1 / -1; }
+  .aprender-acciones { grid-template-columns: minmax(95px, 1fr) auto minmax(95px, 1fr); gap: 7px; }
+  .aprender-acciones .medallon { min-height: 38px; padding: 6px 8px; font-size: 0.68rem; }
+}
+
+@media (max-width: 380px) {
+  .aprender-cabecera h2 { font-size: 0.88rem; letter-spacing: 1px; }
+  .aprender-cerrar-superior.medallon { font-size: 0.6rem; }
+  .aprender-indices { gap: 5px; }
+  .aprender-indice.medallon { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
+  .aprender-cartas-trio { grid-template-columns: repeat(3, 104px); }
+  .aprender-acciones p { font-size: 0.62rem; }
+}
+
 /* Acceso durante presentaciones y refutaciones obligatorias. Al ser absoluto
    no añade una fila ni altera la geometría o los controles canónicos. */
 .modal-presentacion-sospecha-caja,
@@ -3127,6 +3555,736 @@ body:not(.en-partida) #btn-comenzar {
 @media (max-width: 400px) {
   #personajes.lobby-cartas {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ============================================================
+   FASE 3B · Portada narrativa e introducción en ocho escenas.
+   Todo queda limitado a la portada y reutiliza los controles medallón.
+   ============================================================ */
+body.portada {
+  --portada-imagen: url("/static/img/lugares/parador.jpeg");
+}
+
+body.portada .portada-fondo {
+  background-position: center 42%;
+}
+
+body.portada .portada-fondo::before {
+  background:
+    linear-gradient(90deg, rgba(3, 8, 15, 0.88) 0%, rgba(4, 10, 18, 0.66) 45%, rgba(4, 9, 15, 0.86) 100%),
+    linear-gradient(180deg, rgba(8, 18, 34, 0.18) 0%, rgba(4, 9, 15, 0.78) 100%);
+}
+
+body.portada .portada-fondo::after {
+  background:
+    radial-gradient(circle at 26% 40%, rgba(201, 162, 39, 0.13), transparent 30%),
+    radial-gradient(ellipse 78% 70% at 50% 45%, transparent 45%, rgba(2, 5, 9, 0.72) 100%);
+}
+
+body.portada .portada-escena {
+  width: min(calc(100vw - 32px), 1120px);
+  max-width: 1120px;
+  min-height: 0;
+  height: min(calc(100dvh - 40px), 760px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(330px, 0.78fr);
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+  padding: clamp(26px, 4vw, 56px);
+  background: linear-gradient(120deg, rgba(4, 10, 18, 0.82), rgba(8, 18, 30, 0.64));
+  backdrop-filter: blur(3px);
+}
+
+body.portada .portada-identidad {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  text-align: left;
+}
+
+body.portada .portada-identidad h1 {
+  max-width: 680px;
+  color: #f4d471;
+  font-size: clamp(2.15rem, 5.2vw, 4.9rem);
+  line-height: 0.92;
+  letter-spacing: clamp(1px, 0.3vw, 4px);
+  text-shadow: 0 3px 0 #60400b, 0 8px 28px rgba(0, 0, 0, 0.72);
+}
+
+body.portada .portada-identidad h1 span {
+  display: block;
+  margin-top: 9px;
+  color: #f2ead8;
+  font-size: 0.48em;
+  line-height: 1.05;
+  letter-spacing: clamp(2px, 0.55vw, 7px);
+}
+
+body.portada .portada-escenario {
+  font-size: 0.72rem;
+  letter-spacing: 3.5px;
+}
+
+body.portada .portada-sub {
+  max-width: 560px;
+  font-size: clamp(0.92rem, 1.5vw, 1.12rem);
+  line-height: 1.5;
+  text-shadow: 0 2px 8px #000;
+}
+
+body.portada .portada-menu {
+  width: 100%;
+  max-width: 400px;
+  display: grid;
+  gap: 13px;
+  align-self: center;
+  padding: 18px;
+  background: rgba(4, 10, 18, 0.58);
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(7px);
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto) {
+  min-height: 60px;
+  font-size: 0.9rem;
+}
+
+.portada-menu-secundario {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portada-menu-secundario .medallon {
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.67rem;
+  letter-spacing: 1px;
+}
+
+.portada-menu-secundario .medallon-icono {
+  width: 18px;
+  height: 18px;
+}
+
+/* El proyecto no contiene una imagen aislada del medallón. Esta pieza usa
+   únicamente el metal, filetes y geometría ya presentes en los botones. */
+.medallon-imperial {
+  position: relative;
+  width: clamp(126px, 18vw, 210px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: clamp(5px, 0.7vw, 9px) ridge #d4a72c;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 248, 199, 0.72) 0 4%, transparent 5%),
+    radial-gradient(circle, #1b6f67 0 13%, #123f43 14% 22%, transparent 23%),
+    repeating-conic-gradient(from 4deg, #d9ad35 0 7deg, #765014 8deg 15deg);
+  box-shadow:
+    inset 0 0 0 5px #4d3108,
+    inset 0 0 0 9px rgba(246, 211, 100, 0.75),
+    inset 0 0 28px rgba(0, 0, 0, 0.9),
+    0 12px 34px rgba(0, 0, 0, 0.7),
+    0 0 28px rgba(201, 162, 39, 0.24);
+}
+
+.medallon-imperial::before,
+.medallon-imperial::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+
+.medallon-imperial::before {
+  inset: 15%;
+  border: 3px double #e4c35f;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8);
+}
+
+.medallon-imperial::after {
+  top: -14%;
+  left: 39%;
+  width: 22%;
+  aspect-ratio: 1;
+  border: 5px solid #bd8e21;
+  background: #091823;
+  z-index: -1;
+}
+
+.medallon-imperial-centro {
+  width: 38%;
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, #f0cf65, #986913);
+  clip-path: polygon(50% 0, 61% 34%, 100% 50%, 61% 66%, 50% 100%, 39% 66%, 0 50%, 39% 34%);
+  filter: drop-shadow(0 2px 2px #1b1103);
+}
+
+.medallon-imperial-portada {
+  width: clamp(92px, 11vw, 142px);
+  margin: 8px 0 4px;
+}
+
+body.historia-abierta {
+  overflow: hidden;
+}
+
+.historia-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 0;
+  color: #f2ead8;
+  background: #04090f;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.historia-intro[hidden] {
+  display: none;
+}
+
+.historia-saltar.medallon {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 5;
+  width: auto;
+  min-height: 38px;
+  margin: 0;
+  padding: 7px 12px;
+  font-size: 0.67rem;
+}
+
+.historia-escenas {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.historia-escena {
+  --historia-fondo: url("/static/img/lugares/parador.jpeg");
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 0.9fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 70px);
+  padding: clamp(66px, 8vh, 96px) clamp(24px, 7vw, 110px) clamp(26px, 5vh, 58px);
+  overflow: hidden;
+}
+
+.historia-escena[hidden] {
+  display: none;
+}
+
+.historia-escena::before {
+  content: "";
+  position: absolute;
+  inset: -3%;
+  z-index: -2;
+  background-image:
+    linear-gradient(90deg, rgba(3, 7, 13, 0.88), rgba(5, 12, 22, 0.54), rgba(3, 7, 13, 0.87)),
+    var(--historia-fondo);
+  background-size: cover;
+  background-position: center;
+}
+
+.historia-escena::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 44%, transparent 20%, rgba(2, 5, 9, 0.42) 70%),
+    linear-gradient(180deg, rgba(2, 5, 9, 0.18), rgba(2, 5, 9, 0.72));
+}
+
+.historia-escena-parador {
+  grid-template-columns: minmax(0, 760px);
+  align-items: end;
+  justify-content: start;
+}
+
+.historia-escena-pasadizos,
+.historia-escena-localizaciones {
+  --historia-fondo: url("/static/img/tablero/tablero.png");
+}
+
+.historia-relato {
+  position: relative;
+  z-index: 2;
+  max-width: 680px;
+  padding: clamp(18px, 3vw, 32px);
+  background: linear-gradient(90deg, rgba(4, 10, 18, 0.92), rgba(4, 10, 18, 0.62));
+  border-left: 3px solid #c9a227;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.42);
+}
+
+.historia-capitulo {
+  margin: 0 0 7px;
+  color: #e8c766;
+  font-size: 0.74rem;
+  font-weight: bold;
+  letter-spacing: 2.8px;
+}
+
+.historia-contexto {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 7px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: bold;
+  letter-spacing: 1.3px;
+}
+
+.historia-contexto-real { color: #9fc1b2; }
+.historia-contexto-ficcion { color: #d9bcef; }
+.historia-contexto-leyenda { color: #e4bd71; }
+
+.historia-relato h2 {
+  margin: 0 0 12px;
+  color: #f2d16b;
+  font-size: clamp(1.55rem, 4vw, 3.2rem);
+  line-height: 1.02;
+  letter-spacing: 1.5px;
+  text-wrap: balance;
+}
+
+.historia-relato > p:last-child {
+  margin: 0;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.historia-pregunta {
+  margin-top: 14px !important;
+  color: #e8c766;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.historia-visual-medallon {
+  display: grid;
+  place-items: center;
+}
+
+.historia-visual-medallon .medallon-imperial {
+  width: clamp(180px, 25vw, 330px);
+}
+
+.historia-lugares-pasadizo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 170px));
+  justify-content: center;
+  gap: 12px;
+}
+
+.historia-lugares-pasadizo img,
+.historia-localizaciones img,
+.historia-triada img,
+.historia-retratos img,
+.historia-objeto-ausente img {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  object-fit: cover;
+  border: 1px solid rgba(232, 199, 102, 0.68);
+  border-radius: 8px;
+  background: #09111e;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.58);
+}
+
+.historia-lugares-pasadizo img {
+  aspect-ratio: 3 / 4;
+}
+
+.historia-objeto-ausente {
+  position: relative;
+  width: min(36vw, 330px);
+  margin: auto;
+}
+
+.historia-objeto-ausente img {
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+}
+
+.historia-huella-medallon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px dashed rgba(232, 199, 102, 0.72);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 24px rgba(201, 162, 39, 0.35);
+}
+
+.historia-retratos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 118px));
+  justify-content: center;
+  gap: 10px;
+}
+
+.historia-retratos figure {
+  margin: 0;
+  padding: 4px;
+  background: rgba(6, 13, 23, 0.88);
+  border: 1px solid rgba(201, 162, 39, 0.52);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.historia-retratos img {
+  aspect-ratio: 1;
+  object-position: center top;
+}
+
+.historia-retratos figcaption {
+  padding: 5px 2px 2px;
+  color: #e8c766;
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.historia-localizaciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 112px));
+  justify-content: center;
+  gap: 7px;
+}
+
+.historia-localizaciones img {
+  aspect-ratio: 3 / 4;
+}
+
+.historia-triada {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) auto minmax(0, 150px) auto minmax(0, 150px);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.historia-triada img {
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+}
+
+.historia-triada span {
+  color: #e8c766;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.historia-controles {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(105px, 145px) minmax(170px, 240px);
+  align-items: center;
+  gap: 16px;
+  padding: 10px max(20px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: rgba(3, 8, 15, 0.98);
+  border-top: 1px solid rgba(201, 162, 39, 0.42);
+}
+
+.historia-progreso {
+  height: 4px;
+  overflow: hidden;
+  background: rgba(232, 199, 102, 0.17);
+  border-radius: 4px;
+}
+
+.historia-progreso span {
+  display: block;
+  width: 12.5%;
+  height: 100%;
+  background: linear-gradient(90deg, #9c7015, #f0d679);
+  transition: width 0.45s ease;
+}
+
+.historia-controles p {
+  margin: 0;
+  color: #b8ad93;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+}
+
+.historia-controles .medallon {
+  min-height: 44px;
+  margin: 0;
+}
+
+.historia-escena-activa::before {
+  animation: historia-fondo 6.5s ease-out both;
+}
+
+.historia-escena-activa .historia-relato {
+  animation: historia-relato-entrada 0.8s ease-out both;
+}
+
+.historia-escena-activa > :not(.historia-relato) {
+  animation: historia-visual-entrada 0.9s 0.12s ease-out both;
+}
+
+@keyframes historia-fondo {
+  from { transform: scale(1.035); filter: brightness(0.72); }
+  to { transform: scale(1); filter: brightness(0.9); }
+}
+
+@keyframes historia-relato-entrada {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes historia-visual-entrada {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 760px) {
+  body.portada {
+    padding: 8px 0;
+    overflow-y: auto;
+  }
+
+  body.portada .portada-escena {
+    width: min(calc(100vw - 16px), 620px);
+    height: auto;
+    min-height: calc(100dvh - 16px);
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 22px;
+    padding: 24px 18px;
+  }
+
+  body.portada .portada-identidad {
+    align-items: center;
+    text-align: center;
+  }
+
+  body.portada .portada-identidad h1 {
+    font-size: clamp(2rem, 11vw, 3.4rem);
+  }
+
+  .medallon-imperial-portada {
+    width: 88px;
+    margin: 2px 0;
+  }
+
+  body.portada .portada-menu {
+    max-width: 430px;
+    padding: 13px;
+  }
+
+  .historia-escena {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 15px;
+    padding: 62px 14px 14px;
+    overflow-y: auto;
+  }
+
+  .historia-escena-parador {
+    align-content: end;
+  }
+
+  .historia-relato {
+    max-width: 100%;
+    padding: 15px 16px;
+  }
+
+  .historia-relato h2 {
+    margin-bottom: 8px;
+    font-size: clamp(1.35rem, 7vw, 2rem);
+  }
+
+  .historia-relato > p:last-child {
+    font-size: 0.96rem;
+    line-height: 1.4;
+  }
+
+  .historia-contexto {
+    margin-bottom: 8px;
+  }
+
+  .historia-visual-medallon .medallon-imperial {
+    width: min(36vw, 150px);
+  }
+
+  .historia-lugares-pasadizo {
+    grid-template-columns: repeat(4, minmax(84px, 112px));
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: start;
+  }
+
+  .historia-lugares-pasadizo img {
+    aspect-ratio: 3 / 4;
+  }
+
+  .historia-objeto-ausente {
+    width: min(34vw, 145px);
+  }
+
+  .historia-retratos {
+    grid-template-columns: repeat(3, minmax(0, 92px));
+    gap: 6px;
+  }
+
+  .historia-retratos figcaption {
+    font-size: 0.58rem;
+  }
+
+  .historia-localizaciones {
+    grid-template-columns: repeat(3, minmax(0, 72px));
+    gap: 5px;
+  }
+
+  .historia-localizaciones img {
+    max-height: 92px;
+  }
+
+  .historia-triada {
+    grid-template-columns: minmax(0, 92px) auto minmax(0, 92px) auto minmax(0, 92px);
+    gap: 5px;
+  }
+
+  .historia-triada span {
+    font-size: 1.1rem;
+  }
+
+  .historia-controles {
+    min-height: 64px;
+    grid-template-columns: minmax(55px, 1fr) auto minmax(82px, 105px) minmax(116px, 155px);
+    gap: 9px;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .historia-controles .medallon {
+    min-height: 40px;
+    padding: 6px 9px;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 420px) {
+  .portada-menu-secundario {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  body.portada .portada-escenario {
+    font-size: 0.62rem;
+    letter-spacing: 2.5px;
+  }
+
+  .historia-saltar.medallon {
+    top: 8px;
+    right: 8px;
+    min-height: 34px;
+    padding: 5px 8px;
+    font-size: 0.58rem;
+  }
+
+  .historia-retratos {
+    grid-template-columns: repeat(3, minmax(0, 78px));
+  }
+
+  .historia-localizaciones {
+    grid-template-columns: repeat(3, minmax(0, 62px));
+  }
+
+  .historia-triada {
+    grid-template-columns: repeat(3, minmax(0, 78px));
+  }
+
+  .historia-triada span {
+    display: none;
+  }
+
+  .historia-controles {
+    min-height: 78px;
+    grid-template-columns: auto minmax(82px, 1fr) minmax(116px, 1.35fr);
+    grid-template-rows: auto auto;
+  }
+
+  .historia-progreso {
+    grid-column: 1 / -1;
+  }
+
+  .historia-controles p {
+    font-size: 0.58rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  body.portada .portada-escena {
+    height: calc(100dvh - 12px);
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 24px;
+    padding: 18px 28px;
+  }
+
+  .medallon-imperial-portada { width: 76px; }
+  body.portada .portada-identidad h1 { font-size: clamp(2rem, 6.7vw, 3.4rem); }
+  body.portada .portada-menu { gap: 8px; padding: 10px; }
+  body.portada .portada-menu > .medallon:not(.medallon-compacto) { min-height: 48px; }
+
+  .historia-escena {
+    grid-template-columns: minmax(240px, 1fr) minmax(300px, 0.9fr);
+    gap: 22px;
+    padding: 48px 44px 12px;
+  }
+
+  .historia-relato { padding: 12px 16px; }
+  .historia-relato h2 { margin-bottom: 6px; font-size: clamp(1.3rem, 4vw, 2rem); }
+  .historia-relato > p:last-child { font-size: 0.9rem; line-height: 1.35; }
+  .historia-capitulo { margin-bottom: 3px; }
+  .historia-contexto { margin-bottom: 5px; padding: 2px 5px; }
+  .historia-visual-medallon .medallon-imperial { width: min(30vh, 150px); }
+  .historia-lugares-pasadizo { grid-template-columns: repeat(4, minmax(0, 90px)); gap: 6px; }
+  .historia-retratos { grid-template-columns: repeat(3, minmax(0, 78px)); gap: 5px; }
+  .historia-localizaciones { grid-template-columns: repeat(5, minmax(0, 62px)); gap: 4px; }
+  .historia-localizaciones img { max-height: 80px; }
+  .historia-triada { grid-template-columns: minmax(0, 92px) auto minmax(0, 92px) auto minmax(0, 92px); }
+  .historia-objeto-ausente { width: min(24vw, 150px); }
+  .historia-controles { min-height: 54px; padding-top: 5px; padding-bottom: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .historia-escena-activa::before,
+  .historia-escena-activa .historia-relato,
+  .historia-escena-activa > :not(.historia-relato) {
+    animation: none;
+  }
+
+  .historia-progreso span {
+    transition: none;
   }
 }
 

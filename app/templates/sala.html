@@ -59,6 +59,7 @@
               <button id="btn-ver-cartas" type="button" class="medallon medallon-secundario medallon-compacto" title="Mis cartas" hidden>CARTAS</button>
               <button id="btn-ver-hoja" type="button" class="medallon medallon-secundario medallon-compacto" title="Hoja de investigación">INVESTIGACIÓN</button>
               <button id="btn-historial" type="button" class="medallon medallon-secundario medallon-compacto" title="Historial de la investigación">HISTORIAL</button>
+              <button id="btn-aprender-sala" type="button" class="medallon medallon-secundario medallon-compacto" data-abrir-aprender title="Aprende a jugar">CÓMO JUGAR</button>
               <button id="btn-resolver" type="button" class="medallon medallon-secundario medallon-compacto" title="Resolver el misterio" hidden>RESOLVER</button>
             </div>
           </aside>
@@ -207,11 +208,13 @@
           <button id="btn-cerrar-historial" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
         </div>
       </div>
+      {% include "_aprender_a_jugar.html" %}
     </section>
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
   <script src="/static/js/audio.js?v=8b33b"></script>
   <script src="/static/js/sala.js?v=fase2historial"></script>
+  <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
 </body>
 </html>

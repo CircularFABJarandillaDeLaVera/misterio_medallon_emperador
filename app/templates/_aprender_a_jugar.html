@@ -1,0 +1,183 @@
+<div id="modal-aprender" class="modal modal-aprender" hidden>
+  <div class="modal-caja aprender-caja" role="dialog" aria-modal="true"
+       aria-labelledby="aprender-titulo" aria-describedby="aprender-intro">
+    <header class="aprender-cabecera">
+      <div>
+        <p class="aprender-antetitulo">EL MISTERIO DEL MEDALLÓN IMPERIAL</p>
+        <h2 id="aprender-titulo">APRENDE A JUGAR EN 3 MINUTOS</h2>
+        <p id="aprender-intro">Cinco pistas para comenzar tu investigación.</p>
+      </div>
+      <button id="btn-cerrar-aprender" class="medallon medallon-fantasma medallon-compacto aprender-cerrar-superior"
+              type="button" aria-label="Cerrar las instrucciones">CERRAR</button>
+    </header>
+
+    <nav class="aprender-indices" aria-label="Apartados de las instrucciones">
+      <button class="medallon medallon-secundario aprender-indice" type="button"
+              data-aprender-paso="0" aria-label="1. El misterio" aria-current="step">1</button>
+      <button class="medallon medallon-secundario aprender-indice" type="button"
+              data-aprender-paso="1" aria-label="2. Tus cartas">2</button>
+      <button class="medallon medallon-secundario aprender-indice" type="button"
+              data-aprender-paso="2" aria-label="3. Investiga">3</button>
+      <button class="medallon medallon-secundario aprender-indice" type="button"
+              data-aprender-paso="3" aria-label="4. Sigue las pistas">4</button>
+      <button class="medallon medallon-secundario aprender-indice" type="button"
+              data-aprender-paso="4" aria-label="5. Resuelve el misterio">5</button>
+    </nav>
+
+    <div id="aprender-contenido" class="aprender-contenido" aria-live="polite">
+      <section class="aprender-paso" data-aprender-panel="0">
+        <div class="aprender-texto">
+          <p class="aprender-numero">1 · EL MISTERIO</p>
+          <h3>DESCUBRE LA COMBINACIÓN SECRETA</h3>
+          <p>Una carta de personaje, una de lugar y una de objeto se apartan en secreto. Debes descubrir las tres antes que los demás.</p>
+          <p>Elige un personaje. El anfitrión comienza y los personajes libres se convierten en PNJ hasta reunir seis investigadores.</p>
+          <aside class="aprender-recuerda"><strong>RECUERDA</strong><span>Buscas quién escondió el medallón, dónde y dentro de qué objeto.</span></aside>
+        </div>
+        <div class="aprender-cartas aprender-cartas-trio" aria-label="Ejemplo de las tres clases de carta">
+          <article class="carta-selector-sospecha carta-confirmacion-sospechoso">
+            <img src="/static/img/personajes/vera-nombre.png" alt="Carta de Vera, la cronista" />
+            <span class="carta-selector-nombre">PERSONAJE</span>
+          </article>
+          <article class="carta-selector-sospecha carta-confirmacion-lugar">
+            <img src="/static/img/lugares/picota.jpeg" alt="Carta de La Picota" />
+            <span class="carta-selector-nombre">LUGAR</span>
+          </article>
+          <article class="carta-selector-sospecha carta-confirmacion-objeto">
+            <img src="/static/img/objetos/zurron-cuero.png" alt="Carta del Zurrón de cuero" />
+            <span class="carta-selector-nombre">OBJETO</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="aprender-paso" data-aprender-panel="1" hidden>
+        <div class="aprender-texto">
+          <p class="aprender-numero">2 · TUS CARTAS</p>
+          <h3>TRES PISTAS DESDE EL PRINCIPIO</h3>
+          <p>Recibes tres cartas privadas. Como están en tu mano, sabes que no forman parte de la solución.</p>
+          <p>Consúltalas desde <strong>CARTAS</strong>. En tu hoja aparecen automáticamente como <strong>LA TENGO</strong>.</p>
+          <aside class="aprender-recuerda"><strong>RECUERDA</strong><span>No enseñes tu mano. El juego te indicará cuándo debes mostrar una carta.</span></aside>
+        </div>
+        <div class="aprender-cartas aprender-cartas-trio" aria-label="Ejemplo de una mano de tres cartas">
+          <article class="carta-selector-sospecha carta-confirmacion-sospechoso">
+            <span class="carta-selector-marca es-propia">LA TENGO</span>
+            <img src="/static/img/personajes/bruno-nombre.png" alt="Carta de Bruno, el cantero" />
+            <span class="carta-selector-nombre">BRUNO, EL CANTERO</span>
+          </article>
+          <article class="carta-selector-sospecha carta-confirmacion-lugar">
+            <span class="carta-selector-marca es-propia">LA TENGO</span>
+            <img src="/static/img/lugares/parador.jpeg" alt="Carta del Parador" />
+            <span class="carta-selector-nombre">PARADOR</span>
+          </article>
+          <article class="carta-selector-sospecha carta-confirmacion-objeto">
+            <span class="carta-selector-marca es-propia">LA TENGO</span>
+            <img src="/static/img/objetos/baul-imperial.png" alt="Carta del Baúl imperial" />
+            <span class="carta-selector-nombre">BAÚL IMPERIAL</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="aprender-paso aprender-paso-investiga" data-aprender-panel="2" hidden>
+        <div class="aprender-texto aprender-texto-investiga">
+          <p class="aprender-numero">3 · INVESTIGA</p>
+          <h3>MUÉVETE Y FORMULA SOSPECHAS</h3>
+          <p>Tira el dado y elige un destino resaltado. Si entras en un lugar, combina un personaje, ese lugar y un objeto.</p>
+          <p>Un pasadizo disponible sustituye la tirada. Si acabas en un camino, el turno termina sin sospecha.</p>
+          <p>Los PNJ se mueven, sospechan y refutan automáticamente usando solo las pistas que han obtenido.</p>
+          <aside class="aprender-recuerda"><strong>RECUERDA</strong><span>Para sospechar debes entrar en un lugar durante ese turno.</span></aside>
+        </div>
+
+        <div class="aprender-ejemplo" aria-label="Ejemplo de sospecha y refutación">
+          <h4>EJEMPLO · LA SOSPECHA DE BRUNO</h4>
+          <ol class="aprender-ejemplo-pasos">
+            <li>
+              <span class="aprender-ejemplo-numero">1</span>
+              <div><strong>Bruno entra en La Picota y sospecha:</strong><span>«Vera escondió el medallón en La Picota, dentro del Zurrón de cuero».</span></div>
+            </li>
+          </ol>
+          <div class="aprender-cartas aprender-cartas-trio aprender-cartas-ejemplo" aria-label="Vera, La Picota y el Zurrón de cuero">
+            <article class="carta-selector-sospecha carta-confirmacion-sospechoso">
+              <img src="/static/img/personajes/vera-nombre.png" alt="Carta de Vera, la cronista" />
+              <span class="carta-selector-nombre">VERA, LA CRONISTA</span>
+            </article>
+            <article class="carta-selector-sospecha carta-confirmacion-lugar">
+              <img src="/static/img/lugares/picota.jpeg" alt="Carta de La Picota" />
+              <span class="carta-selector-nombre">LA PICOTA</span>
+            </article>
+            <article class="carta-selector-sospecha carta-confirmacion-objeto">
+              <img src="/static/img/objetos/zurron-cuero.png" alt="Carta del Zurrón de cuero" />
+              <span class="carta-selector-nombre">ZURRÓN DE CUERO</span>
+            </article>
+          </div>
+          <div class="aprender-refutacion-privada" aria-label="Lucía muestra en privado el Zurrón de cuero a Bruno">
+            <figure>
+              <img src="/static/img/personajes/lucia-nombre.png" alt="Carta de Lucía, la boticaria" />
+              <figcaption>LUCÍA REFUTA</figcaption>
+            </figure>
+            <div class="aprender-pista-privada">
+              <span>SOLO BRUNO LA VE</span>
+              <img src="/static/img/objetos/zurron-cuero.png" alt="Lucía muestra el Zurrón de cuero" />
+            </div>
+            <figure>
+              <img src="/static/img/personajes/bruno-nombre.png" alt="Carta de Bruno, el cantero" />
+              <figcaption>BRUNO RECIBE LA PISTA</figcaption>
+            </figure>
+          </div>
+          <ol class="aprender-ejemplo-pasos" start="2">
+            <li>
+              <span class="aprender-ejemplo-numero">2</span>
+              <div><strong>Lucía puede refutar.</strong><span>Es la primera rival en el orden que tiene una coincidencia. En este ejemplo muestra el Zurrón de cuero.</span></div>
+            </li>
+            <li>
+              <span class="aprender-ejemplo-numero">3</span>
+              <div><strong>Solo Bruno ve cuál es.</strong><span>La carta es una pista privada para quien formuló la sospecha. Los demás solo saben que Lucía refutó.</span></div>
+            </li>
+            <li>
+              <span class="aprender-ejemplo-numero">4</span>
+              <div><strong>¿Y si nadie puede refutar?</strong><span>Ningún rival tiene esas cartas. Bruno debe compararlas con su propia mano: no significa que las tres sean la solución.</span></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="aprender-paso" data-aprender-panel="3" hidden>
+        <div class="aprender-texto">
+          <p class="aprender-numero">4 · SIGUE LAS PISTAS</p>
+          <h3>ANOTA LO QUE DESCUBRES</h3>
+          <p>En <strong>INVESTIGACIÓN</strong>, tus cartas aparecen como <strong>LA TENGO</strong> y las que te muestran como <strong>VISTA</strong>. Toca las demás para marcarlas como <strong>DESCARTADA</strong>.</p>
+          <p><strong>HISTORIAL</strong> recuerda las sospechas resueltas y quién las refutó, pero nunca revela la carta mostrada.</p>
+          <aside class="aprender-recuerda"><strong>RECUERDA</strong><span>Combina tu hoja con las sospechas que nadie pudo refutar.</span></aside>
+        </div>
+        <div class="aprender-estados" aria-label="Estados de la hoja de investigación">
+          <div><span class="aprender-marca aprender-marca-tengo">LA TENGO</span><small>Está en tu mano.</small></div>
+          <div><span class="aprender-marca aprender-marca-vista">VISTA</span><small>Te la enseñaron.</small></div>
+          <div><span class="aprender-marca aprender-marca-descartada">DESCARTADA</span><small>La has eliminado.</small></div>
+          <div><span class="aprender-marca aprender-marca-publica">HISTORIAL</span><small>Solo información pública.</small></div>
+        </div>
+      </section>
+
+      <section class="aprender-paso" data-aprender-panel="4" hidden>
+        <div class="aprender-texto">
+          <p class="aprender-numero">5 · RESUELVE EL MISTERIO</p>
+          <h3>ACUSA CUANDO SOLO QUEDE UNA OPCIÓN</h3>
+          <p>Durante tu turno, pulsa <strong>RESOLVER</strong> y elige un personaje, un lugar y un objeto. Revisarás las tres cartas antes de confirmar.</p>
+          <p>Si aciertas, ganas. Si fallas, ya no podrás moverte, sospechar ni acusar, pero conservarás tus cartas y seguirás refutando.</p>
+          <aside class="aprender-recuerda"><strong>RECUERDA</strong><span>La acusación es definitiva y requiere una segunda confirmación.</span></aside>
+        </div>
+        <div class="aprender-resolucion" aria-hidden="true">
+          <img src="/static/img/personajes/lucia-nombre.png" alt="" />
+          <span>+</span>
+          <img src="/static/img/lugares/puente-parral.jpeg" alt="" />
+          <span>+</span>
+          <img src="/static/img/objetos/libro-hueco.png" alt="" />
+          <strong>¿?</strong>
+        </div>
+      </section>
+    </div>
+
+    <footer class="aprender-acciones">
+      <button id="btn-anterior-aprender" class="medallon medallon-fantasma medallon-compacto" type="button">ANTERIOR</button>
+      <p id="aprender-progreso" aria-live="polite">1 DE 5</p>
+      <button id="btn-siguiente-aprender" class="medallon medallon-primario medallon-compacto" type="button">SIGUIENTE</button>
+    </footer>
+  </div>
+</div>

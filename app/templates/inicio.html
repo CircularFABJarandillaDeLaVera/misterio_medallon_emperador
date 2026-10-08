@@ -5,23 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
   <title>El misterio del medallón — Juego de misterio y deducción</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=8b19" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=fase3b" />
 </head>
 <body class="portada">
-  <!-- FONDO DEFINITIVO PENDIENTE: esta capa queda preparada para recibir la
-       ilustración cinematográfica final (azul noche / Jarandilla / medallón).
-       Bastará con fijar --portada-imagen con la ruta /static/... definitiva.
-       No se pinta ningún botón dentro del fondo: la interfaz es HTML real. -->
-  <div class="portada-fondo" aria-hidden="true" data-fondo-definitivo="pendiente"></div>
+  <div class="portada-fondo" aria-hidden="true"></div>
   <div class="portada-velo" aria-hidden="true"></div>
 
   <main class="portada-escena">
     <header class="portada-identidad">
-      <h1 class="solo-lectores">El misterio del medallón</h1>
-      <figure class="portada-cartel">
-        <img src="/static/img/portada/cartel.jpeg"
-             alt="Cartel de El misterio del medallón: los cinco investigadores ante el Parador de Jarandilla de la Vera" />
-      </figure>
+      <p class="portada-escenario">JARANDILLA DE LA VERA · 1556</p>
+      <div class="medallon-imperial medallon-imperial-portada" aria-hidden="true">
+        <span class="medallon-imperial-centro"></span>
+      </div>
+      <h1>EL MISTERIO <span>DEL MEDALLÓN IMPERIAL</span></h1>
+      <p class="portada-sub">Una joya desaparecida. Seis sospechosos. Una sola verdad.</p>
     </header>
 
     <section class="portada-menu" aria-label="Menú principal">
@@ -32,7 +29,7 @@
           <path d="M12 7.2l1.5 2.9 3.2.5-2.3 2.2.5 3.2-2.9-1.5-2.9 1.5.5-3.2-2.3-2.2 3.2-.5z"
                 fill="currentColor" opacity="0.9" />
         </svg>
-        <span>NUEVA PARTIDA</span>
+        <span>CREAR PARTIDA</span>
       </button>
       <button id="btn-unirse" class="medallon medallon-secundario" type="button">
         <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -40,10 +37,164 @@
           <path d="M12.5 12H21M18 12v3.2M21 12v2.2" fill="none" stroke="currentColor"
                 stroke-width="1.8" stroke-linecap="round" />
         </svg>
-        <span>UNIRSE A PARTIDA</span>
+        <span>UNIRSE A UNA PARTIDA</span>
       </button>
+      <div class="portada-menu-secundario">
+        <button id="btn-aprender-inicio" class="medallon medallon-fantasma medallon-compacto" type="button" data-abrir-aprender>
+          <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 5.5c2.8-.8 5.5-.2 8 1.5v12c-2.5-1.7-5.2-2.3-8-1.5zM20 5.5c-2.8-.8-5.5-.2-8 1.5v12c2.5-1.7 5.2-2.3 8-1.5z"
+                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <span>APRENDE A JUGAR</span>
+        </button>
+        <button id="btn-ver-historia" class="medallon medallon-fantasma medallon-compacto" type="button">
+          <svg class="medallon-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M5 4.5h11a3 3 0 013 3v12H8a3 3 0 01-3-3zM8 19.5V7.5a3 3 0 00-3-3"
+                  fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M11 9h5M11 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+          <span>VER LA HISTORIA</span>
+        </button>
+      </div>
     </section>
   </main>
+
+  <section id="historia-intro" class="historia-intro" role="dialog" aria-modal="true"
+           aria-labelledby="historia-intro-titulo" hidden>
+    <h2 id="historia-intro-titulo" class="solo-lectores">Introducción a El misterio del medallón imperial</h2>
+    <button id="btn-saltar-historia" class="medallon medallon-fantasma medallon-compacto historia-saltar"
+            type="button">SALTAR INTRODUCCIÓN</button>
+
+    <div class="historia-escenas" aria-live="polite">
+      <article class="historia-escena historia-escena-parador" data-historia-escena="0">
+        <div class="historia-relato">
+          <p class="historia-capitulo">I · LA LLEGADA</p>
+          <p class="historia-contexto historia-contexto-real">CONTEXTO HISTÓRICO · 1556</p>
+          <h2 id="historia-titulo-activo">CARLOS I LLEGA A JARANDILLA</h2>
+          <p>El emperador se aloja en el castillo de los condes de Oropesa mientras preparan sus aposentos en Yuste.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-legado" data-historia-escena="1" hidden>
+        <div class="historia-visual-medallon" aria-hidden="true">
+          <div class="medallon-imperial"><span class="medallon-imperial-centro"></span></div>
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">II · EL LEGADO</p>
+          <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
+          <h2>EL MEDALLÓN IMPERIAL</h2>
+          <p>Como muestra de gratitud por la hospitalidad recibida, el emperador deja un valioso medallón.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-pasadizos" data-historia-escena="2" hidden>
+        <div class="historia-lugares-pasadizo" aria-label="Lugares unidos por los pasadizos del juego">
+          <img src="/static/img/lugares/plaza-constitucion.jpeg" alt="Plaza de la Constitución" />
+          <img src="/static/img/lugares/nuestra-senora-torre.jpeg" alt="Nuestra Señora de la Torre" />
+          <img src="/static/img/lugares/ermita-sopetran.jpeg" alt="Ermita de Sopetrán" />
+          <img src="/static/img/lugares/puente-parral.jpeg" alt="Puente Parral" />
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">III · LOS PASADIZOS</p>
+          <p class="historia-contexto historia-contexto-leyenda">LEYENDA LOCAL</p>
+          <h2>SECRETOS BAJO JARANDILLA</h2>
+          <p>Una antigua tradición habla de túneles ocultos bajo la villa, vinculados por la leyenda a los templarios.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-desaparicion" data-historia-escena="3" hidden>
+        <div class="historia-objeto-ausente" aria-hidden="true">
+          <img src="/static/img/objetos/baul-imperial.png" alt="" />
+          <span class="historia-huella-medallon"></span>
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">IV · LA DESAPARICIÓN</p>
+          <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
+          <h2>EL LEGADO HA DESAPARECIDO</h2>
+          <p>Siglos después, el medallón ya no está donde debería. Alguien lo ha escondido.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-sospechosos" data-historia-escena="4" hidden>
+        <div class="historia-retratos" aria-label="Los seis sospechosos">
+          <figure><img src="/static/img/personajes/vera.png" alt="Vera" /><figcaption>VERA</figcaption></figure>
+          <figure><img src="/static/img/personajes/bruno.png" alt="Bruno" /><figcaption>BRUNO</figcaption></figure>
+          <figure><img src="/static/img/personajes/lucia.png" alt="Lucía" /><figcaption>LUCÍA</figcaption></figure>
+          <figure><img src="/static/img/personajes/alvaro.png" alt="Álvaro" /><figcaption>ÁLVARO</figcaption></figure>
+          <figure><img src="/static/img/personajes/mateo.png" alt="Mateo" /><figcaption>MATEO</figcaption></figure>
+          <figure><img src="/static/img/personajes/eulalia.png" alt="Eulalia" /><figcaption>EULALIA</figcaption></figure>
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">V · LOS SOSPECHOSOS</p>
+          <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
+          <h2>SEIS PERSONAS BAJO INVESTIGACIÓN</h2>
+          <p>Vera, Bruno, Lucía, Álvaro, Mateo y Eulalia. Cualquiera pudo ocultar la joya.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-localizaciones" data-historia-escena="5" hidden>
+        <div class="historia-localizaciones" aria-label="Las nueve localizaciones de la investigación">
+          <img src="/static/img/lugares/parador.jpeg" alt="Parador" />
+          <img src="/static/img/lugares/iglesia-san-agustin.jpeg" alt="Iglesia de San Agustín" />
+          <img src="/static/img/lugares/ermita-sopetran.jpeg" alt="Ermita de Sopetrán" />
+          <img src="/static/img/lugares/picota.jpeg" alt="La Picota" />
+          <img src="/static/img/lugares/plaza-constitucion.jpeg" alt="Plaza de la Constitución" />
+          <img src="/static/img/lugares/cristo-humilladero.jpeg" alt="Cristo del Humilladero" />
+          <img src="/static/img/lugares/puente-parral.jpeg" alt="Puente Parral" />
+          <img src="/static/img/lugares/museo-escobazos.jpeg" alt="Museo de los Escobazos" />
+          <img src="/static/img/lugares/nuestra-senora-torre.jpeg" alt="Nuestra Señora de la Torre" />
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">VI · LAS LOCALIZACIONES</p>
+          <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
+          <h2>NUEVE LUGARES POSIBLES</h2>
+          <p>Nueve rincones de Jarandilla guardan secretos. En uno de ellos podría permanecer oculto el medallón imperial.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-investigacion" data-historia-escena="6" hidden>
+        <div class="historia-triada" aria-label="Un personaje, un lugar y un objeto">
+          <img src="/static/img/personajes/vera-nombre.png" alt="Vera, la cronista" />
+          <span>+</span>
+          <img src="/static/img/lugares/parador.jpeg" alt="Parador" />
+          <span>+</span>
+          <img src="/static/img/objetos/baul-imperial.png" alt="Baúl imperial" />
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">VII · LA INVESTIGACIÓN</p>
+          <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
+          <h2>CADA PISTA IMPORTA</h2>
+          <p>Personajes, lugares y objetos guardan fragmentos de la verdad. Solo una combinación resolverá el misterio.</p>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-desafio" data-historia-escena="7" hidden>
+        <div class="historia-visual-medallon" aria-hidden="true">
+          <div class="medallon-imperial"><span class="medallon-imperial-centro"></span></div>
+        </div>
+        <div class="historia-relato">
+          <p class="historia-capitulo">VIII · EL DESAFÍO</p>
+          <h2>UNA SOLA VERDAD</h2>
+          <p>Un sospechoso. Un lugar. Un objeto. Decenas de pistas. Pero una sola verdad.</p>
+          <p class="historia-pregunta">¿Serás capaz de descubrirla?</p>
+        </div>
+      </article>
+    </div>
+
+    <footer class="historia-controles">
+      <div class="historia-progreso" role="progressbar" aria-label="Progreso de la historia"
+           aria-valuemin="1" aria-valuemax="8" aria-valuenow="1">
+        <span id="historia-barra"></span>
+      </div>
+      <p id="historia-contador">1 DE 8</p>
+      <button id="btn-pausar-historia" class="medallon medallon-fantasma medallon-compacto"
+              type="button" aria-pressed="false">PAUSAR</button>
+      <button id="btn-avanzar-historia" class="medallon medallon-primario medallon-compacto"
+              type="button">AVANZAR</button>
+    </footer>
+  </section>
+
+  {% include "_aprender_a_jugar.html" %}
 
   <div id="modal-nueva" class="modal portada-modal" hidden>
     <div class="modal-caja portada-modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-nueva">
@@ -90,5 +241,7 @@
        ambiental sigue existiendo solo en la sala y no se descarga aqui:
        la pista musical se crea de forma perezosa al pedirla. -->
   <script src="/static/js/audio.js?v=8b33b"></script>
+  <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
+  <script src="/static/js/historia.js?v=fase3b"></script>
 </body>
 </html>
