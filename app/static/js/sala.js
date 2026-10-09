@@ -33,6 +33,17 @@ const btnHistorialRevelacion = document.getElementById("btn-historial-revelacion
 const modalHistorial = document.getElementById("modal-historial");
 const historialLista = document.getElementById("historial-lista");
 const btnCerrarHistorial = document.getElementById("btn-cerrar-historial");
+const btnChat = document.getElementById("btn-chat");
+const chatPendientes = document.getElementById("chat-pendientes");
+const modalChat = document.getElementById("modal-chat");
+const dialogoChat = modalChat
+  ? modalChat.querySelector('[role="dialog"]')
+  : null;
+const listaMensajesChat = document.getElementById("chat-mensajes");
+const formularioChat = document.getElementById("chat-formulario");
+const entradaChat = document.getElementById("chat-entrada");
+const estadoChat = document.getElementById("chat-estado");
+const btnCerrarChat = document.getElementById("btn-cerrar-chat");
 const jugadaDiv = document.getElementById("jugada");
 const btnSospecha = document.getElementById("btn-sospecha");
 const modalSospecha = document.getElementById("modal-sospecha");
@@ -184,6 +195,9 @@ let presentacionSospechaVisibleId = null;
 let presentacionSospechaDescartadaId = null;
 let cartaRefutacionSeleccionadaId = null;
 let focoAntesDeHistorial = null;
+let focoAntesDeChat = null;
+let mensajesChat = [];
+let mensajesChatPendientes = 0;
 
 function sincronizarBarraControlesInferior() {
   if (!barraControlesInferior) return;
@@ -197,6 +211,126 @@ function sincronizarBarraControlesInferior() {
   const modalVisible = modalesSala.some((modal) => !modal.hidden);
   barraControlesInferior.hidden = !tableroPrincipalVisible || modalVisible;
 }
+
+function actualizarIndicadorChat() {
+  if (!btnChat || !chatPendientes) return;
+  chatPendientes.hidden = mensajesChatPendientes === 0;
+  chatPendientes.textContent = mensajesChatPendientes > 99
+    ? "99+"
+    : String(mensajesChatPendientes);
+  const etiqueta = mensajesChatPendientes
+    ? `Chat, ${mensajesChatPendientes} mensajes nuevos`
+    : "Chat";
+  btnChat.setAttribute("aria-label", etiqueta);
+  btnChat.setAttribute("title", etiqueta);
+}
+
+function pintarMensajesChat() {
+  if (!listaMensajesChat) return;
+  listaMensajesChat.innerHTML = "";
+  if (!mensajesChat.length) {
+    const vacio = document.createElement("p");
+    vacio.className = "chat-vacio";
+    vacio.textContent = "Todavía no hay mensajes en esta partida.";
+    listaMensajesChat.appendChild(vacio);
+  } else {
+    mensajesChat.slice(-100).forEach((mensaje) => {
+      const articulo = document.createElement("article");
+      const esPropio = mensaje.jugador_id === jugadorId;
+      articulo.className = esPropio
+        ? "chat-mensaje chat-mensaje-propio"
+        : "chat-mensaje chat-mensaje-recibido";
+      const alias = document.createElement("strong");
+      alias.className = "chat-mensaje-alias";
+      alias.textContent = mensaje.alias || "Jugador";
+      const texto = document.createElement("p");
+      texto.className = "chat-mensaje-texto";
+      texto.textContent = mensaje.texto || "";
+      articulo.appendChild(alias);
+      articulo.appendChild(texto);
+      listaMensajesChat.appendChild(articulo);
+    });
+  }
+  listaMensajesChat.scrollTop = listaMensajesChat.scrollHeight;
+}
+
+function abrirChat() {
+  if (!modalChat || !btnChat || btnChat.hidden) return;
+  focoAntesDeChat = document.activeElement || btnChat;
+  modalChat.hidden = false;
+  mensajesChatPendientes = 0;
+  actualizarIndicadorChat();
+  pintarMensajesChat();
+  btnChat.setAttribute("aria-expanded", "true");
+  sincronizarBarraControlesInferior();
+  if (entradaChat && entradaChat.focus) entradaChat.focus();
+}
+
+function cerrarChat() {
+  if (!modalChat || modalChat.hidden) return;
+  modalChat.hidden = true;
+  btnChat.setAttribute("aria-expanded", "false");
+  sincronizarBarraControlesInferior();
+  if (focoAntesDeChat && focoAntesDeChat.focus) focoAntesDeChat.focus();
+}
+
+function enviarMensajeChat(evento) {
+  evento.preventDefault();
+  if (!entradaChat || !ws || ws.readyState !== WebSocket.OPEN) {
+    if (estadoChat) estadoChat.textContent = "El chat no está conectado.";
+    return;
+  }
+  const texto = entradaChat.value.trim();
+  if (!texto) {
+    if (estadoChat) estadoChat.textContent = "Escribe un mensaje antes de enviarlo.";
+    return;
+  }
+  ws.send(JSON.stringify({ accion: "chat", texto }));
+  entradaChat.value = "";
+  if (estadoChat) estadoChat.textContent = "";
+}
+
+if (btnChat) btnChat.addEventListener("click", abrirChat);
+if (btnCerrarChat) btnCerrarChat.addEventListener("click", cerrarChat);
+if (modalChat) {
+  modalChat.addEventListener("click", (evento) => {
+    if (evento.target === modalChat) cerrarChat();
+  });
+}
+if (formularioChat) {
+  formularioChat.addEventListener("submit", enviarMensajeChat);
+}
+if (document.addEventListener) {
+  document.addEventListener("keydown", (evento) => {
+    if (!modalChat || modalChat.hidden) return;
+    if (evento.key === "Escape") {
+      evento.preventDefault();
+      cerrarChat();
+      return;
+    }
+    if (evento.key !== "Tab" || !dialogoChat) return;
+    const controles = Array.from(
+      dialogoChat.querySelectorAll(
+        "button:not([hidden]):not([disabled]), input:not([hidden]):not([disabled])"
+      )
+    );
+    if (!controles.length) {
+      evento.preventDefault();
+      dialogoChat.focus();
+      return;
+    }
+    const primero = controles[0];
+    const ultimo = controles[controles.length - 1];
+    if (evento.shiftKey && document.activeElement === primero) {
+      evento.preventDefault();
+      ultimo.focus();
+    } else if (!evento.shiftKey && document.activeElement === ultimo) {
+      evento.preventDefault();
+      primero.focus();
+    }
+  });
+}
+actualizarIndicadorChat();
 
 window.sincronizarBarraControlesInferior =
   sincronizarBarraControlesInferior;
@@ -268,7 +402,28 @@ const ws = new WebSocket(
 
 ws.onmessage = (evento) => {
   const mensaje = JSON.parse(evento.data);
-  if (mensaje.tipo === "estado_privado") {
+  if (mensaje.tipo === "chat_mensaje") {
+    if (
+      mensaje.mensaje &&
+      typeof mensaje.mensaje.alias === "string" &&
+      typeof mensaje.mensaje.texto === "string"
+    ) {
+      mensajesChat.push(mensaje.mensaje);
+      mensajesChat = mensajesChat.slice(-100);
+      if (modalChat && modalChat.hidden) mensajesChatPendientes += 1;
+      else mensajesChatPendientes = 0;
+      actualizarIndicadorChat();
+      pintarMensajesChat();
+    }
+  } else if (mensaje.tipo === "error_chat") {
+    if (estadoChat) estadoChat.textContent = mensaje.detalle;
+  } else if (mensaje.tipo === "estado_privado") {
+    if (Array.isArray(mensaje.sala.chat_historial)) {
+      mensajesChat = mensaje.sala.chat_historial.slice(-100);
+      mensajesChatPendientes = 0;
+      actualizarIndicadorChat();
+      pintarMensajesChat();
+    }
     // El anfitrión recupera su secreto si aún no lo tiene (por ejemplo
     // tras abrir la sala en una pestaña nueva). Nadie más lo pide y la
     // petición no altera el estado de la partida.

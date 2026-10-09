@@ -290,7 +290,8 @@ function estado(extra) {
     "al abrir se enfoca el botón X"
   );
 
-  const escapar = eventosDocumento.keydown[0];
+  const escapar = (evento) =>
+    eventosDocumento.keydown.forEach((oyente) => oyente(evento));
   escapar({ key: "Escape", preventDefault() {} });
   ok(
     porId["modal-configuracion-partida"].hidden === true,

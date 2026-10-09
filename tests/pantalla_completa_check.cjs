@@ -164,7 +164,7 @@ ok(/\.barra-controles-inferior\s*\{[^}]*display:\s*flex[^}]*gap:\s*6px/.test(css
   "la barra usa Flexbox y separación uniforme");
 ok(/\.barra-controles-inferior > button\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/.test(css),
   "los accesos comparten dimensiones en escritorio");
-ok(/\.barra-controles-inferior > \.control-pantalla-completa\s*\{[^}]*order:\s*4/.test(css),
+ok(/\.barra-controles-inferior > \.control-pantalla-completa\s*\{[^}]*order:\s*5/.test(css),
   "pantalla completa queda en el extremo derecho");
 ok(/\.barra-controles-inferior > \.control-aprender-sala\s*\{[^}]*order:\s*1/.test(css),
   "instrucciones quedan a la izquierda y se recolocan sin huecos");

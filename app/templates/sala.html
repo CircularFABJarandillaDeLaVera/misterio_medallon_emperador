@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=admin20" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=chat1" />
 </head>
 <body>
   <main class="contenedor">
@@ -240,6 +240,26 @@
           <button id="btn-cerrar-historial" class="medallon medallon-fantasma medallon-compacto" type="button">CERRAR</button>
         </div>
       </div>
+      <div id="modal-chat" class="modal modal-chat" hidden>
+        <section class="modal-caja modal-chat-caja" role="dialog" aria-modal="true"
+                 aria-labelledby="chat-titulo" tabindex="-1">
+          <header class="chat-cabecera">
+            <h2 id="chat-titulo">CHAT DE LA PARTIDA</h2>
+            <button id="btn-cerrar-chat" class="medallon medallon-fantasma medallon-compacto"
+                    type="button" aria-label="Cerrar chat" title="Cerrar">×</button>
+          </header>
+          <div id="chat-mensajes" class="chat-mensajes" role="log"
+               aria-live="polite" aria-relevant="additions text"></div>
+          <form id="chat-formulario" class="chat-formulario">
+            <label class="solo-lectores" for="chat-entrada">Escribe un mensaje</label>
+            <input id="chat-entrada" name="mensaje" type="text" maxlength="300"
+                   autocomplete="off" placeholder="Escribe un mensaje…" />
+            <button class="medallon medallon-primario medallon-compacto"
+                    type="submit">ENVIAR</button>
+          </form>
+          <p id="chat-estado" class="chat-estado" role="status" aria-live="polite"></p>
+        </section>
+      </div>
       {% include "_aprender_a_jugar.html" %}
       <nav id="barra-controles-inferior" class="barra-controles-inferior"
            aria-label="Accesos de la partida" hidden>
@@ -255,6 +275,13 @@
             </svg>
           </span>
         </button>
+        <button id="btn-chat" type="button"
+                class="medallon medallon-fantasma control-chat"
+                aria-label="Chat" title="Chat" aria-haspopup="dialog"
+                aria-expanded="false" aria-controls="modal-chat">
+          <span>Chat</span>
+          <span id="chat-pendientes" class="chat-pendientes" aria-hidden="true" hidden></span>
+        </button>
         <button id="btn-aprender-sala" type="button"
                 class="medallon medallon-fantasma control-aprender-sala"
                 data-abrir-aprender aria-label="Cómo jugar" title="Cómo jugar">
@@ -265,7 +292,7 @@
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b"></script>
   <script src="/static/js/audio.js?v=8b33c"></script>
-  <script src="/static/js/sala.js?v=admin8"></script>
+  <script src="/static/js/sala.js?v=admin9"></script>
   <script src="/static/js/aprender_a_jugar.js?v=fase3b"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19b"></script>
 </body>

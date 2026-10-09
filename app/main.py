@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections import deque
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -35,6 +36,7 @@ from app.motor.sala import (
     JUGADA_ESPERANDO_REFUTADOR,
     JUGADA_ESPERANDO_SOSPECHA,
     JUGADA_PRESENTANDO_SOSPECHA,
+    TIPO_HUMANO,
     TIPO_PNJ,
     MODO_TABLERO,
     MENSAJE_SIN_AUTORIDAD_ADMIN,
@@ -59,6 +61,14 @@ gestor = GestorSalas()
 conexiones: dict[str, dict[str, list[WebSocket]]] = {}
 cerrojos: dict[str, asyncio.Lock] = {}
 tareas_pnj: dict[str, asyncio.Task] = {}
+HISTORIAL_CHAT_MAXIMO = 100
+LONGITUD_MENSAJE_CHAT_MAXIMA = 300
+VENTANA_CHAT_SEGUNDOS = 10.0
+MENSAJES_CHAT_POR_VENTANA = 5
+# El chat vive en memoria, separado de Sala y de la lista blanca de guardado.
+historial_chat: dict[str, deque[dict[str, str]]] = {}
+envios_chat: dict[str, dict[str, deque[float]]] = {}
+cerrojos_chat: dict[str, asyncio.Lock] = {}
 PAUSA_TURNO_PNJ_SEGUNDOS = 3.0
 PAUSA_TRAS_JUGADA_HUMANA_SEGUNDOS = 5.0
 PAUSA_LECTURA_SOSPECHA_PNJ_SEGUNDOS = 5.0
@@ -513,12 +523,18 @@ def _desconectar_ws(codigo: str, jugador_id: str, ws: WebSocket) -> None:
         conexiones.pop(codigo, None)
 
 
-async def _enviar_privado(sala, jugador_id: str, ws: WebSocket) -> bool:
-    """Envía a una conexión solo el estado privado de su jugador."""
+async def _enviar_privado(
+    sala, jugador_id: str, ws: WebSocket, incluir_chat: bool = False
+) -> bool:
+    """Envía a una conexión el estado privado de su jugador."""
+    contenido = sala.estado_privado(jugador_id)
+    jugador = sala.jugador_por_id(jugador_id)
+    if incluir_chat and jugador and jugador["tipo"] == TIPO_HUMANO:
+        contenido["chat_historial"] = list(historial_chat.setdefault(
+            sala.codigo, deque(maxlen=HISTORIAL_CHAT_MAXIMO)
+        ))
     try:
-        await ws.send_json(
-            {"tipo": "estado_privado", "sala": sala.estado_privado(jugador_id)}
-        )
+        await ws.send_json({"tipo": "estado_privado", "sala": contenido})
         return True
     except Exception:
         return False
@@ -561,6 +577,19 @@ async def difundir(codigo: str) -> None:
             conexiones[codigo][jugador_id] = vivas
         else:
             conexiones[codigo].pop(jugador_id, None)
+
+
+async def _difundir_mensaje_chat(sala, mensaje: dict[str, str]) -> None:
+    """Entrega chat solo a conexiones humanas de esta sala."""
+    for jugador_id, pantallas in list(conexiones.get(sala.codigo, {}).items()):
+        jugador = sala.jugador_por_id(jugador_id)
+        if not jugador or jugador["tipo"] != TIPO_HUMANO:
+            continue
+        for ws in list(pantallas):
+            try:
+                await ws.send_json({"tipo": "chat_mensaje", "mensaje": mensaje})
+            except Exception:
+                _desconectar_ws(sala.codigo, jugador_id, ws)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -744,7 +773,7 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     await ws.accept()
     # Reconexión: el jugador conserva su id, su mano y su rol.
     conexiones.setdefault(sala.codigo, {}).setdefault(jugador_id, []).append(ws)
-    await _enviar_privado(sala, jugador_id, ws)
+    await _enviar_privado(sala, jugador_id, ws, incluir_chat=True)
     programar_turno_pnj(sala.codigo)
     # Reconexión con refutación pendiente: rearma el watchdog con el
     # deadline existente de la sala, sin reiniciar el plazo.
@@ -756,7 +785,61 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     try:
         while True:
             datos = await ws.receive_json()
+            if not isinstance(datos, dict):
+                await ws.send_json({
+                    "tipo": "error_chat",
+                    "detalle": "El mensaje de chat no es válido.",
+                })
+                continue
             accion = datos.get("accion")
+            if accion == "chat":
+                jugador = sala.jugador_por_id(jugador_id)
+                texto = datos.get("texto")
+                if not jugador or jugador["tipo"] != TIPO_HUMANO:
+                    await ws.send_json({
+                        "tipo": "error_chat",
+                        "detalle": "Solo los jugadores humanos pueden usar el chat.",
+                    })
+                    continue
+                if not isinstance(texto, str) or not texto.strip():
+                    await ws.send_json({
+                        "tipo": "error_chat",
+                        "detalle": "Escribe un mensaje antes de enviarlo.",
+                    })
+                    continue
+                texto = texto.strip()
+                if len(texto) > LONGITUD_MENSAJE_CHAT_MAXIMA:
+                    await ws.send_json({
+                        "tipo": "error_chat",
+                        "detalle": "El mensaje no puede superar 300 caracteres.",
+                    })
+                    continue
+
+                async with cerrojos_chat.setdefault(
+                    sala.codigo, asyncio.Lock()
+                ):
+                    ahora = time.monotonic()
+                    por_jugador = envios_chat.setdefault(sala.codigo, {})
+                    marcas = por_jugador.setdefault(jugador_id, deque())
+                    while marcas and ahora - marcas[0] >= VENTANA_CHAT_SEGUNDOS:
+                        marcas.popleft()
+                    if len(marcas) >= MENSAJES_CHAT_POR_VENTANA:
+                        await ws.send_json({
+                            "tipo": "error_chat",
+                            "detalle": "Espera un momento antes de enviar más mensajes.",
+                        })
+                        continue
+                    marcas.append(ahora)
+                    mensaje_chat = {
+                        "jugador_id": jugador_id,
+                        "alias": jugador["alias"],
+                        "texto": texto,
+                    }
+                    historial_chat.setdefault(
+                        sala.codigo, deque(maxlen=HISTORIAL_CHAT_MAXIMO)
+                    ).append(mensaje_chat)
+                    await _difundir_mensaje_chat(sala, mensaje_chat)
+                continue
             # Microfase 3: con la partida en pausa el servidor RECHAZA toda
             # acción de juego, venga del botón que venga. Solo se acepta
             # reanudar (y pedir la credencial). Va antes de tocar nada.
@@ -1044,6 +1127,9 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
                 gestor.salas.pop(sala.codigo, None)
                 conexiones.pop(sala.codigo, None)
                 cerrojos.pop(sala.codigo, None)
+                historial_chat.pop(sala.codigo, None)
+                envios_chat.pop(sala.codigo, None)
+                cerrojos_chat.pop(sala.codigo, None)
                 tarea = tareas_pnj.pop(sala.codigo, None)
                 if tarea:
                     tarea.cancel()

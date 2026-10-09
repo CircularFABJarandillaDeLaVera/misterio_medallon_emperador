@@ -703,6 +703,114 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.modal-chat {
+  z-index: 90;
+  padding: 8px;
+}
+
+.modal-chat-caja {
+  width: min(100%, 560px);
+  max-width: 560px;
+  height: min(640px, calc(100dvh - 16px));
+  max-height: calc(100dvh - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.chat-cabecera {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 0 44px;
+}
+
+.chat-cabecera h2 {
+  margin: 8px 0;
+  text-align: center;
+}
+
+#btn-cerrar-chat {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+
+.chat-mensajes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.chat-vacio {
+  margin: auto;
+  color: rgba(242, 234, 216, 0.7);
+  text-align: center;
+}
+
+.chat-mensaje {
+  max-width: 88%;
+  padding: 8px 10px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow-wrap: anywhere;
+}
+
+.chat-mensaje-propio {
+  align-self: flex-end;
+  border-color: rgba(201, 162, 39, 0.75);
+  background: rgba(201, 162, 39, 0.12);
+}
+
+.chat-mensaje-alias {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--dorado-claro);
+  font-size: 0.8rem;
+}
+
+.chat-mensaje-texto {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-formulario {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+
+.chat-formulario input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--dorado);
+  border-radius: 6px;
+  background: #17131f;
+  color: var(--texto);
+  font: inherit;
+}
+
+.chat-estado {
+  flex: 0 0 auto;
+  min-height: 1.2em;
+  margin: -6px 0 0;
+  color: #e08a7a;
+  font-size: 0.85rem;
   padding: 2px 6px 2px 2px;
 }
 
@@ -2950,15 +3058,44 @@ body:not(.portada) .tarjeta {
 }
 
 .barra-controles-inferior > .control-sonido {
-  order: 2;
-}
-
-.barra-controles-inferior > .control-configuracion-partida {
   order: 3;
 }
 
-.barra-controles-inferior > .control-pantalla-completa {
+.barra-controles-inferior > .control-configuracion-partida {
   order: 4;
+}
+
+.barra-controles-inferior > .control-pantalla-completa {
+  order: 5;
+}
+
+.barra-controles-inferior > .control-chat {
+  order: 2;
+  flex: 0 0 68px;
+  width: 68px;
+  min-width: 68px;
+  max-width: 68px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.chat-pendientes {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--fondo-tarjeta);
+  border-radius: 10px;
+  background: #a52b24;
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 16px;
+}
+
+.chat-pendientes[hidden] {
+  display: none;
 }
 
 .barra-controles-inferior > button[hidden] {
@@ -3003,6 +3140,14 @@ body:not(.portada) .tarjeta {
     max-width: 40px;
     height: 40px;
     min-height: 40px;
+  }
+
+  .barra-controles-inferior > .control-chat {
+    flex-basis: 56px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
+    font-size: 0.72rem;
   }
 
   .barra-controles-inferior > .control-aprender-sala {

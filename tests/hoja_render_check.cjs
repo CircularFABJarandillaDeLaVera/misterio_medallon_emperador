@@ -64,6 +64,9 @@ function makeElemento(tag) {
     getAttribute(k) {
       return this._attrs[k];
     },
+    querySelector(selector) {
+      return selector === '[role="dialog"]' ? makeElemento("section") : null;
+    },
     click() {
       (this._oyentes.click || []).forEach((fn) => fn());
     },

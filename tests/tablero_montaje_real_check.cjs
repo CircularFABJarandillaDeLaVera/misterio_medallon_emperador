@@ -190,9 +190,9 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=admin8'),
+  ok(html.includes('/static/js/sala.js?v=admin9'),
     "la plantilla invalida la caché tras recuperar la geometría estable");
-  ok(html.includes('/static/css/estilos.css?v=admin20'),
+  ok(html.includes('/static/css/estilos.css?v=chat1'),
     "la plantilla invalida la caché de la barra inferior");
   ok(
     (CSS.match(/@media \(min-width: 768px\)/g) || []).length === 3,
