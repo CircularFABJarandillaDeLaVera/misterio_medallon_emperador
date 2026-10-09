@@ -3723,6 +3723,12 @@ body.portada #envoltorio-modo .portada-etiqueta {
   margin-top: 12px;
 }
 
+@media (min-height: 840px) {
+  .historia-escena-personaje {
+    overflow-y: clip;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .medallon {
     transition: none;
@@ -3895,7 +3901,7 @@ body:not(.en-partida) .lobby-cartas .carta-selector-marca {
 }
 
 /* ============================================================
-   FASE 3B · Portada narrativa e introducción en ocho escenas.
+   FASE 3B · Portada narrativa e introducción cinematográfica.
    Todo queda limitado a la portada y reutiliza los controles medallón.
    ============================================================ */
 body.portada {
@@ -4011,62 +4017,40 @@ body.portada .portada-menu > .medallon:not(.medallon-compacto) {
   height: 18px;
 }
 
-/* El proyecto no contiene una imagen aislada del medallón. Esta pieza usa
-   únicamente el metal, filetes y geometría ya presentes en los botones. */
+/* El original transparente conserva todo el relieve del medallón. El halo
+   vive en CSS para integrarlo en portada sin alterar el recurso. */
 .medallon-imperial {
   position: relative;
-  width: clamp(126px, 18vw, 210px);
-  aspect-ratio: 1;
+  width: clamp(160px, 23vw, 320px);
   display: grid;
   place-items: center;
-  border: clamp(5px, 0.7vw, 9px) ridge #d4a72c;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 38% 30%, rgba(255, 248, 199, 0.72) 0 4%, transparent 5%),
-    radial-gradient(circle, #1b6f67 0 13%, #123f43 14% 22%, transparent 23%),
-    repeating-conic-gradient(from 4deg, #d9ad35 0 7deg, #765014 8deg 15deg);
-  box-shadow:
-    inset 0 0 0 5px #4d3108,
-    inset 0 0 0 9px rgba(246, 211, 100, 0.75),
-    inset 0 0 28px rgba(0, 0, 0, 0.9),
-    0 12px 34px rgba(0, 0, 0, 0.7),
-    0 0 28px rgba(201, 162, 39, 0.24);
-}
-
-.medallon-imperial::before,
-.medallon-imperial::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
+  isolation: isolate;
 }
 
 .medallon-imperial::before {
-  inset: 15%;
-  border: 3px double #e4c35f;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8);
-}
-
-.medallon-imperial::after {
-  top: -14%;
-  left: 39%;
-  width: 22%;
-  aspect-ratio: 1;
-  border: 5px solid #bd8e21;
-  background: #091823;
+  content: "";
+  position: absolute;
+  inset: 9% 7% 4%;
   z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 198, 83, 0.34), rgba(112, 65, 14, 0.1) 52%, transparent 72%);
+  filter: blur(10px);
 }
 
-.medallon-imperial-centro {
-  width: 38%;
-  aspect-ratio: 1;
-  background: linear-gradient(145deg, #f0cf65, #986913);
-  clip-path: polygon(50% 0, 61% 34%, 100% 50%, 61% 66%, 50% 100%, 39% 66%, 0 50%, 39% 34%);
-  filter: drop-shadow(0 2px 2px #1b1103);
+.medallon-imperial img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter:
+    drop-shadow(0 18px 15px rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 15px rgba(232, 188, 70, 0.28));
 }
 
 .medallon-imperial-portada {
-  width: clamp(92px, 11vw, 142px);
-  margin: 8px 0 4px;
+  width: clamp(150px, 18vw, 230px);
+  align-self: center;
+  margin: 4px 0 2px;
+  animation: portada-medallon-entrada 1.15s 0.12s cubic-bezier(0.18, 0.75, 0.22, 1) both;
 }
 
 body.historia-abierta {
@@ -4083,7 +4067,7 @@ body.historia-abierta {
   grid-template-rows: minmax(0, 1fr) auto;
   padding: 0;
   color: #f2ead8;
-  background: #04090f;
+  background: #050208;
   overflow: hidden;
   isolation: isolate;
 }
@@ -4117,7 +4101,7 @@ body.historia-abierta {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(300px, 1.12fr) minmax(320px, 0.88fr);
   align-items: center;
   gap: clamp(24px, 5vw, 70px);
   padding: clamp(66px, 8vh, 96px) clamp(24px, 7vw, 110px) clamp(26px, 5vh, 58px);
@@ -4134,7 +4118,7 @@ body.historia-abierta {
   inset: -3%;
   z-index: -2;
   background-image:
-    linear-gradient(90deg, rgba(3, 7, 13, 0.88), rgba(5, 12, 22, 0.54), rgba(3, 7, 13, 0.87)),
+    linear-gradient(90deg, rgba(4, 2, 8, 0.92), rgba(28, 12, 38, 0.54), rgba(4, 2, 8, 0.9)),
     var(--historia-fondo);
   background-size: cover;
   background-position: center;
@@ -4146,8 +4130,8 @@ body.historia-abierta {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(circle at 50% 44%, transparent 20%, rgba(2, 5, 9, 0.42) 70%),
-    linear-gradient(180deg, rgba(2, 5, 9, 0.18), rgba(2, 5, 9, 0.72));
+    radial-gradient(circle at 42% 44%, rgba(183, 126, 31, 0.08), transparent 26%, rgba(5, 2, 9, 0.5) 74%),
+    linear-gradient(180deg, rgba(5, 2, 9, 0.12), rgba(4, 2, 8, 0.82));
 }
 
 .historia-escena-parador {
@@ -4166,7 +4150,7 @@ body.historia-abierta {
   z-index: 2;
   max-width: 680px;
   padding: clamp(18px, 3vw, 32px);
-  background: linear-gradient(90deg, rgba(4, 10, 18, 0.92), rgba(4, 10, 18, 0.62));
+  background: linear-gradient(105deg, rgba(7, 4, 12, 0.94), rgba(28, 13, 36, 0.7));
   border-left: 3px solid #c9a227;
   box-shadow: 0 20px 55px rgba(0, 0, 0, 0.42);
 }
@@ -4223,7 +4207,7 @@ body.historia-abierta {
 }
 
 .historia-visual-medallon .medallon-imperial {
-  width: clamp(180px, 25vw, 330px);
+  width: clamp(220px, 32vw, 440px);
 }
 
 .historia-lugares-pasadizo {
@@ -4237,7 +4221,9 @@ body.historia-abierta {
 .historia-localizaciones img,
 .historia-triada img,
 .historia-retratos img,
-.historia-objeto-ausente img {
+.historia-objeto-ausente img,
+.historia-cartel-medallon img,
+.historia-personaje-carta img {
   display: block;
   width: 100%;
   min-width: 0;
@@ -4246,6 +4232,118 @@ body.historia-abierta {
   border-radius: 8px;
   background: #09111e;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.58);
+}
+
+.historia-cartel-medallon,
+.historia-personaje-carta {
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.historia-cartel-medallon {
+  width: min(31vw, 390px);
+  max-height: 100%;
+}
+
+.historia-cartel-medallon img {
+  max-height: min(68vh, 620px);
+  object-fit: contain;
+  border-color: rgba(240, 203, 96, 0.82);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72), 0 0 35px rgba(201, 162, 39, 0.14);
+}
+
+.historia-escena-personaje {
+  --personaje-color: #c9a227;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #46215d 0, #170d24 42%, #050208 78%);
+  overflow-y: auto;
+}
+
+.historia-personaje-bruno {
+  --personaje-color: #8f969c;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #45484b 0, #18191b 42%, #050208 78%);
+}
+
+.historia-personaje-lucia {
+  --personaje-color: #4f9674;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #174b34 0, #0a2118 42%, #050208 78%);
+}
+
+.historia-personaje-alvaro {
+  --personaje-color: #27939d;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #154b5c 0, #0a2029 42%, #050208 78%);
+}
+
+.historia-personaje-mateo {
+  --personaje-color: #d3a638;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #604813 0, #2a1e08 42%, #050208 78%);
+}
+
+.historia-personaje-eulalia {
+  --personaje-color: #c75649;
+  --historia-fondo: radial-gradient(circle at 24% 42%, #641f1d 0, #2b0c0d 42%, #050208 78%);
+}
+
+.historia-escena-personaje::before {
+  inset: 0;
+  background-position: 28% 24%;
+  filter: saturate(0.78);
+}
+
+.historia-escena-personaje .historia-relato {
+  max-width: 700px;
+  border-left-color: var(--personaje-color);
+}
+
+.historia-escena-personaje .historia-relato h2 {
+  margin-bottom: 10px;
+  font-size: clamp(1.65rem, 3.2vw, 2.75rem);
+}
+
+.historia-personaje-descripcion {
+  margin: 0 0 14px;
+  font-size: clamp(0.95rem, 1.35vw, 1.12rem);
+  line-height: 1.45;
+}
+
+.historia-personaje-motivo {
+  padding: 11px 14px 12px;
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid color-mix(in srgb, var(--personaje-color) 62%, #e8c766);
+  border-left: 3px solid var(--personaje-color);
+}
+
+.historia-personaje-motivo strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #f2d16b;
+  font-size: 0.72rem;
+  letter-spacing: 1.8px;
+}
+
+.historia-personaje-motivo p {
+  margin: 0;
+  font-size: clamp(0.92rem, 1.25vw, 1.06rem);
+  line-height: 1.42;
+}
+
+.historia-personaje-frase {
+  margin: 14px 0 0;
+  color: #f2d16b;
+  font-size: clamp(1rem, 1.5vw, 1.22rem);
+  font-style: italic;
+  font-weight: bold;
+  line-height: 1.35;
+}
+
+.historia-personaje-carta {
+  width: min(33vw, 380px);
+}
+
+.historia-personaje-carta img {
+  max-height: min(67vh, 620px);
+  object-fit: contain;
+  border-color: color-mix(in srgb, var(--personaje-color) 72%, #f2d16b);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 28px color-mix(in srgb, var(--personaje-color) 24%, transparent);
 }
 
 .historia-lugares-pasadizo img {
@@ -4337,7 +4435,7 @@ body.historia-abierta {
 .historia-controles {
   min-height: 72px;
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto minmax(105px, 145px) minmax(170px, 240px);
+  grid-template-columns: minmax(120px, 1fr) auto minmax(112px, 145px) minmax(105px, 145px) minmax(170px, 240px);
   align-items: center;
   gap: 16px;
   padding: 10px max(20px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
@@ -4354,7 +4452,7 @@ body.historia-abierta {
 
 .historia-progreso span {
   display: block;
-  width: 12.5%;
+  width: 7.142857%;
   height: 100%;
   background: linear-gradient(90deg, #9c7015, #f0d679);
   transition: width 0.45s ease;
@@ -4400,6 +4498,11 @@ body.historia-abierta {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes portada-medallon-entrada {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); filter: brightness(0.72); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
 @media (max-width: 760px) {
   body.portada {
     padding: 8px 0;
@@ -4426,7 +4529,7 @@ body.historia-abierta {
   }
 
   .medallon-imperial-portada {
-    width: 88px;
+    width: 116px;
     margin: 2px 0;
   }
 
@@ -4485,6 +4588,25 @@ body.historia-abierta {
     width: min(34vw, 145px);
   }
 
+  .historia-cartel-medallon,
+  .historia-personaje-carta {
+    width: min(42vw, 210px);
+  }
+
+  .historia-cartel-medallon img,
+  .historia-personaje-carta img {
+    max-height: 43vh;
+  }
+
+  .historia-escena-personaje .historia-relato h2 {
+    font-size: clamp(1.35rem, 6vw, 1.85rem);
+  }
+
+  .historia-personaje-descripcion,
+  .historia-personaje-motivo p {
+    font-size: 0.94rem;
+  }
+
   .historia-retratos {
     grid-template-columns: repeat(3, minmax(0, 92px));
     gap: 6px;
@@ -4514,7 +4636,7 @@ body.historia-abierta {
 
   .historia-controles {
     min-height: 64px;
-    grid-template-columns: minmax(55px, 1fr) auto minmax(82px, 105px) minmax(116px, 155px);
+    grid-template-columns: minmax(55px, 1fr) auto minmax(92px, 112px) minmax(82px, 105px) minmax(116px, 155px);
     gap: 9px;
     padding: 8px 10px max(8px, env(safe-area-inset-bottom));
   }
@@ -4564,7 +4686,7 @@ body.historia-abierta {
 
   .historia-controles {
     min-height: 78px;
-    grid-template-columns: auto minmax(82px, 1fr) minmax(116px, 1.35fr);
+    grid-template-columns: auto repeat(2, minmax(76px, 1fr)) minmax(105px, 1.25fr);
     grid-template-rows: auto auto;
   }
 
@@ -4586,7 +4708,7 @@ body.historia-abierta {
     padding: 18px 28px;
   }
 
-  .medallon-imperial-portada { width: 76px; }
+  .medallon-imperial-portada { width: 94px; }
   body.portada .portada-identidad h1 { font-size: clamp(2rem, 6.7vw, 3.4rem); }
   body.portada .portada-menu { gap: 8px; padding: 10px; }
   body.portada .portada-menu > .medallon:not(.medallon-compacto) { min-height: 48px; }
@@ -4609,10 +4731,20 @@ body.historia-abierta {
   .historia-localizaciones img { max-height: 80px; }
   .historia-triada { grid-template-columns: minmax(0, 92px) auto minmax(0, 92px) auto minmax(0, 92px); }
   .historia-objeto-ausente { width: min(24vw, 150px); }
+  .historia-cartel-medallon,
+  .historia-personaje-carta { width: min(23vw, 180px); }
+  .historia-cartel-medallon img,
+  .historia-personaje-carta img { max-height: 58vh; }
+  .historia-escena-personaje { align-items: start; overflow-y: auto; }
+  .historia-escena-personaje .historia-relato { padding: 12px 16px; }
+  .historia-personaje-descripcion { margin-bottom: 9px; }
+  .historia-personaje-motivo { padding: 8px 10px; }
+  .historia-personaje-frase { margin-top: 9px; }
   .historia-controles { min-height: 54px; padding-top: 5px; padding-bottom: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .medallon-imperial-portada,
   .historia-escena-activa::before,
   .historia-escena-activa .historia-relato,
   .historia-escena-activa > :not(.historia-relato) {

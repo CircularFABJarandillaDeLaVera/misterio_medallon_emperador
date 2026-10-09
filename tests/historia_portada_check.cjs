@@ -22,8 +22,57 @@ const titulos = [
   "LOS SOSPECHOSOS", "LAS LOCALIZACIONES", "LA INVESTIGACIÓN", "EL DESAFÍO",
 ];
 ok(
-  (html.match(/data-historia-escena=/g) || []).length === 8 && titulos.every((titulo) => html.includes(titulo)),
-  "la introducción contiene las ocho escenas canónicas"
+  (html.match(/data-historia-escena=/g) || []).length === 14 && titulos.every((titulo) => html.includes(titulo)),
+  "la introducción conserva las ocho escenas canónicas y suma seis presentaciones"
+);
+const escenasHtml = [...html.matchAll(/<article class="historia-escena[\s\S]*?<\/article>/g)].map((m) => m[0]);
+const sospechosos = ["VERA", "BRUNO", "LUCÍA", "ÁLVARO", "MATEO", "EULALIA"];
+const indiceEscena = (texto) => escenasHtml.findIndex((escena) => escena.includes(texto));
+ok(
+  indiceEscena("SEIS PERSONAS BAJO INVESTIGACIÓN") === 4 &&
+    sospechosos.every((nombre, indice) => escenasHtml[indice + 5].includes(nombre)) &&
+    indiceEscena("NUEVE LUGARES POSIBLES") === 11 &&
+    escenasHtml[12].includes("VII · LA INVESTIGACIÓN") && escenasHtml[13].includes("VIII · EL DESAFÍO"),
+  "seis personajes precede las cartas, nueve ubicaciones las sigue y el cierre conserva su orden"
+);
+const textosPersonajes = [
+  {
+    descripcion: "Vera conoce cada rincón y cada leyenda de Jarandilla. Está preparando una investigación sobre la estancia de Carlos V y siempre lleva su cámara para documentar cualquier hallazgo.",
+    motivo: "Quería fotografiar el medallón y estudiarlo detenidamente antes de incluirlo en su investigación.",
+    frase: "«Toda historia deja una pista»",
+  },
+  {
+    descripcion: "Bruno ha trabajado la piedra de Jarandilla durante toda su vida. Conoce las marcas de sus edificios históricos y sabe reconocer cada herramienta y cada tipo de roca.",
+    motivo: "Quería utilizar el medallón como modelo para crear una réplica exacta en piedra.",
+    frase: "«La piedra recuerda lo que otros olvidan»",
+  },
+  {
+    descripcion: "Lucía conoce las plantas y los remedios tradicionales de La Vera. Su mirada atenta y sus conocimientos le permiten descubrir rastros que otros pasarían por alto.",
+    motivo: "Sospechaba que el medallón ocultaba restos de una antigua sustancia o una inscripción secreta.",
+    frase: "«Hasta el secreto más antiguo deja algún rastro»",
+  },
+  {
+    descripcion: "Álvaro conoce todos los caminos, montes y senderos de Jarandilla. Su prudencia y sentido de la orientación le permiten encontrar señales que otros no ven.",
+    motivo: "Aseguraba haber encontrado el medallón años atrás y creía que le pertenecía por derecho.",
+    frase: "«Todos los caminos dejan señales»",
+  },
+  {
+    descripcion: "Mateo lleva toda la vida preparando los escobones de Jarandilla. Conoce cada rama, cada atadura y cada historia relacionada con esta antigua tradición.",
+    motivo: "Afirmaba que el medallón había pertenecido a su familia y debía volver a sus manos.",
+    frase: "«El fuego ilumina hasta los secretos más antiguos»",
+  },
+  {
+    descripcion: "Eulalia ha dedicado toda su vida al cultivo, secado y molienda de los pimientos de la Vera. Reconoce cada variedad por su aroma y guarda recetas transmitidas durante generaciones.",
+    motivo: "Aseguraba que el medallón escondía una marca relacionada con una antigua receta familiar y quería examinarlo antes de que saliera de Jarandilla.",
+    frase: "«Los secretos, como el pimentón, se descubren por su aroma»",
+  },
+];
+ok(
+  textosPersonajes.every((textos, indice) => {
+    const escena = escenasHtml[indice + 5];
+    return escena.includes(textos.descripcion) && escena.includes(textos.motivo) && escena.includes(textos.frase);
+  }) && (html.match(/<strong>POSIBLE MOTIVO<\/strong>/g) || []).length === 6,
+  "las seis escenas reproducen literalmente descripción, posible motivo y frase originales"
 );
 ok(
   html.includes("CONTEXTO HISTÓRICO · 1556") && html.includes("FICCIÓN DEL JUEGO") &&
@@ -102,7 +151,7 @@ class Elemento {
 
 const historia = new Elemento("historia-intro");
 historia.hidden = true;
-const escenas = Array.from({ length: 8 }, (_, indice) => {
+const escenas = Array.from({ length: 14 }, (_, indice) => {
   const escena = new Elemento(`escena-${indice}`);
   escena.hidden = indice !== 0;
   return escena;
@@ -115,6 +164,7 @@ const elementos = {
   "historia-intro": historia,
   "btn-ver-historia": new Elemento("btn-ver-historia"),
   "btn-saltar-historia": new Elemento("btn-saltar-historia"),
+  "btn-retroceder-historia": new Elemento("btn-retroceder-historia"),
   "btn-pausar-historia": new Elemento("btn-pausar-historia"),
   "btn-avanzar-historia": new Elemento("btn-avanzar-historia"),
   "historia-contador": new Elemento("historia-contador"),
@@ -163,13 +213,13 @@ vm.createContext(sandbox);
 vm.runInContext(js, sandbox, { filename: "historia.js" });
 
 ok(
-  historia.hidden === false && escenas[0].hidden === false && elementos["historia-contador"].textContent === "1 DE 8",
+  historia.hidden === false && escenas[0].hidden === false && elementos["historia-contador"].textContent === "1 DE 14",
   "la primera visita abre la historia en la escena inicial"
 );
 const demora = ejecutarAutomatico();
 ok(
-  demora === 6500 && escenas[1].hidden === false && elementos["historia-contador"].textContent === "2 DE 8",
-  "la reproducción automática avanza con una duración total aproximada de 52 segundos"
+  demora === 6500 && escenas[1].hidden === false && elementos["historia-contador"].textContent === "2 DE 14",
+  "la reproducción automática avanza con 6,5 segundos por escena"
 );
 
 elementos["btn-pausar-historia"].click();
@@ -184,6 +234,8 @@ ok(
 );
 elementos["btn-avanzar-historia"].click();
 ok(escenas[2].hidden === false, "AVANZAR cambia de escena inmediatamente");
+elementos["btn-retroceder-historia"].click();
+ok(escenas[1].hidden === false, "RETROCEDER vuelve a la escena anterior");
 
 elementos.alias.value = "Paco";
 elementos.codigo.value = "JARA-TEST";
@@ -207,12 +259,16 @@ ok(
 const flecha = { key: "ArrowRight", preventDefault() { this.prevenido = true; } };
 for (const fn of eventosDocumento.keydown || []) fn(flecha);
 ok(flecha.prevenido && escenas[1].hidden === false, "la flecha derecha permite avanzar con teclado");
+const flechaIzquierda = { key: "ArrowLeft", preventDefault() { this.prevenido = true; } };
+for (const fn of eventosDocumento.keydown || []) fn(flechaIzquierda);
+ok(flechaIzquierda.prevenido && escenas[0].hidden === false, "la flecha izquierda permite retroceder con teclado");
+elementos["btn-avanzar-historia"].click();
 
-for (let i = 0; i < 6; i += 1) elementos["btn-avanzar-historia"].click();
+for (let i = 0; i < 12; i += 1) elementos["btn-avanzar-historia"].click();
 ok(
-  escenas[7].hidden === false && elementos["btn-avanzar-historia"].textContent === "ENTRAR AL MISTERIO" &&
-    progreso.getAttribute("aria-valuenow") === "8",
-  "la octava escena ofrece entrar al misterio y actualiza el progreso accesible"
+  escenas[13].hidden === false && elementos["btn-avanzar-historia"].textContent === "ENTRAR AL MISTERIO" &&
+    progreso.getAttribute("aria-valuenow") === "14",
+  "la escena final ofrece entrar al misterio y actualiza el progreso accesible"
 );
 elementos["btn-avanzar-historia"].click();
 ok(historia.hidden === true, "ENTRAR AL MISTERIO muestra la portada sin espera adicional");

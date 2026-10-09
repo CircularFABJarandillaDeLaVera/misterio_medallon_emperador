@@ -6,11 +6,12 @@
   const historia = document.getElementById("historia-intro");
   const btnVer = document.getElementById("btn-ver-historia");
   const btnSaltar = document.getElementById("btn-saltar-historia");
+  const btnRetroceder = document.getElementById("btn-retroceder-historia");
   const btnPausar = document.getElementById("btn-pausar-historia");
   const btnAvanzar = document.getElementById("btn-avanzar-historia");
   const contador = document.getElementById("historia-contador");
   const barra = document.getElementById("historia-barra");
-  if (!historia || !btnVer || !btnSaltar || !btnPausar || !btnAvanzar) return;
+  if (!historia || !btnVer || !btnSaltar || !btnRetroceder || !btnPausar || !btnAvanzar) return;
 
   const escenas = Array.from(historia.querySelectorAll("[data-historia-escena]"));
   const progreso = historia.querySelector("[role='progressbar']");
@@ -27,7 +28,7 @@
   }
 
   function elementosEnfocables() {
-    return [btnSaltar, btnPausar, btnAvanzar].filter((elemento) => !elemento.hidden);
+    return [btnSaltar, btnRetroceder, btnPausar, btnAvanzar].filter((elemento) => !elemento.hidden);
   }
 
   function guardarVista() {
@@ -65,6 +66,7 @@
     contador.textContent = `${numero} DE ${escenas.length}`;
     progreso.setAttribute("aria-valuenow", String(numero));
     barra.style.width = `${(numero / escenas.length) * 100}%`;
+    btnRetroceder.disabled = escenaActual === 0;
     btnAvanzar.textContent = escenaActual === escenas.length - 1
       ? "ENTRAR AL MISTERIO" : "AVANZAR";
     programarAutomatico();
@@ -92,6 +94,7 @@
 
   btnVer.addEventListener("click", abrirHistoria);
   btnSaltar.addEventListener("click", cerrarHistoria);
+  btnRetroceder.addEventListener("click", () => mostrarEscena(escenaActual - 1));
   btnPausar.addEventListener("click", () => {
     pausada = !pausada;
     btnPausar.textContent = pausada ? "REANUDAR" : "PAUSAR";
@@ -112,6 +115,9 @@
     } else if (evento.key === "ArrowRight") {
       evento.preventDefault();
       btnAvanzar.click();
+    } else if (evento.key === "ArrowLeft") {
+      evento.preventDefault();
+      btnRetroceder.click();
     } else if (evento.key === "Tab") {
       const enfocables = elementosEnfocables();
       if (enfocables.length === 0) return;

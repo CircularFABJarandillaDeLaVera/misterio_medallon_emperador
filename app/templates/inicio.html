@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
   <title>El misterio del medallón — Juego de misterio y deducción</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=admin4" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=cinematica2" />
 </head>
 <body class="portada">
   <div class="portada-fondo" aria-hidden="true"></div>
@@ -15,7 +15,7 @@
     <header class="portada-identidad">
       <p class="portada-escenario">JARANDILLA DE LA VERA · 1556</p>
       <div class="medallon-imperial medallon-imperial-portada" aria-hidden="true">
-        <span class="medallon-imperial-centro"></span>
+        <img src="/static/img/objetos/medallon-imperial.png" alt="" />
       </div>
       <h1>EL MISTERIO <span>DEL MEDALLÓN IMPERIAL</span></h1>
       <p class="portada-sub">Una joya desaparecida. Seis sospechosos. Una sola verdad.</p>
@@ -88,7 +88,7 @@
 
       <article class="historia-escena historia-escena-legado" data-historia-escena="1" hidden>
         <div class="historia-visual-medallon" aria-hidden="true">
-          <div class="medallon-imperial"><span class="medallon-imperial-centro"></span></div>
+          <div class="medallon-imperial"><img src="/static/img/objetos/medallon-imperial.png" alt="" /></div>
         </div>
         <div class="historia-relato">
           <p class="historia-capitulo">II · EL LEGADO</p>
@@ -114,10 +114,9 @@
       </article>
 
       <article class="historia-escena historia-escena-desaparicion" data-historia-escena="3" hidden>
-        <div class="historia-objeto-ausente" aria-hidden="true">
-          <img src="/static/img/objetos/baul-imperial.png" alt="" />
-          <span class="historia-huella-medallon"></span>
-        </div>
+        <figure class="historia-cartel-medallon">
+          <img src="/static/img/objetos/cartel-medallon.jpeg" alt="El medallón perdido de Carlos V" />
+        </figure>
         <div class="historia-relato">
           <p class="historia-capitulo">IV · LA DESAPARICIÓN</p>
           <p class="historia-contexto historia-contexto-ficcion">FICCIÓN DEL JUEGO</p>
@@ -143,7 +142,109 @@
         </div>
       </article>
 
-      <article class="historia-escena historia-escena-localizaciones" data-historia-escena="5" hidden>
+      <article class="historia-escena historia-escena-personaje historia-personaje-vera" data-historia-escena="5" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/vera-nombre.png" alt="Carta de Vera, la cronista" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSA · 1 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>VERA, LA CRONISTA</h2>
+          <p class="historia-personaje-descripcion">Vera conoce cada rincón y cada leyenda de Jarandilla. Está preparando una investigación sobre la estancia de Carlos V y siempre lleva su cámara para documentar cualquier hallazgo.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Quería fotografiar el medallón y estudiarlo detenidamente antes de incluirlo en su investigación.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«Toda historia deja una pista»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-personaje historia-personaje-bruno" data-historia-escena="6" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/bruno-nombre.png" alt="Carta de Bruno, el cantero" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSO · 2 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>BRUNO, EL CANTERO</h2>
+          <p class="historia-personaje-descripcion">Bruno ha trabajado la piedra de Jarandilla durante toda su vida. Conoce las marcas de sus edificios históricos y sabe reconocer cada herramienta y cada tipo de roca.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Quería utilizar el medallón como modelo para crear una réplica exacta en piedra.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«La piedra recuerda lo que otros olvidan»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-personaje historia-personaje-lucia" data-historia-escena="7" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/lucia-nombre.png" alt="Carta de Lucía, la boticaria" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSA · 3 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>LUCÍA, LA BOTICARIA</h2>
+          <p class="historia-personaje-descripcion">Lucía conoce las plantas y los remedios tradicionales de La Vera. Su mirada atenta y sus conocimientos le permiten descubrir rastros que otros pasarían por alto.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Sospechaba que el medallón ocultaba restos de una antigua sustancia o una inscripción secreta.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«Hasta el secreto más antiguo deja algún rastro»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-personaje historia-personaje-alvaro" data-historia-escena="8" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/alvaro-nombre.png" alt="Carta de Álvaro, el guardabosques" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSO · 4 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>ÁLVARO, EL GUARDABOSQUES</h2>
+          <p class="historia-personaje-descripcion">Álvaro conoce todos los caminos, montes y senderos de Jarandilla. Su prudencia y sentido de la orientación le permiten encontrar señales que otros no ven.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Aseguraba haber encontrado el medallón años atrás y creía que le pertenecía por derecho.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«Todos los caminos dejan señales»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-personaje historia-personaje-mateo" data-historia-escena="9" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/mateo-nombre.png" alt="Carta de Mateo, el escobero" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSO · 5 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>MATEO, EL ESCOBERO</h2>
+          <p class="historia-personaje-descripcion">Mateo lleva toda la vida preparando los escobones de Jarandilla. Conoce cada rama, cada atadura y cada historia relacionada con esta antigua tradición.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Afirmaba que el medallón había pertenecido a su familia y debía volver a sus manos.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«El fuego ilumina hasta los secretos más antiguos»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-personaje historia-personaje-eulalia" data-historia-escena="10" hidden>
+        <figure class="historia-personaje-carta">
+          <img src="/static/img/personajes/eulalia-nombre.jpeg" alt="Carta de Eulalia, la pimentonera" />
+        </figure>
+        <div class="historia-relato">
+          <p class="historia-capitulo">SOSPECHOSA · 6 DE 6</p>
+          <p class="historia-contexto historia-contexto-ficcion">BAJO INVESTIGACIÓN</p>
+          <h2>EULALIA, LA PIMENTONERA</h2>
+          <p class="historia-personaje-descripcion">Eulalia ha dedicado toda su vida al cultivo, secado y molienda de los pimientos de la Vera. Reconoce cada variedad por su aroma y guarda recetas transmitidas durante generaciones.</p>
+          <div class="historia-personaje-motivo">
+            <strong>POSIBLE MOTIVO</strong>
+            <p>Aseguraba que el medallón escondía una marca relacionada con una antigua receta familiar y quería examinarlo antes de que saliera de Jarandilla.</p>
+          </div>
+          <blockquote class="historia-personaje-frase">«Los secretos, como el pimentón, se descubren por su aroma»</blockquote>
+        </div>
+      </article>
+
+      <article class="historia-escena historia-escena-localizaciones" data-historia-escena="11" hidden>
         <div class="historia-localizaciones" aria-label="Las nueve localizaciones de la investigación">
           <img src="/static/img/lugares/parador.jpeg" alt="Parador" />
           <img src="/static/img/lugares/iglesia-san-agustin.jpeg" alt="Iglesia de San Agustín" />
@@ -163,7 +264,7 @@
         </div>
       </article>
 
-      <article class="historia-escena historia-escena-investigacion" data-historia-escena="6" hidden>
+      <article class="historia-escena historia-escena-investigacion" data-historia-escena="12" hidden>
         <div class="historia-triada" aria-label="Un personaje, un lugar y un objeto">
           <img src="/static/img/personajes/vera-nombre.png" alt="Vera, la cronista" />
           <span>+</span>
@@ -179,9 +280,9 @@
         </div>
       </article>
 
-      <article class="historia-escena historia-escena-desafio" data-historia-escena="7" hidden>
+      <article class="historia-escena historia-escena-desafio" data-historia-escena="13" hidden>
         <div class="historia-visual-medallon" aria-hidden="true">
-          <div class="medallon-imperial"><span class="medallon-imperial-centro"></span></div>
+          <div class="medallon-imperial"><img src="/static/img/objetos/medallon-imperial.png" alt="" /></div>
         </div>
         <div class="historia-relato">
           <p class="historia-capitulo">VIII · EL DESAFÍO</p>
@@ -194,10 +295,12 @@
 
     <footer class="historia-controles">
       <div class="historia-progreso" role="progressbar" aria-label="Progreso de la historia"
-           aria-valuemin="1" aria-valuemax="8" aria-valuenow="1">
+           aria-valuemin="1" aria-valuemax="14" aria-valuenow="1">
         <span id="historia-barra"></span>
       </div>
-      <p id="historia-contador">1 DE 8</p>
+      <p id="historia-contador">1 DE 14</p>
+      <button id="btn-retroceder-historia" class="medallon medallon-fantasma medallon-compacto"
+              type="button" disabled>RETROCEDER</button>
       <button id="btn-pausar-historia" class="medallon medallon-fantasma medallon-compacto"
               type="button" aria-pressed="false">PAUSAR</button>
       <button id="btn-avanzar-historia" class="medallon medallon-primario medallon-compacto"
