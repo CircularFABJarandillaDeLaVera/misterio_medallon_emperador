@@ -172,7 +172,7 @@ ok(/body\.en-partida\s*\{[^}]*--columna-derecha:\s*\d+px/.test(css),
   "el token de columna derecha se define para la partida");
 ok(/grid-template-columns:[^;]*var\(--columna-derecha, 280px\)/.test(css),
   "la retícula lateral y el control comparten el mismo token");
-ok(/@media \(orientation: landscape\) and \(max-height: 560px\)[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*var\(--columna-derecha,\s*280px\)\)/.test(css),
+ok(/@media \(orientation: landscape\) and \(max-height: 560px\) and \(pointer: coarse\)[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*var\(--columna-derecha,\s*280px\)\)/.test(css),
   "el apaisado bajo mantiene compacta la pista derecha y entrega el resto al tablero");
 ok(!/\.medallon\.control-pantalla-completa\s*\{[^}]*top:\s*\d/.test(css),
   "no queda anclado arriba (competía con la cabecera)");

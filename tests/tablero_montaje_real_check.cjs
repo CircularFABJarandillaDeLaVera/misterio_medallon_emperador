@@ -190,10 +190,20 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=admin6'),
-    "la plantilla invalida la caché del popup contextual visual");
-  ok(html.includes('/static/css/estilos.css?v=admin10'),
+  ok(html.includes('/static/js/sala.js?v=admin8'),
+    "la plantilla invalida la caché tras recuperar la geometría estable");
+  ok(html.includes('/static/css/estilos.css?v=admin19'),
     "la plantilla invalida la caché de la barra inferior");
+  ok(
+    (CSS.match(/@media \(min-width: 768px\)/g) || []).length === 3,
+    "cuadrícula, panel y altura del tablero comparten el breakpoint de 768 px"
+  );
+  ok(
+    !CSS.includes("--lado-tablero-ventana") &&
+      !/modo-tablero-activo \.tarjeta\s*\{[^}]*container-type:\s*size/.test(CSS) &&
+      !/modo-tablero-activo #partida\s*\{[^}]*container-type:\s*size/.test(CSS),
+    "el tablero no depende de una cadena circular de contenedores de tamaño"
+  );
   ok(
     CSS.includes("grid-template-rows: minmax(0, 1fr) auto") &&
       CSS.includes("grid-row: 2"),
@@ -205,6 +215,12 @@ vm.createContext(sandbox);
       CSS.includes("height: min(100cqw, 100cqh)") &&
       CSS.includes("margin: auto"),
     "el tablero ocupa el mayor cuadrado entre ancho y alto disponibles y queda centrado"
+  );
+  ok(
+    CSS.includes("height: calc(100% + 16px)") &&
+      CSS.includes(".tarjeta:fullscreen .tablero-visual") &&
+      CSS.includes("height: 100%"),
+    "la ventana recupera el padding del marco y pantalla completa conserva su altura estable"
   );
   ok(
     CSS.includes("body.modo-tablero-activo #zona-juego") &&

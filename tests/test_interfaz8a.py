@@ -20,13 +20,14 @@ def test_1_layout_escritorio_tablero_mas_panel():
     assert 'id="vista-contextual"' in SALA_HTML
     assert re.search(r"#zona-juego\s*\{[^}]*display:\s*flex", CSS)
     assert re.search(
-        r"@media\s*\(min-width:\s*900px\)[\s\S]*?#zona-juego\s*\{[\s\S]*?display:\s*grid",
+        r"@media\s*\(min-width:\s*768px\)[\s\S]*?#zona-juego\s*\{[\s\S]*?display:\s*grid",
         CSS,
     )
     assert re.search(
-        r"@media\s*\(min-width:\s*900px\)[\s\S]*?grid-template-columns:[^;]*minmax",
+        r"@media\s*\(min-width:\s*768px\)[\s\S]*?grid-template-columns:[^;]*minmax",
         CSS,
     )
+    assert CSS.count("@media (min-width: 768px)") == 3
 
 
 def test_control_global_de_pantalla_completa_en_portada_y_sala():

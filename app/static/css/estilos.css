@@ -2516,8 +2516,8 @@ img {
   max-width: 100%;
 }
 
-/* Layout Desktop (min-width: 900px) */
-@media (min-width: 900px) {
+/* Layout horizontal de tablero y tablet (min-width: 768px). */
+@media (min-width: 768px) {
   /* Token único: la retícula lateral comparte su ancho. */
   body.en-partida {
     --columna-derecha: 280px;
@@ -3067,7 +3067,7 @@ body:not(.portada) .tarjeta {
    encoge y hace scroll interno: nunca crece el documento.
    Jerarquía heredada: oro = acción del turno, transparente = herramientas.
    ============================================================ */
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   /* El panel deja de ser una columna vacía: su alto es el de su
      contenido en cada fase (antes de tirar, con destinos, sospecha
      o final). El tablero queda como protagonista del espacio. */
@@ -3112,7 +3112,7 @@ body:not(.portada) .tarjeta {
    cuadrado se ajusta al espacio disponible (sin crop ni deformación).
    Solo desktop/apaisado; el responsive estrecho queda intacto.
    ============================================================ */
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   body.en-partida {
     height: 100vh;
     height: 100dvh;
@@ -3150,12 +3150,20 @@ body:not(.portada) .tarjeta {
 
   body.en-partida .tablero-visual {
     max-width: none;
-    height: 100%;
+    /* La fila excluye los 18 px de padding vertical del marco. Recuperamos
+       16 px para dejar solo 2 px de seguridad en su interior. */
+    height: calc(100% + 16px);
     min-height: 0;
+    align-self: center;
     display: flex;
     /* Container de tamaño: el tablero cuadrado se ajusta al hueco real
        (min de ancho y alto) sin alturas mágicas ni deformación. */
     container-type: size;
+  }
+
+  /* Pantalla completa conserva la geometría estable ya aprobada. */
+  body.en-partida .tarjeta:fullscreen .tablero-visual {
+    height: 100%;
   }
 
   @supports (width: 1cqh) {
@@ -3172,9 +3180,10 @@ body:not(.portada) .tarjeta {
    Mismo patrón que escritorio: VIEWPORT → CONTENEDOR LIMITADO →
    CONTROLES → PROTAGONISTA (tablero) ocupa el resto. Solo cambia
    la MEDIA QUERY: el móvil vertical conserva su composición.
-   Detección por CSS: apaisado y bajo (orientation + height).
+   Detección por CSS: apaisado, bajo y con puntero táctil. La altura sola
+   también coincide con un navegador de escritorio al aplicar zoom alto.
    ============================================================ */
-@media (orientation: landscape) and (max-height: 560px) {
+@media (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
   body.en-partida {
     /* La vista se adapta a la altura, pero el contenido desbordado sigue
        accesible mediante scroll si el viewport no permite un tablero legible. */
