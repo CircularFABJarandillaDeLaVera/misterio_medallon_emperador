@@ -4770,9 +4770,11 @@ body.portada {
 }
 
 body.portada .portada-fondo {
-  background-image: var(--portada-imagen);
-  background-position: center center;
-  background-size: cover;
+  background-image:
+    var(--portada-imagen),
+    radial-gradient(ellipse at 50% 48%, #10252a 0%, #071218 46%, #02070b 100%);
+  background-position: center, center;
+  background-size: contain, cover;
   background-repeat: no-repeat;
 }
 
