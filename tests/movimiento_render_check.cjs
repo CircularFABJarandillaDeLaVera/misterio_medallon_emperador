@@ -43,6 +43,12 @@ function makeElemento(tag) {
     get innerHTML() {
       return this._html || "";
     },
+    querySelector(selector) {
+      return selector === '[role="dialog"]' ? makeElemento("div") : null;
+    },
+    querySelectorAll() {
+      return [];
+    },
     appendChild(hijo) {
       this.children.push(hijo);
       return hijo;

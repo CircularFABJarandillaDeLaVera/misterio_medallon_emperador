@@ -36,6 +36,10 @@ function makeElemento(tag) {
     set innerHTML(v) { this.children = []; this._texto = ""; this._html = String(v); },
     get innerHTML() { return this._html || ""; },
     appendChild(h) { this.children.push(h); return h; },
+    querySelector(selector) {
+      return selector === '[role="dialog"]' ? makeElemento("div") : null;
+    },
+    querySelectorAll() { return []; },
     addEventListener(e, fn) { (this._oyentes[e] = this._oyentes[e] || []).push(fn); },
     click() { (this._oyentes.click || []).forEach((fn) => fn()); },
     setAttribute(k, v) { this._attrs[k] = String(v); },

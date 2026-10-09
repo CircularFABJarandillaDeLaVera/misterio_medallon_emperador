@@ -73,6 +73,12 @@ function makeElemento(tag) {
     get innerHTML() {
       return this._html || "";
     },
+    querySelector(selector) {
+      return selector === '[role="dialog"]' ? makeElemento("div") : null;
+    },
+    querySelectorAll() {
+      return [];
+    },
     get firstChild() {
       return this.children[0] || null;
     },
@@ -619,8 +625,10 @@ ok(
   htmlSala.includes('id="presentacion-sospecha-aviso"') &&
     htmlSala.includes(AVISO_OBSERVADOR) &&
     css.includes(".presentacion-sospecha-aviso") &&
+    css.includes("#modal-presentacion-sospecha .presentacion-resultado-cartas[hidden]") &&
+    css.includes(".tarjeta:not(:fullscreen)") &&
     css.includes("#modal-presentacion-sospecha:has("),
-  "el aviso informativo vive en el modal, con su estilo y su ventana proporcionada"
+  "el aviso informativo vive en el modal y el panel de resultado oculto no consume espacio"
 );
 const reglaPresentacionSospecha = css.match(
   /#modal-presentacion-sospecha:has\(#presentacion-sospecha-cartas:not\(\[hidden\]\)\)\s+\.modal-presentacion-sospecha-caja\s*\{([^}]*)\}/

@@ -1810,6 +1810,13 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   display: none;
 }
 
+/* La rama informativa oculta este panel de resultado. Su display:grid no
+   debe anular `hidden` ni consumir una fila antes de las tres cartas. */
+body.en-partida .tarjeta:not(:fullscreen)
+  #modal-presentacion-sospecha .presentacion-resultado-cartas[hidden] {
+  display: none;
+}
+
 /* Presentación previa a la refutación: cuatro zonas reales (título, aviso,
    cartas y CONTINUAR). La rama se limita con `:has`, de modo que el cierre
    público SOSPECHA REFUTADA conserva intacta su composición aprobada. */

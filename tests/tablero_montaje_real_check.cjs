@@ -192,7 +192,7 @@ vm.createContext(sandbox);
     "la plantilla invalida la caché del renderer Canvas animado");
   ok(html.includes('/static/js/sala.js?v=admin8'),
     "la plantilla invalida la caché tras recuperar la geometría estable");
-  ok(html.includes('/static/css/estilos.css?v=admin19'),
+  ok(html.includes('/static/css/estilos.css?v=admin20'),
     "la plantilla invalida la caché de la barra inferior");
   ok(
     (CSS.match(/@media \(min-width: 768px\)/g) || []).length === 3,
