@@ -3273,6 +3273,10 @@ body:not(.portada) .tarjeta {
     align-items: stretch;
   }
 
+  body.en-partida.modo-tablero-activo {
+    overflow-y: hidden;
+  }
+
   body.en-partida .contenedor {
     max-width: 1600px;
     height: 100%;
@@ -3324,6 +3328,12 @@ body:not(.portada) .tarjeta {
       height: min(100cqw, 100cqh);
       margin: auto;
     }
+  }
+
+  /* Compensa el margen interno fijo de la barra inferior para compartir
+     su eje horizontal sin desplazar ninguno de los cinco controles. */
+  body.en-partida.modo-tablero-activo .panel-contextual {
+    transform: translateX(8px);
   }
 }
 
@@ -4954,4 +4964,122 @@ body.portada .portada-escena > .control-pantalla-completa {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
+}
+
+/* ============================================================
+   PANTALLA PRINCIPAL CINEMATOGRÁFICA · Microfase visual.
+   Todo queda acotado a la partida de tablero: no altera portada,
+   lobby, presentación, modales ni la geometría estable del Canvas.
+   La ilustración mantiene su proporción y cubre el viewport sin deformarse.
+   ============================================================ */
+body.en-partida.modo-tablero-activo {
+  --partida-oscuridad-fondo: 0.58;
+  background-color: #03080b;
+  background-image:
+    linear-gradient(
+      rgba(2, 7, 10, var(--partida-oscuridad-fondo)),
+      rgba(2, 7, 10, var(--partida-oscuridad-fondo))
+    ),
+    url("/static/img/partida/fondo-cinematografico.png");
+  background-position: center, center;
+  background-size: auto, cover;
+  background-repeat: no-repeat;
+  overflow-x: hidden;
+}
+
+body.en-partida.modo-tablero-activo .lobby-marco {
+  background: rgba(2, 9, 13, 0.34);
+  border-color: rgba(207, 166, 55, 0.68);
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.42),
+    inset 0 0 42px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(1.5px);
+}
+
+/* En Fullscreen API el marco pasa a ser la raíz visual y deja de mostrar el
+   fondo del body. Repite allí la misma composición para evitar el relleno negro. */
+body.en-partida.modo-tablero-activo .lobby-marco:fullscreen {
+  background-color: #03080b;
+  background-image:
+    linear-gradient(
+      rgba(2, 7, 10, var(--partida-oscuridad-fondo)),
+      rgba(2, 7, 10, var(--partida-oscuridad-fondo))
+    ),
+    url("/static/img/partida/fondo-cinematografico.png");
+  background-position: center, center;
+  background-size: auto, cover;
+  background-repeat: no-repeat;
+}
+
+/* Solo cambia la pintura del marco; tamaño, ratio y borde de 2 px permanecen. */
+body.en-partida.modo-tablero-activo .tablero-canvas-contenedor {
+  background: rgba(5, 14, 18, 0.32);
+  border-color: #b89436;
+  box-shadow:
+    inset 0 0 42px rgba(0, 0, 0, 0.5),
+    0 10px 28px rgba(0, 0, 0, 0.42),
+    0 0 18px rgba(201, 162, 39, 0.1);
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual {
+  padding: 12px;
+  color: #f4ead2;
+  background: linear-gradient(155deg, rgba(4, 16, 21, 0.9), rgba(3, 10, 15, 0.78));
+  border: 1px solid rgba(207, 166, 55, 0.72);
+  border-radius: 10px;
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.46),
+    inset 0 0 0 3px rgba(1, 7, 10, 0.55),
+    inset 0 0 24px rgba(201, 162, 39, 0.05);
+  backdrop-filter: blur(5px);
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual > .grupo-cartas {
+  padding: 10px 11px;
+  background: rgba(6, 19, 25, 0.66);
+  border-color: rgba(201, 162, 39, 0.3);
+  border-radius: 7px;
+}
+
+body.en-partida.modo-tablero-activo #posicion-actual {
+  margin: 0 0 8px;
+  padding: 0 0 8px;
+  color: var(--dorado-claro);
+  font-size: 1.02rem;
+  font-weight: bold;
+  letter-spacing: 0.9px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.38);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7);
+}
+
+body.en-partida.modo-tablero-activo #resultado-dado,
+body.en-partida.modo-tablero-activo #vista-contextual > p:first-child {
+  color: #ddd1b9;
+  line-height: 1.38;
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual #barra-herramientas {
+  gap: 7px;
+  padding-top: 11px;
+  border-top-color: rgba(201, 162, 39, 0.38);
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual .medallon {
+  background: linear-gradient(180deg, rgba(17, 57, 61, 0.92), rgba(7, 31, 36, 0.94));
+  color: #f2e4c4;
+  border: 1px solid rgba(211, 170, 55, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 238, 183, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual .medallon:hover:not(:disabled),
+body.en-partida.modo-tablero-activo .panel-contextual .medallon:focus-visible {
+  background: linear-gradient(180deg, rgba(25, 76, 78, 0.98), rgba(10, 42, 47, 0.98));
+  border-color: var(--dorado-claro);
+}
+
+body.en-partida.modo-tablero-activo .panel-contextual .medallon:focus-visible {
+  outline: 2px solid #f2d778;
+  outline-offset: 2px;
 }
