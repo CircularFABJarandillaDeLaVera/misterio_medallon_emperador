@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=chat1" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=seleccion-personajes6" />
 </head>
 <body>
-  <main class="contenedor">
-    <section class="tarjeta">
+  <main class="contenedor lobby-contenedor">
+    <section class="tarjeta lobby-marco">
       <header class="cabecera-juego lobby-cabecera" id="cabecera-juego">
         <div class="cabecera-fila">
           <div class="cabecera-identidad">
@@ -26,8 +26,7 @@
       </header>
 
       <div id="lobby-personajes">
-        <p class="solo-lectores"><strong>ELIGE TU PERSONAJE</strong></p>
-        <div id="personajes" class="lobby-cartas"></div>
+        <div id="personajes" class="lobby-cartas" aria-label="Elige tu personaje"></div>
       </div>
 
       <button id="btn-comenzar" type="button" class="medallon medallon-primario medallon-compacto lobby-comenzar">COMENZAR PARTIDA</button>
