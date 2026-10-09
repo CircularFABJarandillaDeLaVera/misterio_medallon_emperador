@@ -98,9 +98,16 @@ ok(
   "todos los recursos gráficos utilizados existen localmente"
 );
 ok(
-  ["EL MISTERIO", "DEL MEDALLÓN IMPERIAL", "CREAR PARTIDA", "UNIRSE A UNA PARTIDA", "APRENDE A JUGAR", "VER LA HISTORIA"]
+  ["EL MISTERIO", "DEL MEDALLÓN IMPERIAL", "CREAR PARTIDA", "UNIRSE A UNA PARTIDA", "CARGAR PARTIDA", "APRENDE A JUGAR", "VER LA HISTORIA"]
     .every((texto) => html.includes(texto)) && html.includes('data-abrir-aprender'),
-  "la nueva portada contiene las cuatro acciones y reutiliza Aprende a jugar"
+  "la portada conserva sus cinco acciones reales y reutiliza Aprende a jugar"
+);
+ok(
+  html.includes('class="portada-identidad solo-lectores"') &&
+    css.includes('--portada-imagen: url("/static/img/portada/portada-fondo.png")') &&
+    fs.existsSync(path.join(raiz, "app", "static", "img", "portada", "portada-fondo.png")) &&
+    !css.includes("portada referencia.png"),
+  "la portada usa el fondo limpio y no duplica visualmente su identidad integrada"
 );
 ok(
   html.includes('{% include "_aprender_a_jugar.html" %}') && html.includes("/static/js/aprender_a_jugar.js?v=fase3a"),

@@ -4755,3 +4755,201 @@ body.historia-abierta {
     transition: none;
   }
 }
+
+/* ============================================================
+   PORTADA CINEMATOGRÁFICA · Microfase exclusiva de Inicio.
+   La ilustración ya contiene identidad, título y lema. El HTML los
+   conserva para lectores de pantalla, mientras que estas reglas montan
+   únicamente los controles reales sobre la zona derecha de la escena.
+   ============================================================ */
+body.portada {
+  --portada-imagen: url("/static/img/portada/portada-fondo.png");
+  padding: 0;
+  background: #02070b;
+  overflow-x: hidden;
+}
+
+body.portada .portada-fondo {
+  background-image: var(--portada-imagen);
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+body.portada .portada-fondo::before {
+  background:
+    linear-gradient(90deg, transparent 0 52%, rgba(1, 7, 11, 0.08) 62%, rgba(1, 7, 11, 0.42) 100%),
+    linear-gradient(180deg, rgba(2, 6, 9, 0.08), transparent 30%, rgba(2, 6, 9, 0.14));
+}
+
+body.portada .portada-fondo::after {
+  background: radial-gradient(ellipse 105% 96% at 50% 48%, transparent 64%, rgba(1, 4, 7, 0.38) 100%);
+}
+
+body.portada .portada-velo {
+  background: linear-gradient(90deg, transparent 0 54%, rgba(1, 6, 10, 0.04) 68%, rgba(1, 6, 10, 0.24) 100%);
+}
+
+body.portada .portada-escena {
+  width: 100%;
+  max-width: none;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: block;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body.portada .portada-menu {
+  position: absolute;
+  top: 50%;
+  right: clamp(22px, 3.8vw, 76px);
+  width: clamp(380px, 34vw, 650px);
+  max-width: calc(100vw - 44px);
+  margin: 0;
+  padding: clamp(14px, 1.8vw, 28px);
+  display: grid;
+  gap: clamp(10px, 1.6vh, 22px);
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, rgba(2, 12, 18, 0.66), rgba(2, 9, 14, 0.42));
+  border: 1px solid rgba(213, 167, 48, 0.52);
+  border-radius: 2px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 3px rgba(2, 8, 13, 0.72),
+    inset 0 0 0 4px rgba(213, 167, 48, 0.12);
+  backdrop-filter: blur(5px);
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto) {
+  min-height: clamp(58px, 9.3vh, 92px);
+  padding: clamp(10px, 1.5vh, 17px) clamp(18px, 2vw, 32px);
+  justify-content: flex-start;
+  gap: clamp(10px, 1.2vw, 20px);
+  font-size: clamp(0.82rem, 1.22vw, 1.22rem);
+  letter-spacing: clamp(1.3px, 0.18vw, 2.8px);
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto) .medallon-icono {
+  width: clamp(24px, 2.2vw, 36px);
+  height: clamp(24px, 2.2vw, 36px);
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto) span {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto)::after {
+  content: "→";
+  flex: 0 0 auto;
+  color: currentColor;
+  font-size: 1.55em;
+  font-weight: normal;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+body.portada .portada-menu > .medallon:not(.medallon-compacto):hover::after,
+body.portada .portada-menu > .medallon:not(.medallon-compacto):focus-visible::after {
+  transform: translateX(4px);
+}
+
+body.portada .portada-menu-secundario {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(9px, 1.1vw, 18px);
+}
+
+body.portada .portada-menu-secundario .medallon {
+  min-height: clamp(46px, 6.5vh, 62px);
+  padding: 8px clamp(8px, 1vw, 16px);
+  font-size: clamp(0.7rem, 0.82vw, 0.84rem);
+  letter-spacing: clamp(0.8px, 0.12vw, 1.7px);
+}
+
+body.portada .portada-escena > .control-pantalla-completa {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 4;
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  gap: 0;
+}
+
+@media (orientation: landscape) and (max-height: 700px) {
+  body.portada .portada-menu {
+    padding: 12px 16px;
+    gap: 9px;
+  }
+
+  body.portada .portada-menu > .medallon:not(.medallon-compacto) {
+    min-height: 56px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  body.portada .portada-menu-secundario .medallon {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  body.portada {
+    min-height: 100dvh;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  body.portada .portada-fondo {
+    background-position: 32% center;
+  }
+
+  body.portada .portada-fondo::before,
+  body.portada .portada-velo {
+    background: linear-gradient(180deg, transparent 0 38%, rgba(1, 6, 10, 0.5) 57%, rgba(1, 6, 10, 0.92) 100%);
+  }
+
+  body.portada .portada-escena {
+    height: auto;
+    min-height: 100dvh;
+    padding: min(52vh, 430px) 12px 22px;
+  }
+
+  body.portada .portada-menu {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: min(100%, 520px);
+    max-width: none;
+    margin: 0 auto;
+    transform: none;
+  }
+}
+
+@media (max-width: 460px) {
+  body.portada .portada-menu {
+    padding: 11px;
+    gap: 9px;
+  }
+
+  body.portada .portada-menu > .medallon:not(.medallon-compacto) {
+    min-height: 54px;
+  }
+
+  body.portada .portada-menu-secundario {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
