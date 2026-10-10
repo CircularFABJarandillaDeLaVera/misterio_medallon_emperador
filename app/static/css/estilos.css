@@ -3232,7 +3232,7 @@ body:not(.portada) .tarjeta {
     height: auto;
     max-height: 100%;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: hidden;
   }
 
   /* Zonas de contenido: pueden encogerse y desplazarse dentro. */
@@ -3253,6 +3253,29 @@ body:not(.portada) .tarjeta {
   /* Acción inmediata del turno: manda en jerarquía (8B.21). */
   body.en-partida .panel-contextual #movimiento button {
     min-height: 44px;
+  }
+
+  /* Los destinos dinámicos son la única zona desplazable. El título de la
+     ubicación, la tirada, la instrucción y las herramientas quedan fuera de
+     este viewport interno y permanecen visibles aunque haya seis opciones. */
+  body.en-partida #destinos-movimiento {
+    max-height: min(31dvh, 220px);
+    min-height: 0;
+    padding-bottom: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 4px;
+    scrollbar-gutter: stable;
+  }
+
+  body.en-partida #destinos-movimiento:empty {
+    display: none;
+  }
+
+  body.en-partida #destinos-movimiento > button {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
   }
 }
 
@@ -5082,4 +5105,102 @@ body.en-partida.modo-tablero-activo .panel-contextual .medallon:focus-visible {
 body.en-partida.modo-tablero-activo .panel-contextual .medallon:focus-visible {
   outline: 2px solid #f2d778;
   outline-offset: 2px;
+}
+
+/* ============================================================
+   MODALES CINEMATOGRÁFICOS · Microfase visual.
+   Reutiliza la base común .modal / .modal-caja y queda limitada a una
+   partida iniciada. No altera tamaños, rejillas, scroll ni comportamiento.
+   ============================================================ */
+body.en-partida .modal {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(24, 70, 68, 0.2), transparent 44%),
+    linear-gradient(145deg, rgba(3, 10, 14, 0.84), rgba(14, 9, 12, 0.91));
+  backdrop-filter: blur(4px) saturate(0.82);
+}
+
+/* El backdrop-filter del marco principal crea un bloque de referencia para
+   position:fixed. Mientras hay un modal visible se desactiva bajo su velo,
+   de modo que las ventanas de viewport completo vuelven a ocupar exactamente
+   la pantalla, sin los 9 px de desplazamiento del marco. */
+body.en-partida .lobby-marco:has(.modal:not([hidden])) {
+  backdrop-filter: none;
+}
+
+body.en-partida .modal-caja {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(184, 137, 49, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 92%, rgba(27, 91, 83, 0.14), transparent 42%),
+    linear-gradient(145deg, rgba(13, 38, 42, 0.98), rgba(9, 22, 30, 0.98) 48%, rgba(27, 18, 20, 0.98));
+  border-color: rgba(213, 172, 61, 0.78);
+  box-shadow:
+    0 24px 68px rgba(0, 0, 0, 0.62),
+    0 0 26px rgba(201, 162, 39, 0.13),
+    inset 0 1px 0 rgba(246, 218, 137, 0.12),
+    inset 0 0 36px rgba(0, 0, 0, 0.24);
+}
+
+body.en-partida .modal-caja h2,
+body.en-partida .modal-caja h3 {
+  color: #ecd276;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.72);
+}
+
+body.en-partida .modal-caja .nota-privada,
+body.en-partida .modal-caja .presentacion-sospecha-aviso,
+body.en-partida .modal-caja .historial-vacio,
+body.en-partida .modal-caja .chat-vacio {
+  color: rgba(239, 228, 204, 0.78);
+}
+
+body.en-partida .modal-caja .grupo-cartas,
+body.en-partida .modal-caja .admin-ritmo {
+  background: linear-gradient(145deg, rgba(5, 20, 25, 0.76), rgba(21, 23, 29, 0.7));
+  border-color: rgba(201, 162, 39, 0.3);
+  box-shadow: inset 0 1px 0 rgba(242, 218, 150, 0.04);
+}
+
+body.en-partida .modal-caja input,
+body.en-partida .modal-caja select,
+body.en-partida .modal-caja textarea {
+  color: var(--texto);
+  background: linear-gradient(180deg, rgba(6, 22, 28, 0.96), rgba(12, 17, 24, 0.98));
+  border-color: rgba(201, 162, 39, 0.48);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.26);
+}
+
+body.en-partida .modal-caja input:focus,
+body.en-partida .modal-caja select:focus,
+body.en-partida .modal-caja textarea:focus {
+  outline: 2px solid rgba(232, 199, 102, 0.88);
+  outline-offset: 1px;
+  border-color: var(--dorado-claro);
+}
+
+body.en-partida .modal-chat-caja .chat-mensajes,
+body.en-partida .modal-historial-caja .historial-lista {
+  background: linear-gradient(180deg, rgba(3, 14, 19, 0.42), rgba(15, 17, 23, 0.3));
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  border-radius: 8px;
+  box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+body.en-partida .modal-chat-caja .chat-mensaje {
+  background: linear-gradient(145deg, rgba(19, 46, 49, 0.72), rgba(12, 25, 32, 0.82));
+  border-color: rgba(201, 162, 39, 0.32);
+}
+
+body.en-partida .modal-chat-caja .chat-mensaje-propio {
+  background: linear-gradient(145deg, rgba(93, 71, 27, 0.42), rgba(28, 54, 49, 0.78));
+  border-color: rgba(220, 181, 73, 0.66);
+}
+
+body.en-partida .modal-historial-caja .historial-entrada {
+  border-bottom-color: rgba(201, 162, 39, 0.22);
+}
+
+body.en-partida .modal-carta-ubicacion > img,
+body.en-partida .modal-carta-revelacion > img,
+body.en-partida .modal-caja .carta-selector-sospecha {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
 }
