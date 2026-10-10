@@ -4995,8 +4995,32 @@ body.portada .portada-escena > .control-pantalla-completa {
    lobby, presentación, modales ni la geometría estable del Canvas.
    La ilustración mantiene su proporción y cubre el viewport sin deformarse.
    ============================================================ */
-body.en-partida.modo-tablero-activo {
+body.en-partida {
   --partida-oscuridad-fondo: 0.58;
+  --superficie-cinematica-principal:
+    linear-gradient(112deg, rgba(232, 193, 92, 0.055), transparent 28%, transparent 72%, rgba(48, 102, 92, 0.055)),
+    radial-gradient(ellipse at 14% 0%, rgba(190, 139, 44, 0.14), transparent 38%),
+    radial-gradient(ellipse at 92% 94%, rgba(27, 91, 83, 0.18), transparent 46%),
+    linear-gradient(145deg, rgba(11, 36, 38, 0.98), rgba(7, 19, 26, 0.98) 52%, rgba(29, 19, 19, 0.98));
+  --superficie-cinematica-panel:
+    linear-gradient(112deg, rgba(232, 193, 92, 0.045), transparent 32%, transparent 76%, rgba(48, 102, 92, 0.06)),
+    radial-gradient(ellipse at 18% 0%, rgba(180, 131, 40, 0.11), transparent 42%),
+    radial-gradient(ellipse at 90% 100%, rgba(21, 77, 73, 0.16), transparent 50%),
+    linear-gradient(155deg, rgba(4, 22, 26, 0.92), rgba(3, 11, 16, 0.86) 58%, rgba(24, 16, 17, 0.88));
+  --superficie-cinematica-interior:
+    radial-gradient(ellipse at 16% 0%, rgba(189, 143, 50, 0.09), transparent 40%),
+    radial-gradient(ellipse at 92% 100%, rgba(25, 85, 78, 0.13), transparent 48%),
+    linear-gradient(150deg, rgba(6, 27, 31, 0.82), rgba(8, 18, 24, 0.86) 58%, rgba(27, 19, 19, 0.8));
+  --superficie-cinematica-profunda:
+    radial-gradient(ellipse at 50% 0%, rgba(188, 141, 47, 0.065), transparent 42%),
+    linear-gradient(165deg, rgba(3, 20, 24, 0.86), rgba(5, 13, 19, 0.92) 62%, rgba(22, 16, 17, 0.9));
+  --superficie-cinematica-carta:
+    radial-gradient(circle at 50% 42%, rgba(31, 87, 79, 0.22), transparent 58%),
+    radial-gradient(ellipse at 15% 0%, rgba(190, 141, 46, 0.08), transparent 38%),
+    linear-gradient(145deg, #0a2024, #0d171e 58%, #211817);
+}
+
+body.en-partida.modo-tablero-activo {
   background-color: #03080b;
   background-image:
     linear-gradient(
@@ -5047,7 +5071,7 @@ body.en-partida.modo-tablero-activo .tablero-canvas-contenedor {
 body.en-partida.modo-tablero-activo .panel-contextual {
   padding: 12px;
   color: #f4ead2;
-  background: linear-gradient(155deg, rgba(4, 16, 21, 0.9), rgba(3, 10, 15, 0.78));
+  background: var(--superficie-cinematica-panel);
   border: 1px solid rgba(207, 166, 55, 0.72);
   border-radius: 10px;
   box-shadow:
@@ -5059,9 +5083,12 @@ body.en-partida.modo-tablero-activo .panel-contextual {
 
 body.en-partida.modo-tablero-activo .panel-contextual > .grupo-cartas {
   padding: 10px 11px;
-  background: rgba(6, 19, 25, 0.66);
+  background: var(--superficie-cinematica-interior);
   border-color: rgba(201, 162, 39, 0.3);
   border-radius: 7px;
+  box-shadow:
+    inset 0 1px 0 rgba(240, 210, 134, 0.05),
+    inset 0 -16px 30px rgba(0, 0, 0, 0.14);
 }
 
 body.en-partida.modo-tablero-activo #posicion-actual {
@@ -5107,6 +5134,12 @@ body.en-partida.modo-tablero-activo .panel-contextual .medallon:focus-visible {
   outline-offset: 2px;
 }
 
+body.en-partida.modo-tablero-activo #vista-contextual select {
+  background: linear-gradient(180deg, rgba(6, 22, 28, 0.96), rgba(12, 17, 24, 0.98));
+  border-color: rgba(201, 162, 39, 0.48);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.26);
+}
+
 /* ============================================================
    MODALES CINEMATOGRÁFICOS · Microfase visual.
    Reutiliza la base común .modal / .modal-caja y queda limitada a una
@@ -5128,10 +5161,7 @@ body.en-partida .lobby-marco:has(.modal:not([hidden])) {
 }
 
 body.en-partida .modal-caja {
-  background:
-    radial-gradient(circle at 14% 0%, rgba(184, 137, 49, 0.12), transparent 34%),
-    radial-gradient(circle at 92% 92%, rgba(27, 91, 83, 0.14), transparent 42%),
-    linear-gradient(145deg, rgba(13, 38, 42, 0.98), rgba(9, 22, 30, 0.98) 48%, rgba(27, 18, 20, 0.98));
+  background: var(--superficie-cinematica-principal);
   border-color: rgba(213, 172, 61, 0.78);
   box-shadow:
     0 24px 68px rgba(0, 0, 0, 0.62),
@@ -5155,9 +5185,11 @@ body.en-partida .modal-caja .chat-vacio {
 
 body.en-partida .modal-caja .grupo-cartas,
 body.en-partida .modal-caja .admin-ritmo {
-  background: linear-gradient(145deg, rgba(5, 20, 25, 0.76), rgba(21, 23, 29, 0.7));
+  background: var(--superficie-cinematica-interior);
   border-color: rgba(201, 162, 39, 0.3);
-  box-shadow: inset 0 1px 0 rgba(242, 218, 150, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(242, 218, 150, 0.06),
+    inset 0 -18px 32px rgba(0, 0, 0, 0.16);
 }
 
 body.en-partida .modal-caja input,
@@ -5179,7 +5211,7 @@ body.en-partida .modal-caja textarea:focus {
 
 body.en-partida .modal-chat-caja .chat-mensajes,
 body.en-partida .modal-historial-caja .historial-lista {
-  background: linear-gradient(180deg, rgba(3, 14, 19, 0.42), rgba(15, 17, 23, 0.3));
+  background: var(--superficie-cinematica-profunda);
   border: 1px solid rgba(201, 162, 39, 0.18);
   border-radius: 8px;
   box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.2);
@@ -5203,4 +5235,243 @@ body.en-partida .modal-carta-ubicacion > img,
 body.en-partida .modal-carta-revelacion > img,
 body.en-partida .modal-caja .carta-selector-sospecha {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+}
+
+body.en-partida .modal-caja .carta-selector-sospecha,
+body.en-partida .modal-caja .carta-selector-sospecha img,
+body.en-partida .modal-carta-revelacion > img,
+body.en-partida .modal-carta-ubicacion > img,
+body.en-partida .modal-carta-ubicacion .ficha-contextual img,
+body.en-partida .modal-caja .aprender-refutacion-privada figure img,
+body.en-partida .modal-caja .aprender-pista-privada img,
+body.en-partida .modal-caja .aprender-resolucion img {
+  background: var(--superficie-cinematica-carta);
+}
+
+body.en-partida .modal-caja .selector-cartas-resolver,
+body.en-partida #modal-hoja .grupo-hoja,
+body.en-partida .modal-caja .aprender-ejemplo,
+body.en-partida .modal-caja .aprender-estados > div,
+body.en-partida .modal-caja .hoja-fila {
+  background: var(--superficie-cinematica-interior);
+  border-color: rgba(201, 162, 39, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(242, 218, 150, 0.045),
+    inset 0 -18px 30px rgba(0, 0, 0, 0.13);
+}
+
+body.en-partida .modal-caja .selector-cartas-resolver,
+body.en-partida #modal-hoja .grupo-hoja {
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 7px;
+}
+
+body.en-partida .modal-caja .aprender-pista-privada {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(178, 143, 71, 0.1), transparent 46%),
+    linear-gradient(145deg, rgba(45, 42, 68, 0.82), rgba(17, 37, 40, 0.88));
+  border-color: rgba(190, 157, 96, 0.56);
+  box-shadow: inset 0 1px 0 rgba(242, 218, 150, 0.06);
+}
+
+body.en-partida .modal-caja .carta-selector-marca:not(.es-propia):not(.es-vista):not(.es-descartada),
+body.en-partida .modal-caja .presentacion-resultado-estado:not(.es-propia):not(.es-vista):not(.es-descartada),
+body.en-partida .modal-carta-ubicacion .ficha-contextual-alias {
+  background: linear-gradient(145deg, rgba(7, 29, 34, 0.94), rgba(21, 20, 27, 0.96));
+  border-color: rgba(201, 162, 39, 0.38);
+}
+
+body.en-partida .control-sonido-panel {
+  background: var(--superficie-cinematica-principal);
+  border-color: rgba(201, 162, 39, 0.48);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(242, 218, 150, 0.07);
+}
+
+/* ============================================================
+   SOSPECHAS Y REFUTACIONES · Composición cinematográfica.
+   Las cartas conservan su proporción real y absorben el espacio protagonista;
+   títulos, avisos y acciones mantienen siempre sus propias filas.
+   ============================================================ */
+body.en-partida .modal-presentacion-sospecha-caja {
+  width: min(calc(100dvw - 24px), 1040px);
+  max-width: 1040px;
+}
+
+body.en-partida #presentacion-sospecha-cartas {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: clamp(12px, 1.8vw, 20px);
+  padding: 4px;
+}
+
+body.en-partida #presentacion-sospecha-cartas .carta-selector-sospecha,
+body.en-partida #presentacion-sospecha-cartas .carta-selector-sospecha img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+}
+
+body.en-partida #presentacion-sospecha-cartas .carta-selector-sospecha img {
+  max-height: min(58dvh, 480px);
+  object-fit: contain;
+  object-position: center;
+}
+
+body.en-partida .presentacion-resultado-cartas {
+  gap: clamp(12px, 1.8vw, 20px);
+  padding: 4px;
+}
+
+body.en-partida .presentacion-resultado-columna {
+  align-content: center;
+  grid-template-rows: minmax(0, auto) auto;
+  gap: 8px;
+}
+
+body.en-partida .presentacion-resultado-columna .carta-selector-sospecha,
+body.en-partida .presentacion-resultado-columna .carta-selector-sospecha img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+}
+
+body.en-partida .presentacion-resultado-columna .carta-selector-sospecha img {
+  max-height: min(52dvh, 430px);
+  object-fit: contain;
+  object-position: center;
+}
+
+body.en-partida .modal-refutacion-caja {
+  height: min(calc(100dvh - 24px), 680px);
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+  gap: 8px;
+}
+
+body.en-partida #opciones-refutacion {
+  align-items: center;
+  gap: clamp(12px, 1.8vw, 20px);
+  padding: 8px 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+body.en-partida #opciones-refutacion .carta-selector-sospecha,
+body.en-partida #opciones-refutacion .carta-selector-sospecha img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+}
+
+body.en-partida #opciones-refutacion .carta-selector-sospecha {
+  align-self: center;
+}
+
+body.en-partida #opciones-refutacion .carta-selector-sospecha img {
+  max-height: min(58dvh, 520px);
+  object-fit: contain;
+  object-position: center;
+}
+
+body.en-partida #opciones-refutacion[data-total="1"] {
+  grid-template-columns: minmax(0, min(400px, 52dvh));
+}
+
+body.en-partida .modal-refutacion-caja:has(#opciones-refutacion[data-total="1"]) {
+  height: min(calc(100dvh - 24px), 680px);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+body.en-partida .modal-carta-revelacion {
+  width: min(calc(100dvw - 24px), 800px);
+  max-width: 800px;
+  min-height: 0;
+  max-height: calc(100dvh - 24px);
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px 24px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+body.en-partida .modal-carta-revelacion > h2 {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 2px;
+}
+
+body.en-partida .modal-carta-revelacion > img {
+  grid-column: 1;
+  grid-row: 2 / 5;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(64dvh, 520px);
+  align-self: center;
+}
+
+body.en-partida .modal-carta-revelacion > #revelacion-carta-nombre {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  margin: 0;
+  color: var(--dorado-claro);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: bold;
+}
+
+body.en-partida .modal-carta-revelacion > .nota-privada {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: start;
+  margin: 0;
+  line-height: 1.45;
+}
+
+body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
+  grid-column: 2;
+  grid-row: 4;
+  align-self: end;
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  body.en-partida .modal-carta-revelacion {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  body.en-partida .modal-carta-revelacion > h2,
+  body.en-partida .modal-carta-revelacion > img,
+  body.en-partida .modal-carta-revelacion > #revelacion-carta-nombre,
+  body.en-partida .modal-carta-revelacion > .nota-privada,
+  body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
+    grid-column: 1;
+  }
+
+  body.en-partida .modal-carta-revelacion > img {
+    grid-row: 2;
+    max-height: min(52dvh, 400px);
+  }
+
+  body.en-partida .modal-carta-revelacion > #revelacion-carta-nombre {
+    grid-row: 3;
+    align-self: center;
+  }
+
+  body.en-partida .modal-carta-revelacion > .nota-privada {
+    grid-row: 4;
+  }
+
+  body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
+    grid-row: 5;
+  }
 }
