@@ -126,6 +126,23 @@ revancha en la misma sala, audio y soporte de pantalla completa.
 Las salas viven en memoria del proceso. Reiniciar el servidor elimina las
 partidas activas y todavía no existe persistencia mediante base de datos.
 
+## Desarrollo asistido por inteligencia artificial
+
+«El misterio del medallón imperial» se ha desarrollado con ayuda de
+inteligencia artificial. OpenAI Codex ha sido la herramienta principal de
+apoyo para la programación, la revisión del código, la corrección de errores y
+la ejecución de pruebas. También hemos utilizado GitHub Copilot, Muse, Space
+Bunny y Antigravity en distintas etapas del proceso.
+
+Queremos agradecer especialmente los tokens y las modalidades de acceso
+gratuito que estas herramientas nos han proporcionado. Gracias a ellos hemos
+podido experimentar, aprender y avanzar en el desarrollo del proyecto.
+
+Las ideas, las decisiones, la dirección del proyecto y su validación final han
+contado con supervisión humana. La inteligencia artificial se ha utilizado
+como una herramienta de colaboración, no como sustituto de la revisión, el
+criterio humano ni las pruebas.
+
 ## Licencia
 
 El código fuente se distribuye bajo la licencia MIT. Consulta [LICENSE](LICENSE).

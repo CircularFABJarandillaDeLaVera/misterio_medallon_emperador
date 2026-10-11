@@ -1,0 +1,59 @@
+# Repositorio y herramientas de desarrollo
+.git/
+.github/
+.agents/
+.codex/
+.vscode/
+.idea/
+
+# Entornos virtuales y cachés de Python
+.venv/
+venv/
+env/
+ENV/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Dependencias y cachés de Node
+node_modules/
+**/node_modules/
+.npm/
+.yarn/
+
+# Pruebas, capturas e informes generados
+tests/
+capturas/
+screenshots/
+test-results/
+playwright-report/
+coverage/
+
+# Recursos fuente y paquetes que no usa la imagen de producción
+recursos/
+*.zip
+**/*.zip
+
+# Configuración local y secretos de entorno
+.env
+.env.*
+docker-compose*.yml
+docker-compose*.yaml
+
+# Temporales, diagnósticos y archivos del sistema/editor
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.pid
+*.trace
+.DS_Store
+Thumbs.db
