@@ -97,8 +97,6 @@
       const escala = (this.ladoCss || 1) / 100;
       this.ctx.setTransform(this.dpr * escala, 0, 0, this.dpr * escala, 0, 0);
       this.ctx.clearRect(0, 0, 100, 100);
-      this.ctx.fillStyle = "#171426";
-      this.ctx.fillRect(0, 0, 100, 100);
       this.areas = [];
       this.areasPeones = [];
     }
