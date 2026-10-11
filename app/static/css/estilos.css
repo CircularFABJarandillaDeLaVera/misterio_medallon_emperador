@@ -5491,3 +5491,71 @@ body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
     grid-row: 5;
   }
 }
+
+/* ============================================================
+   PROTOTIPO MÓVIL HORIZONTAL · Microfase 1.
+   Solo teléfonos táctiles apaisados: reserva la franja de la barra
+   inferior, mantiene las acciones a tamaño de dedo y reutiliza el botón
+   y el modal existentes de MIS CARTAS. Escritorio y móvil vertical no
+   entran en esta consulta.
+   ============================================================ */
+@media (orientation: landscape) and (min-width: 768px) and (max-width: 960px)
+  and (max-height: 440px) and (pointer: coarse) {
+  body.en-partida.modo-tablero-activo .panel-contextual {
+    height: calc(100dvh - 80px - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 80px - env(safe-area-inset-bottom));
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  body.en-partida.modo-tablero-activo .panel-contextual > .grupo-cartas {
+    padding: 6px 8px;
+  }
+
+  body.en-partida.modo-tablero-activo #posicion-actual {
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+  }
+
+  /* El encabezado de movimiento y la acción principal permanecen fijos;
+     si crece la lista, solo los destinos se desplazan. */
+  body.en-partida.modo-tablero-activo #movimiento:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body.en-partida.modo-tablero-activo #destinos-movimiento {
+    flex: 1 1 auto;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  body.en-partida.modo-tablero-activo #vista-contextual,
+  body.en-partida.modo-tablero-activo #final-partida {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Cuatro herramientas existentes en dos filas: no se crea otra barra ni
+     se duplican listeners. La regla específica recupera CARTAS, oculto en
+     el HTML para el diseño de escritorio. */
+  body.en-partida.modo-tablero-activo .panel-contextual #barra-herramientas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding-top: 6px;
+  }
+
+  body.en-partida.modo-tablero-activo #btn-ver-cartas[hidden] {
+    display: inline-flex;
+  }
+
+  body.en-partida.modo-tablero-activo .panel-contextual #barra-herramientas button {
+    min-height: 44px;
+    padding: 6px 4px;
+    font-size: 0.68rem;
+    letter-spacing: 0.6px;
+  }
+}

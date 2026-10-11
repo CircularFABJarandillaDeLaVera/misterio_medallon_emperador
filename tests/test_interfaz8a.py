@@ -143,3 +143,19 @@ def test_popup_contextual_limitado_al_viewport_sin_deformar_imagen():
         re.DOTALL,
     )
     assert "max-height: min(44dvh, 400px" in CSS
+
+
+def test_movil_horizontal_reserva_barra_y_reutiliza_mis_cartas():
+    """Microfase móvil 1: el ajuste no alcanza escritorio ni vertical."""
+    consulta = (
+        "@media (orientation: landscape) and (min-width: 768px) "
+        "and (max-width: 960px)\n"
+        "  and (max-height: 440px) and (pointer: coarse) {"
+    )
+    assert consulta in CSS
+    bloque = CSS[CSS.index(consulta):]
+    assert "height: calc(100dvh - 80px - env(safe-area-inset-bottom))" in bloque
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in bloque
+    assert "#btn-ver-cartas[hidden]" in bloque
+    assert "min-height: 44px" in bloque
+    assert "#destinos-movimiento" in bloque and "overflow-y: auto" in bloque
