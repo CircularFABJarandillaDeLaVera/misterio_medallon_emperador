@@ -11,10 +11,42 @@
   const raiz = doc.documentElement;
   const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
   const salir = doc.exitFullscreen || doc.webkitExitFullscreen;
-  if (typeof pedir !== "function" || typeof salir !== "function") return;
 
   const enPantallaCompleta = () =>
     Boolean(doc.fullscreenElement || doc.webkitFullscreenElement);
+
+  function intentarOrientacionHorizontal() {
+    const orientacion = typeof screen !== "undefined" ? screen.orientation : null;
+    if (!orientacion || typeof orientacion.lock !== "function") {
+      return Promise.resolve(false);
+    }
+    try {
+      const bloqueo = orientacion.lock("landscape");
+      return Promise.resolve(bloqueo).then(() => true).catch(() => false);
+    } catch (error) {
+      return Promise.resolve(false);
+    }
+  }
+
+  function solicitarInmersionHorizontal() {
+    let solicitud = Promise.resolve(enPantallaCompleta());
+    if (!enPantallaCompleta() && typeof pedir === "function") {
+      try {
+        solicitud = Promise.resolve(pedir.call(raiz))
+          .then(() => true)
+          .catch(() => false);
+      } catch (error) {
+        solicitud = Promise.resolve(false);
+      }
+    }
+    // El bloqueo horizontal es una mejora progresiva. También se intenta si
+    // fullscreen no existe o se rechaza, y nunca condiciona el juego.
+    return solicitud.then(() => intentarOrientacionHorizontal());
+  }
+
+  globalThis.PantallaCompleta = { solicitarInmersionHorizontal };
+
+  if (typeof pedir !== "function" || typeof salir !== "function") return;
 
   const SVG_ENTRAR =
     '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala {{ codigo }} — El Misterio del Medallón</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=fondos-cinematograficos2&amp;superficies=petroleo1" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=chat1&amp;fondos=cinematograficos2&amp;superficies=petroleo1&amp;preparacion=movil1" />
 </head>
 <body>
   <main class="contenedor lobby-contenedor">
@@ -72,6 +72,53 @@
           <ol id="orden"></ol>
         </div>
         <p class="estado" id="total"></p>
+      </div>
+      <div id="modal-preparacion-movil" class="modal preparacion-movil" hidden>
+        <div class="preparacion-movil-fondo" aria-hidden="true"></div>
+        <section class="modal-caja preparacion-movil-caja" role="dialog" aria-modal="true"
+                 aria-labelledby="preparacion-movil-titulo"
+                 aria-describedby="preparacion-movil-instruccion preparacion-movil-nota">
+          <div class="preparacion-movil-ornamento" aria-hidden="true">
+            <span></span><i></i><span></span>
+          </div>
+          <div class="preparacion-movil-composicion">
+            <div class="preparacion-movil-telefono" aria-hidden="true">
+              <svg viewBox="0 0 180 180" focusable="false">
+                <defs>
+                  <linearGradient id="preparacion-oro" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#f5dc86" />
+                    <stop offset="0.48" stop-color="#c79729" />
+                    <stop offset="1" stop-color="#76500d" />
+                  </linearGradient>
+                </defs>
+                <path class="preparacion-movil-arco" d="M42 50A66 66 0 0 1 142 61" />
+                <path class="preparacion-movil-flecha" d="m139 48 4 14-15-1" />
+                <g class="preparacion-movil-dispositivo">
+                  <rect x="59" y="24" width="62" height="132" rx="10" />
+                  <rect class="preparacion-movil-pantalla" x="65" y="36" width="50" height="106" rx="4" />
+                  <path d="M80 30h20" />
+                  <circle cx="90" cy="149" r="2.5" />
+                  <circle class="preparacion-movil-sello" cx="90" cy="89" r="18" />
+                  <path class="preparacion-movil-monograma" d="M82 98V79l8 13 8-13v19M78 84h24" />
+                </g>
+              </svg>
+            </div>
+            <div class="preparacion-movil-mensaje">
+              <p class="preparacion-movil-contexto">JARANDILLA DE LA VERA · 1556</p>
+              <h2 id="preparacion-movil-titulo">La investigación está a punto de comenzar</h2>
+              <p id="preparacion-movil-instruccion" class="preparacion-movil-instruccion">
+                Gira tu móvil y colócalo en horizontal para descubrir el misterio.
+              </p>
+              <p id="preparacion-movil-nota" class="preparacion-movil-nota">
+                Una experiencia más inmersiva te espera.
+              </p>
+              <button id="btn-entrar-pantalla-completa"
+                      class="medallon medallon-primario preparacion-movil-accion" type="button">
+                ENTRAR EN PANTALLA COMPLETA
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
       <div id="modal-resolver" class="modal" hidden>
         <div class="modal-caja modal-resolver-caja" role="dialog" aria-label="Resolver el misterio">
@@ -291,8 +338,8 @@
   </main>
   <script src="/static/js/tablero_canvas.js?v=8b8b&amp;fondo=transparente1"></script>
   <script src="/static/js/audio.js?v=8b33c"></script>
-  <script src="/static/js/sala.js?v=admin9"></script>
+  <script src="/static/js/sala.js?v=admin9&amp;preparacion=movil2"></script>
   <script src="/static/js/aprender_a_jugar.js?v=fase3b"></script>
-  <script src="/static/js/pantalla_completa.js?v=8b19b"></script>
+  <script src="/static/js/pantalla_completa.js?v=8b19b&amp;preparacion=movil1"></script>
 </body>
 </html>

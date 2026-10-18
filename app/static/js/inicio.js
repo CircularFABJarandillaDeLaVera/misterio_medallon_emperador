@@ -90,6 +90,20 @@ function modoActual() {
   return selector && selector.value ? selector.value : "tablero";
 }
 
+const CLAVE_ENTRADA_PREPARACION_MOVIL = "preparacion_movil_pendiente";
+
+function prepararEntradaMovil(datos, origen) {
+  try {
+    sessionStorage.setItem(CLAVE_ENTRADA_PREPARACION_MOVIL, JSON.stringify({
+      codigo: datos.codigo,
+      jugador_id: datos.jugador_id,
+      origen,
+    }));
+  } catch (errorAlGuardarEntrada) {
+    // La sala conserva una deteccion de respaldo al recibir su primer estado.
+  }
+}
+
 async function crearPartida() {
   const alias = $("alias").value.trim();
   $("error-nueva").textContent = "";
@@ -117,6 +131,7 @@ async function crearPartida() {
     if (datos.credencial_admin) {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
+    prepararEntradaMovil(datos, "crear");
     window.location.href = `/sala/${datos.codigo}`;
   } finally {
     if (boton) boton.disabled = false;
@@ -152,6 +167,7 @@ async function unirsePartida() {
     const datos = await respuesta.json();
     sessionStorage.setItem("jugador_id", datos.jugador_id);
     sessionStorage.setItem("alias", datos.alias);
+    prepararEntradaMovil(datos, "unirse");
     window.location.href = `/sala/${datos.codigo}`;
   } finally {
     if (boton) boton.disabled = false;
@@ -221,6 +237,7 @@ async function cargarPartida() {
     if (datos.credencial_admin) {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
+    prepararEntradaMovil(datos, "cargar");
     window.location.href = `/sala/${datos.codigo}`;
   } catch (e) {
     if (error) error.textContent = "NO SE PUDO LEER EL ARCHIVO.";

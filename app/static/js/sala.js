@@ -12,6 +12,8 @@ const error = document.getElementById("error");
 const btnComenzar = document.getElementById("btn-comenzar");
 const lobbyPersonajes = document.getElementById("lobby-personajes");
 const personajesDiv = document.getElementById("personajes");
+const modalPreparacionMovil = document.getElementById("modal-preparacion-movil");
+const btnEntrarPantallaCompleta = document.getElementById("btn-entrar-pantalla-completa");
 const partida = document.getElementById("partida");
 const barraControlesInferior = document.getElementById("barra-controles-inferior");
 const turnoP = document.getElementById("turno");
@@ -198,6 +200,151 @@ let focoAntesDeHistorial = null;
 let focoAntesDeChat = null;
 let mensajesChat = [];
 let mensajesChatPendientes = 0;
+let focoTrasPreparacionMovil = null;
+let preparacionMovilCompletadaEnMemoria = false;
+const CLAVE_PREPARACION_MOVIL = `preparacion_movil:${codigo}:${jugadorId}`;
+const CLAVE_ENTRADA_PREPARACION_MOVIL = "preparacion_movil_pendiente";
+
+function esTelefonoMovil() {
+  const navegador = typeof navigator === "undefined" ? {} : navigator;
+  const indicadoPorNavegador = Boolean(
+    navegador.userAgentData && navegador.userAgentData.mobile
+  );
+  const tactil = (navegador.maxTouchPoints || 0) > 0 || "ontouchstart" in window;
+  const punteroGrueso = Boolean(
+    window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  );
+  const anchoPantalla = (window.screen && window.screen.width) || window.innerWidth;
+  const altoPantalla = (window.screen && window.screen.height) || window.innerHeight;
+  const ladoCorto = Math.min(anchoPantalla || 0, altoPantalla || 0);
+  return indicadoPorNavegador || (tactil && punteroGrueso && ladoCorto > 0 && ladoCorto <= 600);
+}
+
+function preparacionMovilVista() {
+  if (preparacionMovilCompletadaEnMemoria) return true;
+  try {
+    return sessionStorage.getItem(CLAVE_PREPARACION_MOVIL) === "1";
+  } catch (errorAlLeerSesion) {
+    return false;
+  }
+}
+
+function guardarPreparacionMovilVista() {
+  preparacionMovilCompletadaEnMemoria = true;
+  try {
+    sessionStorage.setItem(CLAVE_PREPARACION_MOVIL, "1");
+  } catch (errorAlGuardarSesion) {
+    // La marca en memoria basta para no repetir la escena en esta página.
+  }
+}
+
+function borrarEntradaPreparacionMovil() {
+  try {
+    sessionStorage.removeItem(CLAVE_ENTRADA_PREPARACION_MOVIL);
+  } catch (errorAlBorrarEntrada) {
+    // La marca es auxiliar y nunca debe bloquear el flujo de la sala.
+  }
+}
+
+function entradaPreparacionMovilPendiente() {
+  try {
+    const cruda = sessionStorage.getItem(CLAVE_ENTRADA_PREPARACION_MOVIL);
+    if (!cruda) return null;
+    const entrada = JSON.parse(cruda);
+    if (entrada.codigo !== codigo || entrada.jugador_id !== jugadorId) {
+      borrarEntradaPreparacionMovil();
+      return null;
+    }
+    return entrada;
+  } catch (errorAlLeerEntrada) {
+    borrarEntradaPreparacionMovil();
+    return null;
+  }
+}
+
+function debeMostrarPreparacionMovil(sala) {
+  return Boolean(
+    sala && sala.estado === "esperando" && !sala.personaje_id &&
+    esTelefonoMovil() && !preparacionMovilVista()
+  );
+}
+
+function ajustarSuperficiePreparacionMovil() {
+  if (!modalPreparacionMovil) return;
+  const vista = window.visualViewport;
+  const ancho = vista ? vista.width : window.innerWidth;
+  const alto = vista ? vista.height : window.innerHeight;
+  const izquierda = vista ? vista.offsetLeft : 0;
+  const arriba = vista ? vista.offsetTop : 0;
+  modalPreparacionMovil.style.left = `${izquierda}px`;
+  modalPreparacionMovil.style.top = `${arriba}px`;
+  modalPreparacionMovil.style.width = `${ancho}px`;
+  modalPreparacionMovil.style.height = `${alto}px`;
+}
+
+function abrirPreparacionMovil(activador) {
+  if (!modalPreparacionMovil || !btnEntrarPantallaCompleta) return false;
+  if (!modalPreparacionMovil.hidden) return true;
+  focoTrasPreparacionMovil = activador || null;
+  ajustarSuperficiePreparacionMovil();
+  modalPreparacionMovil.hidden = false;
+  btnEntrarPantallaCompleta.focus();
+  sincronizarBarraControlesInferior();
+  return true;
+}
+
+function completarPreparacionMovil() {
+  guardarPreparacionMovilVista();
+  borrarEntradaPreparacionMovil();
+  // La petición nace directamente de este toque. Su resultado no se espera:
+  // ni fullscreen ni el bloqueo horizontal pueden impedir elegir personaje.
+  if (
+    window.PantallaCompleta &&
+    typeof window.PantallaCompleta.solicitarInmersionHorizontal === "function"
+  ) {
+    window.PantallaCompleta.solicitarInmersionHorizontal();
+  }
+  modalPreparacionMovil.hidden = true;
+  sincronizarBarraControlesInferior();
+  if (focoTrasPreparacionMovil && focoTrasPreparacionMovil.focus) {
+    focoTrasPreparacionMovil.focus();
+  }
+  focoTrasPreparacionMovil = null;
+}
+
+function prepararInterfazMovilAntesDeMostrar(sala) {
+  const entradaPendiente = entradaPreparacionMovilPendiente();
+  if (!esTelefonoMovil()) {
+    if (entradaPendiente) borrarEntradaPreparacionMovil();
+    return false;
+  }
+  if (entradaPendiente || debeMostrarPreparacionMovil(sala)) {
+    return abrirPreparacionMovil(null);
+  }
+  return false;
+}
+
+if (btnEntrarPantallaCompleta) {
+  btnEntrarPantallaCompleta.addEventListener("click", completarPreparacionMovil);
+}
+if (modalPreparacionMovil) {
+  modalPreparacionMovil.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Tab") return;
+    evento.preventDefault();
+    btnEntrarPantallaCompleta.focus();
+  });
+}
+if (window.addEventListener) {
+  window.addEventListener("resize", ajustarSuperficiePreparacionMovil);
+}
+if (window.visualViewport && window.visualViewport.addEventListener) {
+  window.visualViewport.addEventListener("resize", ajustarSuperficiePreparacionMovil);
+  window.visualViewport.addEventListener("scroll", ajustarSuperficiePreparacionMovil);
+}
+
+// Las entradas iniciadas desde la portada abren la escena antes incluso del
+// primer estado privado. El estado recibido mantiene debajo la vista correcta.
+prepararInterfazMovilAntesDeMostrar(null);
 
 function sincronizarBarraControlesInferior() {
   if (!barraControlesInferior) return;
@@ -491,6 +638,7 @@ function presentarEstadoPrivado(sala) {
     estadoVisualHidratado = true;
     ultimoMovimientoId = movimientoId;
     ultimaSala = sala;
+    prepararInterfazMovilAntesDeMostrar(sala);
     pintarSala(sala);
     presentarResolucionFallida(sala);
     presentarVictoria(sala);
@@ -516,6 +664,7 @@ function presentarEstadoPrivado(sala) {
     cancelarAnimacionMovimiento(movimiento.personaje_id);
   }
   ultimaSala = sala;
+  prepararInterfazMovilAntesDeMostrar(sala);
   pintarSala(sala);
   presentarResolucionFallida(sala);
   presentarVictoria(sala);
