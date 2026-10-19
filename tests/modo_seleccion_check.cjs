@@ -18,8 +18,12 @@ function elemento(id) {
     id,
     value: "",
     textContent: "",
-    hidden: id === "modal-nueva" || id === "modal-unirse" || id === "envoltorio-modo",
+    hidden:
+      id === "modal-nueva" || id === "modal-unirse" || id === "modal-cargar" ||
+      id === "modal-preparacion-movil" || id === "envoltorio-modo",
     disabled: false,
+    inert: false,
+    classList: { add() {}, remove() {} },
     _oyentes: {},
     addEventListener(evento, fn) {
       this._oyentes[evento] = fn;
@@ -32,15 +36,21 @@ function elemento(id) {
 }
 
 const elementos = {};
+const escenaPortada = elemento("portada-escena");
 const documentStub = {
   activeElement: null,
   _global: {},
+  body: { classList: { add() {}, remove() {} } },
+  documentElement: { classList: { add() {}, remove() {}, contains() { return false; } } },
   getElementById(id) {
     if (!elementos[id]) elementos[id] = elemento(id);
     return elementos[id];
   },
   addEventListener(evento, fn) {
     this._global[evento] = fn;
+  },
+  querySelector(selector) {
+    return selector === ".portada-escena" ? escenaPortada : null;
   },
 };
 
@@ -59,8 +69,17 @@ const sandbox = {
   console,
   document: documentStub,
   fetch: fetchStub,
+  navigator: { maxTouchPoints: 0, userAgentData: { mobile: false } },
   sessionStorage: { setItem() {} },
-  window: { location: { href: "" } },
+  window: {
+    location: { href: "" },
+    screen: { width: 1440, height: 900 },
+    innerWidth: 1440,
+    innerHeight: 900,
+    matchMedia() { return { matches: false }; },
+    addEventListener() {},
+    visualViewport: null,
+  },
 };
 vm.createContext(sandbox);
 vm.runInContext(

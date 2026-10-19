@@ -133,5 +133,9 @@
     }
   }, true);
 
-  if (!yaVista()) abrirHistoria();
+  const preparacionMovilAntesDePortada = Boolean(
+    window.PreparacionPortadaInicial &&
+    window.PreparacionPortadaInicial.omitirHistoriaAutomatica
+  );
+  if (!yaVista() && !preparacionMovilAntesDePortada) abrirHistoria();
 })();

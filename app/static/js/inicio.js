@@ -2,6 +2,9 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+const modalPreparacionMovil = $("modal-preparacion-movil");
+const btnEntrarPantallaCompleta = $("btn-entrar-pantalla-completa");
+const escenaPortada = document.querySelector(".portada-escena");
 
 // Microfase 6 · Los tres popups de la portada. La lista es la ÚNICA fuente:
 // abrir, cerrar con Escape, cerrar con el velo y devolver el foco salen de
@@ -21,6 +24,8 @@ const ERROR_DE_MODAL = {
 let modoDesbloqueado = false;
 let ultimoFoco = null;
 let cargandoPartida = false;
+let preparacionPortadaCompletada = false;
+let preparacionPortadaActiva = false;
 
 function modalAbierto() {
   for (const id of MODALES_PORTADA) {
@@ -52,6 +57,98 @@ function cerrarModal(idModal) {
   const opener = $(BOTON_QUE_ABRE[idModal]);
   if (!modalAbierto() && opener && opener.focus) opener.focus();
 }
+
+function esTelefonoMovil() {
+  const navegador = typeof navigator === "undefined" ? {} : navigator;
+  const indicadoPorNavegador = Boolean(
+    navegador.userAgentData && navegador.userAgentData.mobile
+  );
+  const tactil = (navegador.maxTouchPoints || 0) > 0 || "ontouchstart" in window;
+  const punteroGrueso = Boolean(
+    window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  );
+  const anchoPantalla = (window.screen && window.screen.width) || window.innerWidth;
+  const altoPantalla = (window.screen && window.screen.height) || window.innerHeight;
+  const ladoCorto = Math.min(anchoPantalla || 0, altoPantalla || 0);
+  return indicadoPorNavegador || (tactil && punteroGrueso && ladoCorto > 0 && ladoCorto <= 600);
+}
+
+function ajustarSuperficiePreparacionMovil() {
+  if (!modalPreparacionMovil) return;
+  const vista = window.visualViewport;
+  const ancho = vista ? vista.width : window.innerWidth;
+  const alto = vista ? vista.height : window.innerHeight;
+  const izquierda = vista ? vista.offsetLeft : 0;
+  const arriba = vista ? vista.offsetTop : 0;
+  modalPreparacionMovil.style.left = `${izquierda}px`;
+  modalPreparacionMovil.style.top = `${arriba}px`;
+  modalPreparacionMovil.style.width = `${ancho}px`;
+  modalPreparacionMovil.style.height = `${alto}px`;
+}
+
+function iniciarPreparacionPortadaMovil() {
+  if (!esTelefonoMovil()) {
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+    return;
+  }
+  if (!modalPreparacionMovil || !btnEntrarPantallaCompleta) {
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+    return;
+  }
+  ajustarSuperficiePreparacionMovil();
+  modalPreparacionMovil.hidden = false;
+  document.documentElement.classList.add("preparacion-movil-activa");
+  if (escenaPortada) escenaPortada.inert = true;
+  document.documentElement.classList.remove("preparacion-movil-inicial");
+  if (
+    window.PreparacionPortadaInicial &&
+    typeof window.PreparacionPortadaInicial.tomarControl === "function"
+  ) {
+    window.PreparacionPortadaInicial.tomarControl();
+  }
+  preparacionPortadaActiva = true;
+  btnEntrarPantallaCompleta.focus();
+}
+
+function completarPreparacionPortada() {
+  if (!preparacionPortadaActiva) return;
+  preparacionPortadaActiva = false;
+  preparacionPortadaCompletada = true;
+  if (
+    window.PantallaCompleta &&
+    typeof window.PantallaCompleta.solicitarInmersionHorizontal === "function"
+  ) {
+    window.PantallaCompleta.solicitarInmersionHorizontal();
+  }
+  modalPreparacionMovil.hidden = true;
+  document.documentElement.classList.remove("preparacion-movil-activa");
+  if (escenaPortada) escenaPortada.inert = false;
+  if (window.PreparacionPortadaInicial) {
+    window.PreparacionPortadaInicial.activa = false;
+  }
+  const focoPortada = $("btn-nueva");
+  if (focoPortada && focoPortada.focus) focoPortada.focus();
+}
+
+if (btnEntrarPantallaCompleta) {
+  btnEntrarPantallaCompleta.addEventListener("click", completarPreparacionPortada);
+}
+if (modalPreparacionMovil) {
+  modalPreparacionMovil.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Tab") return;
+    evento.preventDefault();
+    btnEntrarPantallaCompleta.focus();
+  });
+}
+if (window.addEventListener) {
+  window.addEventListener("resize", ajustarSuperficiePreparacionMovil);
+}
+if (window.visualViewport && window.visualViewport.addEventListener) {
+  window.visualViewport.addEventListener("resize", ajustarSuperficiePreparacionMovil);
+  window.visualViewport.addEventListener("scroll", ajustarSuperficiePreparacionMovil);
+}
+
+iniciarPreparacionPortadaMovil();
 
 // Herramienta temporal de desarrollo: Ctrl+Alt+D muestra el selector
 // de modo DENTRO del popup NUEVA PARTIDA (oculto por defecto).
@@ -98,6 +195,7 @@ function prepararEntradaMovil(datos, origen) {
       codigo: datos.codigo,
       jugador_id: datos.jugador_id,
       origen,
+      preparacion_completada: preparacionPortadaCompletada,
     }));
   } catch (errorAlGuardarEntrada) {
     // La sala conserva una deteccion de respaldo al recibir su primer estado.

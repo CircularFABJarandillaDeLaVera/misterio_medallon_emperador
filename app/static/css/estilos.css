@@ -29,6 +29,33 @@
   isolation: isolate;
 }
 
+/* El documento de sala nace en este estado antes de ejecutar sala.js. En un
+   teléfono, el primer componente del body vence a [hidden] y la interfaz ni
+   se compone ni acepta interacción. El bootstrap del head quita la clase en
+   escritorio antes del primer paint; sala.js la quita al asumir el modal. */
+@media (hover: none) and (pointer: coarse) and (max-width: 600px),
+       (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  html.preparacion-movil-inicial .modal.preparacion-movil[hidden] {
+    display: flex;
+  }
+
+  html.preparacion-movil-inicial .interfaz-sala,
+  html.preparacion-movil-activa .interfaz-sala {
+    display: none;
+  }
+
+  html.preparacion-movil-inicial body.portada > :not(.preparacion-movil):not(script),
+  html.preparacion-movil-activa body.portada > :not(.preparacion-movil):not(script) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  html.preparacion-movil-inicial body.portada > .preparacion-movil,
+  html.preparacion-movil-activa body.portada > .preparacion-movil {
+    visibility: visible;
+  }
+}
+
 .preparacion-movil-fondo {
   position: fixed;
   inset: 0;

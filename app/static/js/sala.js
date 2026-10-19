@@ -14,6 +14,7 @@ const lobbyPersonajes = document.getElementById("lobby-personajes");
 const personajesDiv = document.getElementById("personajes");
 const modalPreparacionMovil = document.getElementById("modal-preparacion-movil");
 const btnEntrarPantallaCompleta = document.getElementById("btn-entrar-pantalla-completa");
+const interfazSala = document.querySelector(".interfaz-sala");
 const partida = document.getElementById("partida");
 const barraControlesInferior = document.getElementById("barra-controles-inferior");
 const turnoP = document.getElementById("turno");
@@ -288,6 +289,18 @@ function abrirPreparacionMovil(activador) {
   focoTrasPreparacionMovil = activador || null;
   ajustarSuperficiePreparacionMovil();
   modalPreparacionMovil.hidden = false;
+  // La escena ya está pintada por HTML/CSS. Se hace visible por estado normal
+  // antes de retirar el bloqueo inicial, de modo que no existe un fotograma
+  // intermedio en el que pueda aparecer la sala.
+  document.documentElement.classList.add("preparacion-movil-activa");
+  if (interfazSala) interfazSala.inert = true;
+  document.documentElement.classList.remove("preparacion-movil-inicial");
+  if (
+    window.PreparacionMovilInicial &&
+    typeof window.PreparacionMovilInicial.tomarControl === "function"
+  ) {
+    window.PreparacionMovilInicial.tomarControl();
+  }
   btnEntrarPantallaCompleta.focus();
   sincronizarBarraControlesInferior();
   return true;
@@ -305,6 +318,8 @@ function completarPreparacionMovil() {
     window.PantallaCompleta.solicitarInmersionHorizontal();
   }
   modalPreparacionMovil.hidden = true;
+  document.documentElement.classList.remove("preparacion-movil-activa");
+  if (interfazSala) interfazSala.inert = false;
   sincronizarBarraControlesInferior();
   if (focoTrasPreparacionMovil && focoTrasPreparacionMovil.focus) {
     focoTrasPreparacionMovil.focus();
@@ -316,9 +331,22 @@ function prepararInterfazMovilAntesDeMostrar(sala) {
   const entradaPendiente = entradaPreparacionMovilPendiente();
   if (!esTelefonoMovil()) {
     if (entradaPendiente) borrarEntradaPreparacionMovil();
+    document.documentElement.classList.remove("preparacion-movil-inicial");
     return false;
   }
-  if (entradaPendiente || debeMostrarPreparacionMovil(sala)) {
+  if (entradaPendiente && entradaPendiente.preparacion_completada === true) {
+    // La misma escena ya se completó justo antes del formulario en portada.
+    // Se consume la señal y se marca esta sala para que estados WebSocket
+    // posteriores no vuelvan a abrirla durante esta navegación.
+    guardarPreparacionMovilVista();
+    borrarEntradaPreparacionMovil();
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+    return false;
+  }
+  const preparacionInicialActiva = document.documentElement.classList.contains(
+    "preparacion-movil-inicial"
+  );
+  if (preparacionInicialActiva || entradaPendiente || debeMostrarPreparacionMovil(sala)) {
     return abrirPreparacionMovil(null);
   }
   return false;

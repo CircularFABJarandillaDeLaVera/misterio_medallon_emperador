@@ -1,13 +1,75 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="preparacion-movil-inicial">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="El misterio del medallón — Juego de misterio y deducción en Jarandilla de la Vera." />
   <title>El misterio del medallón — Juego de misterio y deducción</title>
-  <link rel="stylesheet" href="/static/css/estilos.css?v=portada6" />
+  <link rel="stylesheet" href="/static/css/estilos.css?v=portada6&amp;preparacion=movil2" />
+  <script>
+    /* La preparacion nace activa en el HTML para que un telefono no pueda
+       pintar la portada antes de inicio.js. Este bootstrap solo descarta el
+       estado en escritorio y ofrece recuperacion si el JS principal falla. */
+    (function () {
+      try {
+        const indicadoPorNavegador = Boolean(navigator.userAgentData && navigator.userAgentData.mobile);
+        const tactil = (navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window;
+        const punteroGrueso = Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+        const ladoCorto = Math.min(
+          (window.screen && window.screen.width) || 0,
+          (window.screen && window.screen.height) || 0
+        );
+        const esMovil =
+          indicadoPorNavegador || (tactil && punteroGrueso && ladoCorto > 0 && ladoCorto <= 600);
+        if (!esMovil) {
+          document.documentElement.classList.remove("preparacion-movil-inicial");
+          return;
+        }
+
+        let controlTransferido = false;
+        let recuperacionActiva = false;
+        const temporizador = window.setTimeout(function () {
+          if (controlTransferido) return;
+          const nota = document.getElementById("preparacion-movil-nota");
+          const boton = document.getElementById("btn-entrar-pantalla-completa");
+          if (!nota || !boton) return;
+          nota.textContent = "La portada esta tardando en responder. Puedes intentarlo de nuevo.";
+          boton.textContent = "REINTENTAR CARGA";
+          recuperacionActiva = true;
+        }, 10000);
+
+        document.addEventListener("click", function (evento) {
+          if (!recuperacionActiva || controlTransferido) return;
+          const boton = evento.target.closest && evento.target.closest("#btn-entrar-pantalla-completa");
+          if (!boton) return;
+          evento.preventDefault();
+          window.location.reload();
+        }, true);
+
+        window.PreparacionPortadaInicial = {
+          activa: true,
+          omitirHistoriaAutomatica: true,
+          tomarControl: function () {
+            controlTransferido = true;
+            window.clearTimeout(temporizador);
+            if (recuperacionActiva) {
+              const nota = document.getElementById("preparacion-movil-nota");
+              const boton = document.getElementById("btn-entrar-pantalla-completa");
+              if (nota) nota.textContent = "Una experiencia mas inmersiva te espera.";
+              if (boton) boton.textContent = "ENTRAR EN PANTALLA COMPLETA";
+              recuperacionActiva = false;
+            }
+          }
+        };
+      } catch (errorDePreparacionInicial) {
+        // El HTML/CSS mantiene cubierta la portada incluso si falla esta ayuda.
+      }
+    })();
+  </script>
 </head>
 <body class="portada">
+  {% include "_preparacion_movil.html" %}
+
   <div class="portada-fondo" aria-hidden="true"></div>
   <div class="portada-velo" aria-hidden="true"></div>
 
@@ -364,13 +426,13 @@
     </div>
   </div>
 
-  <script src="/static/js/inicio.js?v=admin6&amp;preparacion=movil2"></script>
+  <script src="/static/js/inicio.js?v=admin6&amp;preparacion=movil4"></script>
   <script src="/static/js/pantalla_completa.js?v=8b19"></script>
   <!-- 8B.33B: solo la infraestructura de EFECTOS (clic). La musica
        ambiental sigue existiendo solo en la sala y no se descarga aqui:
        la pista musical se crea de forma perezosa al pedirla. -->
   <script src="/static/js/audio.js?v=8b33b"></script>
   <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
-  <script src="/static/js/historia.js?v=fase3b"></script>
+  <script src="/static/js/historia.js?v=fase3b&amp;preparacion=movil1"></script>
 </body>
 </html>
