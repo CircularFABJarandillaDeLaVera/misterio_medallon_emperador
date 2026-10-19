@@ -1995,6 +1995,66 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   padding: 5px 14px;
 }
 
+@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px)
+  and (pointer: coarse) {
+  #modal-ubicacion-caja:has(#modal-contextual-detalle.modo-sospecha-compacta) {
+    width: min(96vw, 860px);
+    max-height: calc(100dvh - 12px);
+    padding: 6px 12px 8px;
+    overflow-y: auto;
+  }
+
+  #modal-ubicacion-caja:has(#modal-contextual-detalle.modo-sospecha-compacta) h2 {
+    font-size: clamp(0.82rem, 1.8vw, 1rem);
+    margin-bottom: 2px;
+  }
+
+  #modal-contextual-detalle.modo-sospecha-compacta > label {
+    margin: 2px 0 1px;
+    font-size: clamp(0.64rem, 1.3vw, 0.76rem);
+    letter-spacing: 1.2px;
+  }
+
+  .selector-cartas-sospecha {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+    margin: 1px 0 2px;
+  }
+
+  .selector-cartas-sospecha .carta-sospecha-compacta {
+    aspect-ratio: 1 / 1;
+    height: clamp(52px, 17.5dvh, 78px);
+    width: auto;
+    max-width: 100%;
+    justify-self: center;
+    overflow: hidden;
+    padding: 2px;
+  }
+
+  .selector-cartas-sospecha[data-categoria="sospechoso"] .carta-sospecha-compacta img {
+    height: 100% !important;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  .selector-cartas-sospecha[data-categoria="objeto"] .carta-sospecha-compacta img {
+    height: 100% !important;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  #modal-contextual-detalle.modo-sospecha-compacta > button {
+    min-height: 26px;
+    margin-top: 2px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+  }
+}
+
 /* Variante Resolver: 6 personajes + 9 lugares + 6 escondites en una
    fila por categoría, sin nombres inferiores (Microfase 8B.12).
    Reutiliza la base .carta-selector-sospecha y su halo .seleccionada. */
@@ -2864,6 +2924,40 @@ body.en-partida .tarjeta:not(:fullscreen)
   #hoja > .grupo-hoja:nth-child(2) .hoja-grid-cartas,
   #hoja > .grupo-hoja:nth-child(3) .hoja-grid-cartas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Miniaturas de deducción para teléfonos apaisados. El recorte parte de la
+   zona superior de cada ilustración y deja fuera la banda impresa inferior,
+   sin modificar la imagen, el nombre accesible ni los estados superpuestos. */
+@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px)
+  and (pointer: coarse) {
+  #modal-hoja .modal-caja,
+  .modal-resolver-caja {
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .selector-cartas-resolver .carta-selector-sospecha,
+  .hoja-grid-cartas .carta-visual-compacta {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    justify-self: center;
+    align-self: center;
+    overflow: hidden;
+  }
+
+  .selector-cartas-resolver .carta-selector-sospecha img,
+  .hoja-grid-cartas .carta-visual-compacta img {
+    width: 100%;
+    height: 100% !important;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center top;
+    border-radius: 4px;
   }
 }
 
