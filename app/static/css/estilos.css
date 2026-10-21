@@ -6144,13 +6144,76 @@ body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
 }
 
 /* ============================================================
+   MÓVIL · Modal Nueva partida.
+   La apariencia cinematográfica queda limitada a teléfonos táctiles;
+   el modal y el recorrido de escritorio conservan su composición original.
+   ============================================================ */
+@media (orientation: portrait) and (max-width: 600px) and (pointer: coarse),
+  (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  body.portada #modal-nueva {
+    background:
+      radial-gradient(ellipse 90% 58% at 50% 24%, rgba(31, 91, 88, 0.22), transparent 70%),
+      linear-gradient(145deg, rgba(2, 9, 13, 0.94), rgba(13, 9, 11, 0.97));
+    backdrop-filter: blur(5px) saturate(0.8);
+  }
+
+  body.portada #modal-nueva .portada-modal-caja {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(34, 95, 90, 0.2), transparent 48%),
+      linear-gradient(155deg, rgba(5, 25, 29, 0.98), rgba(3, 12, 17, 0.98) 62%, rgba(27, 18, 13, 0.98));
+    border-color: rgba(232, 199, 102, 0.78);
+    box-shadow:
+      0 24px 68px rgba(0, 0, 0, 0.68),
+      0 0 28px rgba(201, 162, 39, 0.14),
+      inset 0 1px 0 rgba(246, 218, 137, 0.12),
+      inset 0 0 34px rgba(0, 0, 0, 0.25);
+  }
+
+  body.portada #modal-nueva .portada-campo {
+    min-height: 44px;
+    color: var(--texto);
+    background: linear-gradient(180deg, rgba(5, 20, 25, 0.98), rgba(10, 13, 18, 0.98));
+    border-color: rgba(201, 162, 39, 0.55);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  body.portada #modal-nueva .portada-campo:focus {
+    border-color: var(--dorado-claro);
+    outline-color: rgba(232, 199, 102, 0.9);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  body.portada #modal-nueva {
+    padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  body.portada #modal-nueva .portada-modal-caja {
+    width: min(88vw, 520px);
+    max-height: calc(100dvh - 12px);
+    padding: 12px 18px;
+  }
+
+  body.portada #modal-nueva .portada-modal-acciones {
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  body.portada #modal-nueva .portada-modal-acciones .medallon {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
    MÓVIL HORIZONTAL · Selección de personajes.
-   Cabecera y acción final conservan su espacio; solo la rejilla central
-   desplaza sus dos filas cuando la altura útil no permite mostrarlas enteras.
+   Cabecera y acción final conservan su espacio; la rejilla central ajusta
+   siempre sus seis cartas en tres columnas y dos filas, sin desplazamiento.
    ============================================================ */
 @media (orientation: landscape) and (max-width: 960px) and (max-height: 560px)
   and (pointer: coarse) {
-  body:not(.en-partida) {
+  body:has(.lobby-contenedor):not(.en-partida) {
     align-items: stretch;
     height: 100dvh;
     min-height: 0;
@@ -6212,28 +6275,40 @@ body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    padding: 4px 0 8px;
+    padding: 2px 0;
     contain: paint;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
   }
 
   body:not(.en-partida) #personajes.lobby-cartas {
-    grid-template-columns: repeat(3, max-content);
-    grid-template-rows: repeat(2, max-content);
-    align-content: start;
-    gap: 10px 14px;
-    height: auto;
-    min-height: max-content;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    align-content: stretch;
+    gap: 5px 10px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  body:not(.en-partida) .lobby-cartas .carta-selector-sospecha {
+    width: auto;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: 1060 / 1484;
+    padding: 2px;
+  }
+
+  body:not(.en-partida) .lobby-cartas .carta-selector-sospecha img {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
 
   body:not(.en-partida) #btn-comenzar {
     flex: 0 0 auto;
     width: min(100%, 360px);
-    min-height: 42px;
+    min-height: 44px;
     margin: 0 auto;
     padding: 6px 12px;
   }
@@ -6243,5 +6318,116 @@ body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
     flex: 0 0 auto;
     margin: 0;
     line-height: 1.2;
+  }
+}
+
+/* ============================================================
+   MÓVIL VERTICAL · Selección de personajes.
+   Dos columnas y tres filas ocupan el espacio central disponible; la acción
+   final permanece como bloque independiente y siempre visible.
+   ============================================================ */
+@media (orientation: portrait) and (max-width: 600px) and (pointer: coarse) {
+  body:has(.lobby-contenedor):not(.en-partida) {
+    align-items: stretch;
+    height: 100dvh;
+    min-height: 0;
+    padding:
+      max(4px, env(safe-area-inset-top))
+      max(5px, env(safe-area-inset-right))
+      max(4px, env(safe-area-inset-bottom))
+      max(5px, env(safe-area-inset-left));
+    overflow: hidden;
+  }
+
+  body:not(.en-partida) .lobby-contenedor {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body:not(.en-partida) .lobby-marco {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    padding: 5px 6px;
+    overflow: hidden;
+  }
+
+  body:not(.en-partida) .lobby-cabecera {
+    flex: 0 0 auto;
+    gap: 4px 8px;
+    margin: 0;
+    padding: 1px 3px 4px;
+    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+  }
+
+  body:not(.en-partida) #cabecera-juego h1 {
+    font-size: clamp(0.82rem, 3.6vw, 1rem);
+  }
+
+  body:not(.en-partida) .lobby-sala-linea {
+    gap: 4px 6px;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+  }
+
+  body:not(.en-partida) .lobby-sala-linea .codigo-sala-compacto {
+    font-size: 0.84rem;
+  }
+
+  body:not(.en-partida) .lobby-sala-linea .medallon {
+    min-height: 36px;
+    padding: 5px 8px;
+    font-size: 0.62rem;
+  }
+
+  body:not(.en-partida) #lobby-personajes {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 2px 0;
+    contain: paint;
+    overflow: hidden;
+  }
+
+  body:not(.en-partida) #personajes.lobby-cartas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    align-content: stretch;
+    gap: 6px 8px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  body:not(.en-partida) .lobby-cartas .carta-selector-sospecha {
+    width: auto;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: 1060 / 1484;
+    padding: 2px;
+  }
+
+  body:not(.en-partida) .lobby-cartas .carta-selector-sospecha img {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  body:not(.en-partida) #btn-comenzar {
+    flex: 0 0 auto;
+    width: min(100%, 340px);
+    min-height: 44px;
+    margin: 0 auto;
+    padding: 7px 12px;
+  }
+
+  body:not(.en-partida) #estado,
+  body:not(.en-partida) #error {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.15;
   }
 }
