@@ -110,6 +110,7 @@ function montar(credencial) {
       querySelectorAll: () => [],
       createElement: () => elemento(),
       body: { classList: claseBody },
+      documentElement: { classList: claseBody },
       get activeElement() {
         return elementoActivo;
       },

@@ -64,12 +64,18 @@ function makeElemento(tag) {
 }
 
 const registro = {};
+const cuerpo = makeElemento("body");
 const documentStub = {
   getElementById(id) {
     if (!registro[id]) registro[id] = makeElemento("div");
     return registro[id];
   },
   createElement: makeElemento,
+  querySelector() { return null; },
+  querySelectorAll() { return []; },
+  addEventListener() {},
+  body: cuerpo,
+  documentElement: { classList: cuerpo.classList },
 };
 registro.codigo = makeElemento("p");
 registro.codigo.textContent = "JARA-TEST";

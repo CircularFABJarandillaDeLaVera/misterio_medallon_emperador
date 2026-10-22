@@ -101,6 +101,7 @@ function montar(credencial) {
       querySelectorAll: () => [],
       createElement: () => elemento(),
       body,
+      documentElement: { classList: body.classList },
     },
     sessionStorage: {
       getItem: (clave) => (clave in datos ? datos[clave] : null),

@@ -63,6 +63,7 @@ function montarSala({ almacen }) {
       querySelectorAll: () => [],
       createElement: () => elemento(),
       body: { classList: claseBody },
+      documentElement: { classList: claseBody },
     },
     sessionStorage: almacen,
     setTimeout: () => 0,

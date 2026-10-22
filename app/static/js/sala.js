@@ -162,6 +162,10 @@ let focoAntesDeUbicacion = null;
 let destinoUbicacionModal = null;
 let rendererCanvas = null;
 let canvasFallido = false;
+let salaInicializada = false;
+let ws = null;
+let cargaTableroVisual = null;
+let observadorBarraControles = null;
 
 const modalesSala = document.querySelectorAll
   ? Array.from(document.querySelectorAll(".modal"))
@@ -528,50 +532,93 @@ actualizarIndicadorChat();
 window.sincronizarBarraControlesInferior =
   sincronizarBarraControlesInferior;
 sincronizarBarraControlesInferior();
-if (typeof MutationObserver !== "undefined" && document.body) {
-  const observadorBarraControles = new MutationObserver(
-    sincronizarBarraControlesInferior
-  );
-  observadorBarraControles.observe(document.body, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-  if (partida) {
-    observadorBarraControles.observe(partida, {
-      attributes: true,
-      attributeFilter: ["hidden"],
-    });
+
+function inicializarSala() {
+  if (salaInicializada) return false;
+  let observadorCreadoEnIntento = false;
+
+  try {
+    if (typeof MutationObserver !== "undefined" && document.body) {
+      observadorBarraControles = new MutationObserver(
+        sincronizarBarraControlesInferior
+      );
+      observadorCreadoEnIntento = true;
+      observadorBarraControles.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      if (partida) {
+        observadorBarraControles.observe(partida, {
+          attributes: true,
+          attributeFilter: ["hidden"],
+        });
+      }
+      modalesSala.forEach((modal) => {
+        observadorBarraControles.observe(modal, {
+          attributes: true,
+          attributeFilter: ["hidden"],
+        });
+      });
+    }
+
+    if (!cargaTableroVisual) {
+      cargaTableroVisual = fetch("/api/tablero")
+        .then((r) => {
+          if (!r.ok) throw new Error(`GET /api/tablero: HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((datos) => {
+          TABLERO_VISUAL = datos.tablero;
+          if (ultimaSala) {
+            pintarTablero(ultimaSala);
+          }
+        });
+      if (cargaTableroVisual && typeof cargaTableroVisual.catch === "function") {
+        cargaTableroVisual.catch((fallo) => {
+          console.error("No se pudo cargar el tablero visual.", fallo);
+          if (ultimaSala && ultimaSala.modo === "tablero") {
+            tableroVisual.hidden = false;
+            tableroAyuda.textContent =
+              "No se pudo cargar el tablero visual. Recarga la página para reintentarlo.";
+            tableroAyuda.classList.add("error");
+          }
+        });
+      }
+    }
+
+    const protocolo = window.location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(
+      `${protocolo}://${window.location.host}/ws/${encodeURIComponent(codigo)}/${encodeURIComponent(jugadorId)}`
+    );
+    configurarHandlersWebSocket();
+    salaInicializada = true;
+    error.textContent = "";
+    return true;
+  } catch (fallo) {
+    if (ws) {
+      try {
+        ws.close();
+      } catch (falloAlCerrar) {
+        console.error("No se pudo cerrar el WebSocket incompleto.", falloAlCerrar);
+      }
+      ws = null;
+    }
+    if (observadorCreadoEnIntento && observadorBarraControles) {
+      try {
+        observadorBarraControles.disconnect();
+      } catch (falloAlDesconectar) {
+        console.error("No se pudo desconectar el observador incompleto.", falloAlDesconectar);
+      }
+      observadorBarraControles = null;
+    }
+    salaInicializada = false;
+    error.textContent = "No se pudo iniciar la sala. Vuelve a intentarlo.";
+    console.error("No se pudo inicializar la sala.", fallo);
+    return false;
   }
-  modalesSala.forEach((modal) => {
-    observadorBarraControles.observe(modal, {
-      attributes: true,
-      attributeFilter: ["hidden"],
-    });
-  });
 }
 
-const cargaTableroVisual = fetch("/api/tablero")
-  .then((r) => {
-    if (!r.ok) throw new Error(`GET /api/tablero: HTTP ${r.status}`);
-    return r.json();
-  })
-  .then((datos) => {
-    TABLERO_VISUAL = datos.tablero;
-    if (ultimaSala) {
-      pintarTablero(ultimaSala);
-    }
-  });
-if (cargaTableroVisual && typeof cargaTableroVisual.catch === "function") {
-  cargaTableroVisual.catch((fallo) => {
-    console.error("No se pudo cargar el tablero visual.", fallo);
-    if (ultimaSala && ultimaSala.modo === "tablero") {
-      tableroVisual.hidden = false;
-      tableroAyuda.textContent =
-        "No se pudo cargar el tablero visual. Recarga la página para reintentarlo.";
-      tableroAyuda.classList.add("error");
-    }
-  });
-}
+window.inicializarSala = inicializarSala;
 
 // Manifiesto público (nombres e imágenes de personajes): sin secretos.
 fetch("/api/recursos")
@@ -588,12 +635,10 @@ fetch("/api/recursos")
     }
   });
 
-const protocolo = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(
-  `${protocolo}://${window.location.host}/ws/${encodeURIComponent(codigo)}/${encodeURIComponent(jugadorId)}`
-);
+inicializarSala();
 
-ws.onmessage = (evento) => {
+function configurarHandlersWebSocket() {
+  ws.onmessage = (evento) => {
   const mensaje = JSON.parse(evento.data);
   if (mensaje.tipo === "chat_mensaje") {
     if (
@@ -632,7 +677,11 @@ ws.onmessage = (evento) => {
   } else if (mensaje.tipo === "error") {
     error.textContent = mensaje.detalle;
   }
-};
+  };
+  ws.onclose = () => {
+    estado.textContent = "Conexión perdida. Recarga la página para reintentar.";
+  };
+}
 
 function cancelarAnimacionMovimiento(personajeId) {
   const animacion = animacionesMovimiento.get(personajeId);
@@ -718,10 +767,6 @@ function presentarEstadoPrivado(sala) {
     abrirLlegadaContextual(movimiento);
   }
 }
-
-ws.onclose = () => {
-  estado.textContent = "Conexión perdida. Recarga la página para reintentar.";
-};
 
 const TITULOS = {
   sospechoso: "SOSPECHOSOS",

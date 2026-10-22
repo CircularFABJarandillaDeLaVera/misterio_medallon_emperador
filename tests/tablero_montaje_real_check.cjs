@@ -11,9 +11,15 @@ const CSS = fs.readFileSync(
 );
 
 let fallos = 0;
+let riesgos = 0;
 function ok(condicion, nombre) {
   console.log(`${condicion ? "PASS" : "FAIL"} ${nombre}`);
   if (!condicion) fallos += 1;
+}
+
+function riesgo(condicion, nombre) {
+  console.log(`${condicion ? "PASS" : "RIESGO CONOCIDO"} ${nombre}`);
+  if (!condicion) riesgos += 1;
 }
 
 function elemento(tag) {
@@ -65,6 +71,8 @@ class ImagenMontaje {
 const registro = {};
 const documentStub = {
   body: elemento("body"),
+  documentElement: elemento("html"),
+  activeElement: null,
   _oyentes: {},
   getElementById(id) {
     if (!registro[id]) registro[id] = id === "tablero-canvas" ? new CanvasMontaje() : elemento("div");
@@ -74,6 +82,13 @@ const documentStub = {
   createElementNS(_ns, tag) { return elemento(tag); },
   addEventListener(tipo, fn) { (this._oyentes[tipo] ||= []).push(fn); },
   dispatch(tipo, evento) { (this._oyentes[tipo] || []).forEach((fn) => fn(evento)); },
+  querySelector(selector) {
+    if (selector === ".interfaz-sala") {
+      if (!registro["interfaz-sala"]) registro["interfaz-sala"] = elemento("main");
+      return registro["interfaz-sala"];
+    }
+    return null;
+  },
   querySelectorAll(selector) {
     if (selector !== ".modal") return [];
     return Object.entries(registro)
@@ -129,6 +144,9 @@ const descriptor = {
 let resolverTablero;
 let socket;
 let sincronizarBarra;
+let socketsCreados = 0;
+let observadoresMutacionCreados = 0;
+let observadoresTamanoCreados = 0;
 const enviados = [];
 const peticionesFetch = [];
 const temporizadores = [];
@@ -153,9 +171,10 @@ function temporizadoresPendientes() {
   return temporizadores.filter((item) => item.activo).length;
 }
 class WebSocketFalso {
-  constructor() { socket = this; }
+  constructor(url) { socket = this; this.url = url; socketsCreados += 1; }
   send(mensaje) { enviados.push(JSON.parse(mensaje)); }
 }
+WebSocketFalso.OPEN = 1;
 const fetchFalso = (url, opciones) => {
   peticionesFetch.push({ url, opciones });
   if (typeof url === "string" && url.startsWith("/api/tablero")) {
@@ -170,15 +189,22 @@ const sandbox = {
     location: { protocol: "http:", host: "localhost:8000" },
     devicePixelRatio: 2,
     Image: ImagenMontaje,
-    ResizeObserver: class { constructor(fn) { this.fn = fn; } observe() {} },
-    addEventListener() {},
+    ResizeObserver: class {
+      constructor(fn) { this.fn = fn; observadoresTamanoCreados += 1; }
+      observe() {}
+    },
+    _oyentes: {},
+    addEventListener(tipo, fn) { (this._oyentes[tipo] ||= []).push(fn); },
     setTimeout: programarTemporizador,
     clearTimeout: cancelarTemporizador,
   },
   sessionStorage: { getItem: () => "jug-real", setItem() {} },
   fetch: fetchFalso, WebSocket: WebSocketFalso, Set, Map,
   MutationObserver: class {
-    constructor(callback) { sincronizarBarra = callback; }
+    constructor(callback) {
+      sincronizarBarra = callback;
+      observadoresMutacionCreados += 1;
+    }
     observe() {}
   },
 };
@@ -247,7 +273,49 @@ vm.createContext(sandbox);
 
   sandbox.window.window = sandbox.window;
   vm.runInContext(fs.readFileSync(path.join(raiz, "app", "static", "js", "tablero_canvas.js"), "utf8"), sandbox, { filename: "tablero_canvas.js" });
-  vm.runInContext(fs.readFileSync(path.join(raiz, "app", "static", "js", "sala.js"), "utf8"), sandbox, { filename: "sala.js" });
+  const fuenteSala = fs.readFileSync(path.join(raiz, "app", "static", "js", "sala.js"), "utf8");
+  vm.runInContext(fuenteSala, sandbox, { filename: "sala.js" });
+  ok(typeof sandbox.inicializarSala === "function",
+    "sala.js expone el inicializador explícito");
+  ok(socketsCreados === 1, "el arranque de sala crea exactamente un WebSocket");
+  const solicitudesTableroIniciales = peticionesFetch.filter(
+    (peticion) => typeof peticion.url === "string" && peticion.url.startsWith("/api/tablero")
+  ).length;
+  ok(solicitudesTableroIniciales === 1,
+    "la primera inicialización solicita una vez el descriptor del tablero");
+  ok(socket.url === "ws://localhost:8000/ws/JARA-REAL/jug-real",
+    "el WebSocket usa una sola identidad de sala y jugador");
+  ok(observadoresMutacionCreados === 1,
+    "el arranque instala un solo observador de visibilidad de controles");
+  sandbox.inicializarSala();
+  sandbox.inicializarSala();
+  const solicitudesTableroTrasReentrada = peticionesFetch.filter(
+    (peticion) => typeof peticion.url === "string" && peticion.url.startsWith("/api/tablero")
+  ).length;
+  ok(socketsCreados === 1,
+    "dos llamadas adicionales no crean WebSockets duplicados");
+  ok(observadoresMutacionCreados === 1,
+    "dos llamadas adicionales no duplican observadores");
+  ok(solicitudesTableroTrasReentrada === solicitudesTableroIniciales,
+    "dos llamadas adicionales no repiten la petición del descriptor");
+  const oyentesDocumentoIniciales = Object.values(documentStub._oyentes)
+    .reduce((total, lista) => total + lista.length, 0);
+  const oyentesVentanaIniciales = Object.values(sandbox.window._oyentes)
+    .reduce((total, lista) => total + lista.length, 0);
+  ok(oyentesDocumentoIniciales > 0 && oyentesVentanaIniciales > 0,
+    "el harness contabiliza los eventos globales instalados por la sala");
+  let errorReentrada = null;
+  try {
+    vm.runInContext(fuenteSala, sandbox, { filename: "sala-segunda-ejecucion.js" });
+  } catch (error) {
+    errorReentrada = error;
+  }
+  riesgo(
+    errorReentrada === null,
+    "sala.js puede inicializarse dos veces sin colisionar ni duplicar recursos"
+  );
+  ok(socketsCreados === 1,
+    "una segunda evaluacion fallida no alcanza a abrir otro WebSocket");
   ok(registro["barra-controles-inferior"].hidden === true,
     "el lobby mantiene la barra oculta");
   const jugadores = personajes.map((id, i) => ({
@@ -279,6 +347,10 @@ vm.createContext(sandbox);
   ok(registro["btn-configuracion-partida"].hidden === false,
     "el anfitrión ve la configuración en la barra");
   ok(vm.runInContext("rendererCanvas", sandbox) === null, "la carrera se reproduce: el estado puede llegar antes del descriptor");
+  const temporizadoresTrasPrimerEstado = temporizadoresPendientes();
+  socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  ok(temporizadoresPendientes() === temporizadoresTrasPrimerEstado,
+    "repetir el mismo estado no programa una animacion de movimiento duplicada");
 
   registro["modal-aprender"].hidden = false;
   sincronizarBarra();
@@ -328,6 +400,23 @@ vm.createContext(sandbox);
 
   resolverTablero();
   await new Promise((resolve) => setImmediate(resolve));
+  ok(observadoresTamanoCreados === 1,
+    "el tablero crea un solo observador de tamano");
+  const rendererInicial = vm.runInContext("rendererCanvas", sandbox);
+  let actualizacionesDuplicadas = 0;
+  const actualizarReal = rendererInicial.actualizar.bind(rendererInicial);
+  rendererInicial.actualizar = (...argumentos) => {
+    actualizacionesDuplicadas += 1;
+    return actualizarReal(...argumentos);
+  };
+  const temporizadoresAntesDeDuplicado = temporizadoresPendientes();
+  socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
+  ok(vm.runInContext("rendererCanvas", sandbox) === rendererInicial,
+    "un estado repetido reutiliza el renderer Canvas existente");
+  ok(temporizadoresPendientes() === temporizadoresAntesDeDuplicado,
+    "un estado repetido no duplica temporizadores tras montar el Canvas");
+  riesgo(actualizacionesDuplicadas === 0,
+    "un estado privado identico evita un repintado Canvas innecesario");
   await new Promise((resolve) => setImmediate(resolve));
   ok(registro["tablero-visual"].hidden === false, "el contenedor permanece visible tras cargar descriptor");
   ok(
@@ -485,6 +574,131 @@ vm.createContext(sandbox);
   ok(registro["tablero-canvas-accesible"].children.length > 0,
     "la capa accesible y sus controles sobreviven al fallo visual de Canvas");
 
+  function crearContextoConFalloInicializacion() {
+    const fallosIniciales = {
+      constructorObservador: true,
+      observar: false,
+      fetchTablero: false,
+      constructorWebSocket: false,
+      observadores: [],
+      intentosWebSocket: 0,
+      sockets: [],
+      solicitudesTablero: 0,
+    };
+    class ObservadorConFallo {
+      constructor(callback) {
+        if (fallosIniciales.constructorObservador) {
+          throw new Error("fallo simulado del constructor MutationObserver");
+        }
+        this.callback = callback;
+        this.desconectado = false;
+        fallosIniciales.observadores.push(this);
+      }
+      observe() {
+        if (fallosIniciales.observar) {
+          throw new Error("fallo simulado de MutationObserver.observe");
+        }
+      }
+      disconnect() { this.desconectado = true; }
+    }
+    class WebSocketConFallo {
+      constructor(url) {
+        fallosIniciales.intentosWebSocket += 1;
+        if (fallosIniciales.constructorWebSocket) {
+          throw new Error("fallo simulado del constructor WebSocket");
+        }
+        this.url = url;
+        this.cerrado = false;
+        fallosIniciales.sockets.push(this);
+      }
+      send() {}
+      close() { this.cerrado = true; }
+    }
+    WebSocketConFallo.OPEN = 1;
+    const fetchConFallo = (url) => {
+      if (url === "/api/tablero") {
+        fallosIniciales.solicitudesTablero += 1;
+        if (fallosIniciales.fetchTablero) {
+          throw new Error("fallo simulado síncrono de fetch");
+        }
+        return new Promise(() => {});
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => url === "/api/personajes"
+          ? { personajes: [] }
+          : { recursos: {} },
+      });
+    };
+    const contexto = vm.createContext({
+      ...sandbox,
+      MutationObserver: ObservadorConFallo,
+      WebSocket: WebSocketConFallo,
+      fetch: fetchConFallo,
+    });
+    vm.runInContext(fuenteSala, contexto, {
+      filename: "sala-fallo-inicializacion.js",
+    });
+    return { contexto, fallosIniciales };
+  }
+
+  const falloConstructorObservador = crearContextoConFalloInicializacion();
+  ok(falloConstructorObservador.fallosIniciales.observadores.length === 0 &&
+    falloConstructorObservador.fallosIniciales.solicitudesTablero === 0 &&
+    falloConstructorObservador.fallosIniciales.intentosWebSocket === 0,
+  "fallar el constructor del observer no inicia los recursos posteriores");
+  falloConstructorObservador.fallosIniciales.constructorObservador = false;
+  ok(falloConstructorObservador.contexto.inicializarSala() === true &&
+    falloConstructorObservador.fallosIniciales.observadores.length === 1 &&
+    falloConstructorObservador.fallosIniciales.solicitudesTablero === 1 &&
+    falloConstructorObservador.fallosIniciales.sockets.length === 1,
+  "fallar el constructor del observer permite reintentar sin recursos duplicados");
+
+  const falloObserve = crearContextoConFalloInicializacion();
+  falloObserve.fallosIniciales.constructorObservador = false;
+  falloObserve.fallosIniciales.observar = true;
+  ok(falloObserve.contexto.inicializarSala() === false &&
+    falloObserve.fallosIniciales.observadores.length === 1 &&
+    falloObserve.fallosIniciales.observadores[0].desconectado &&
+    falloObserve.fallosIniciales.solicitudesTablero === 0 &&
+    falloObserve.fallosIniciales.sockets.length === 0,
+  "fallar observe desconecta el observer parcial y no crea recursos posteriores");
+  falloObserve.fallosIniciales.observar = false;
+  ok(falloObserve.contexto.inicializarSala() === true &&
+    falloObserve.fallosIniciales.observadores.filter((observador) => !observador.desconectado).length === 1 &&
+    falloObserve.fallosIniciales.solicitudesTablero === 1 &&
+    falloObserve.fallosIniciales.sockets.length === 1,
+  "reintentar tras fallar observe crea una sola instancia activa de cada recurso");
+
+  const falloFetchTablero = crearContextoConFalloInicializacion();
+  falloFetchTablero.fallosIniciales.constructorObservador = false;
+  falloFetchTablero.fallosIniciales.fetchTablero = true;
+  ok(falloFetchTablero.contexto.inicializarSala() === false &&
+    falloFetchTablero.fallosIniciales.observadores[0].desconectado &&
+    falloFetchTablero.fallosIniciales.solicitudesTablero === 1 &&
+    falloFetchTablero.fallosIniciales.intentosWebSocket === 0,
+  "un fetch síncrono fallido revierte el observer y no crea el WebSocket");
+  falloFetchTablero.fallosIniciales.fetchTablero = false;
+  ok(falloFetchTablero.contexto.inicializarSala() === true &&
+    falloFetchTablero.fallosIniciales.solicitudesTablero === 2 &&
+    falloFetchTablero.fallosIniciales.sockets.length === 1,
+  "reintentar tras fallo síncrono de fetch vuelve a solicitar el tablero una sola vez");
+
+  const falloConstructorSocket = crearContextoConFalloInicializacion();
+  falloConstructorSocket.fallosIniciales.constructorObservador = false;
+  falloConstructorSocket.fallosIniciales.constructorWebSocket = true;
+  ok(falloConstructorSocket.contexto.inicializarSala() === false &&
+    falloConstructorSocket.fallosIniciales.observadores[0].desconectado &&
+    falloConstructorSocket.fallosIniciales.solicitudesTablero === 1 &&
+    falloConstructorSocket.fallosIniciales.intentosWebSocket === 1,
+  "un constructor WebSocket fallido revierte el observer y conserva la carga iniciada");
+  falloConstructorSocket.fallosIniciales.constructorWebSocket = false;
+  ok(falloConstructorSocket.contexto.inicializarSala() === true &&
+    falloConstructorSocket.fallosIniciales.solicitudesTablero === 1 &&
+    falloConstructorSocket.fallosIniciales.sockets.length === 1 &&
+    typeof falloConstructorSocket.fallosIniciales.sockets[0].onmessage === "function",
+  "reintentar tras fallo WebSocket reutiliza la carga y enlaza los handlers");
+
   if (fallos) process.exit(1);
-  console.log("MONTAJE REAL TABLERO OK");
+  console.log(`MONTAJE REAL TABLERO OK · RIESGOS CONOCIDOS ${riesgos}`);
 })().catch((error) => { console.error(error); process.exit(1); });

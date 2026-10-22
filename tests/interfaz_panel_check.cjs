@@ -56,7 +56,11 @@ const documentStub = {
     return registro[id];
   },
   createElement: makeElemento,
+  querySelector() { return null; },
+  querySelectorAll() { return []; },
+  addEventListener() {},
   body: cuerpo,
+  documentElement: { classList: cuerpo.classList },
 };
 registro.codigo = makeElemento("p");
 registro.codigo.textContent = "JARA-TEST";

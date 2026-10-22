@@ -90,6 +90,7 @@ function elemento(tag = "div", id = "") {
 const registro = {};
 const documento = {
   body: elemento("body"),
+  documentElement: elemento("html"),
   activeElement: null,
   oyentes: {},
   getElementById(id) {
