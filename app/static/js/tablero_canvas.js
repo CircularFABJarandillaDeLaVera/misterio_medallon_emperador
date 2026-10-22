@@ -28,8 +28,11 @@
       this.areasPeones = [];
       this.metricas = {};
       this._alPulsar = (evento) => this._pulsar(evento);
+      this._alMover = (evento) => this._cursor(evento);
+      this._alRedimensionar = () => this.redimensionar();
+      this._destruido = false;
       canvas.addEventListener("pointerup", this._alPulsar);
-      canvas.addEventListener("pointermove", (evento) => this._cursor(evento));
+      canvas.addEventListener("pointermove", this._alMover);
       this._precargar();
       this._observarTamano();
       this.redimensionar();
@@ -40,7 +43,8 @@
         this.observador = new global.ResizeObserver(() => this.redimensionar());
         this.observador.observe(this.canvas);
       } else if (global.addEventListener) {
-        global.addEventListener("resize", () => this.redimensionar());
+        global.addEventListener("resize", this._alRedimensionar);
+        this._escuchaResize = true;
       }
     }
 
@@ -59,11 +63,13 @@
       const registro = { estado: "cargando", imagen: new global.Image() };
       this.imagenes.set(url, registro);
       registro.imagen.onload = () => {
+        if (this._destruido) return;
         registro.estado = "lista";
         if (esPeon) this.peonesTintados.clear();
         this.dibujar();
       };
       registro.imagen.onerror = () => {
+        if (this._destruido) return;
         registro.estado = "error";
         this.dibujar();
       };
@@ -71,6 +77,7 @@
     }
 
     actualizar(estado, descriptor = this.descriptor, posicionesVisuales = this.posicionesVisuales) {
+      if (this._destruido) return;
       if (descriptor !== this.descriptor) {
         this.descriptor = descriptor;
         this._precargar();
@@ -83,6 +90,7 @@
     }
 
     redimensionar() {
+      if (this._destruido) return;
       const rect = this.canvas.getBoundingClientRect();
       const lado = Math.max(1, Math.round(rect.width || this.canvas.clientWidth || 800));
       const dpr = Math.max(1, Number(global.devicePixelRatio) || 1);
@@ -91,6 +99,47 @@
       this.ladoCss = lado;
       this.dpr = dpr;
       this.dibujar();
+    }
+
+    destruir() {
+      if (this._destruido) return;
+      this._destruido = true;
+
+      if (this._raf) {
+        if (typeof global.cancelAnimationFrame === "function") {
+          global.cancelAnimationFrame(this._raf);
+        }
+        this._raf = 0;
+      }
+      this._animando = false;
+      this._pulsoNecesario = false;
+
+      if (this.observador) {
+        this.observador.disconnect();
+        this.observador = null;
+      }
+      if (this._escuchaResize && global.removeEventListener) {
+        global.removeEventListener("resize", this._alRedimensionar);
+        this._escuchaResize = false;
+      }
+      if (this.canvas.removeEventListener) {
+        this.canvas.removeEventListener("pointerup", this._alPulsar);
+        this.canvas.removeEventListener("pointermove", this._alMover);
+      }
+
+      this.imagenes.forEach((recurso) => {
+        if (!recurso.imagen) return;
+        recurso.imagen.onload = null;
+        recurso.imagen.onerror = null;
+      });
+      this.imagenes.clear();
+      this.peonesTintados.clear();
+      this.areas = [];
+      this.areasPeones = [];
+      this.acciones = {};
+      this.estado = null;
+      this.descriptor = null;
+      this.posicionesVisuales = new Map();
     }
 
     _preparar() {
@@ -102,7 +151,7 @@
     }
 
     dibujar() {
-      if (!this.ladoCss || !this.descriptor) return;
+      if (this._destruido || !this.ladoCss || !this.descriptor) return;
       const ctx = this.ctx;
       this._preparar();
       const nodos = new Map(this.descriptor.nodos.map((n) => [n.id, n]));
@@ -185,6 +234,7 @@
     }
 
     _vigilarPulso(necesario) {
+      if (this._destruido) return;
       this._pulsoNecesario = Boolean(necesario);
       if (!this._pulsoNecesario || !this._puedeAnimar()) {
         this._animando = false;
@@ -198,6 +248,7 @@
       }
       if (!this._raf) {
         const paso = (instante) => {
+          if (this._destruido) return;
           this._raf = 0;
           this._fasePulso = instante || 0;
           this.dibujar();
@@ -401,6 +452,7 @@
     }
 
     _pulsar(evento) {
+      if (this._destruido) return;
       const area = this._areaEn(evento);
       if (!area) return;
       if (area.tipo === "peon") {
@@ -417,6 +469,7 @@
     }
 
     _cursor(evento) {
+      if (this._destruido) return;
       const area = this._areaEn(evento);
       this.canvas.style.cursor = area && (area.tipo === "peon" || area.tipo === "ubicacion" || area.legal) ? "pointer" : "default";
     }

@@ -37,14 +37,23 @@ class CanvasFalso {
   getContext() { return this.ctx; }
   getBoundingClientRect() { return { left: 0, top: 0, width: this.lado, height: this.lado }; }
   addEventListener(tipo, fn) { (this.oyentes[tipo] ||= []).push(fn); }
+  removeEventListener(tipo, fn) {
+    this.oyentes[tipo] = (this.oyentes[tipo] || []).filter((oyente) => oyente !== fn);
+  }
   emitir(tipo, x, y) { (this.oyentes[tipo] || []).forEach((fn) => fn({ clientX: x * this.lado / 100, clientY: y * this.lado / 100 })); }
 }
 
 let fallarFotos = new Set();
+let diferirCargaImagenes = false;
+const imagenesCreadas = [];
 class ImagenFalsa {
-  constructor() { this.naturalWidth = 800; this.naturalHeight = 600; this.width = 800; this.height = 600; }
+  constructor() {
+    this.naturalWidth = 800; this.naturalHeight = 600; this.width = 800; this.height = 600;
+    imagenesCreadas.push(this);
+  }
   set src(url) {
     this._src = url;
+    if (diferirCargaImagenes) return;
     if (fallarFotos.has(url)) { if (this.onerror) this.onerror(new Error("fallo")); }
     else if (this.onload) this.onload();
   }
@@ -86,9 +95,38 @@ const jugadores = personajes.map((id, i) => ({
 }));
 const estado = { jugadores, turno_alias: "J1", movimiento: { destinos: [{ id: casillaLegal.id }, { id: "plaza-constitucion" }] } };
 
-const ventana = { devicePixelRatio: 2, Image: ImagenFalsa, addEventListener() {} };
+const oyentesVentana = {};
+const observadoresTamano = [];
+const rafPendientes = new Map();
+const rafCancelados = [];
+let siguienteRaf = 1;
+const ventana = {
+  devicePixelRatio: 2,
+  Image: ImagenFalsa,
+  addEventListener(tipo, fn) { (oyentesVentana[tipo] ||= []).push(fn); },
+  removeEventListener(tipo, fn) {
+    oyentesVentana[tipo] = (oyentesVentana[tipo] || []).filter((oyente) => oyente !== fn);
+  },
+  requestAnimationFrame(fn) {
+    const id = siguienteRaf++;
+    rafPendientes.set(id, fn);
+    return id;
+  },
+  cancelAnimationFrame(id) {
+    rafCancelados.push(id);
+    rafPendientes.delete(id);
+  },
+};
 ventana.window = ventana;
-ventana.ResizeObserver = class { constructor(fn) { this.fn = fn; } observe() {} };
+ventana.ResizeObserver = class {
+  constructor(fn) {
+    this.fn = fn;
+    this.desconectado = false;
+    observadoresTamano.push(this);
+  }
+  observe() {}
+  disconnect() { this.desconectado = true; }
+};
 const sandbox = {
   window: ventana, console,
   document: { createElement(tag) { return tag === "canvas" ? new CanvasFalso(64) : {}; } },
@@ -232,6 +270,65 @@ const rendererFallos = new ventana.TableroCanvas(canvasFallos, descriptor, {});
 rendererFallos.actualizar(estado);
 ok(rendererFallos.imagenes.get("/static/img/lugares/tablero_parador.png").estado === "error" && rendererFallos.metricas.ubicaciones === 9, "fallo de imagen_tablero usa placeholder sin destruir tablero");
 ok(rendererFallos.imagenes.get(descriptor.peon).estado === "error" && rendererFallos.metricas.peones === 6, "fallo de peon.svg usa fallback geométrico");
+
+diferirCargaImagenes = true;
+const canvasDestruido = new CanvasFalso(420);
+const rendererDestruido = new ventana.TableroCanvas(canvasDestruido, descriptor, {});
+const posicionesVisualesExternas = new Map([["vera", "parador"]]);
+rendererDestruido.actualizar(estado, descriptor, posicionesVisualesExternas);
+const callbacksImagen = [...rendererDestruido.imagenes.values()]
+  .map((recurso) => recurso.imagen.onload)
+  .filter(Boolean);
+const rafDestruido = rendererDestruido._raf;
+const callbackRaf = rafPendientes.get(rafDestruido);
+const operacionesAntesDeDestruir = canvasDestruido.ctx.operaciones.length;
+const observadorDestruido = rendererDestruido.observador;
+ok(Boolean(rafDestruido && callbackRaf), "el renderer registra el RAF activo del pulso");
+rendererDestruido.destruir();
+ok(observadorDestruido.desconectado, "destruir desconecta el ResizeObserver");
+ok((canvasDestruido.oyentes.pointerup || []).length === 0 &&
+  (canvasDestruido.oyentes.pointermove || []).length === 0,
+"destruir retira ambos listeners persistentes del Canvas");
+ok(!rafPendientes.has(rafDestruido) && rafCancelados.includes(rafDestruido),
+"destruir cancela el RAF pendiente");
+ok(rendererDestruido.imagenes.size === 0 && rendererDestruido.peonesTintados.size === 0,
+"destruir libera las cachés de imágenes y peones tintados");
+ok(posicionesVisualesExternas.get("vera") === "parador",
+"destruir no modifica el mapa de posiciones compartido por quien llama al renderer");
+rendererDestruido.destruir();
+ok(observadoresTamano.filter((observador) => observador === observadorDestruido && observador.desconectado).length === 1 &&
+  rafCancelados.filter((id) => id === rafDestruido).length === 1,
+"una segunda destrucción no repite la limpieza");
+callbacksImagen.forEach((callback) => callback());
+callbackRaf(123);
+rendererDestruido.actualizar(estado);
+rendererDestruido.redimensionar();
+rendererDestruido.dibujar();
+ok(canvasDestruido.ctx.operaciones.length === operacionesAntesDeDestruir,
+"callbacks de imagen y RAF, y llamadas posteriores, no repintan el renderer destruido");
+
+diferirCargaImagenes = false;
+const rendererNuevo = new ventana.TableroCanvas(canvasDestruido, descriptor, {});
+rendererNuevo.actualizar(estado);
+ok((canvasDestruido.oyentes.pointerup || []).length === 1 &&
+  (canvasDestruido.oyentes.pointermove || []).length === 1 &&
+  rendererNuevo.metricas.peones === 6,
+"se puede montar y dibujar un renderer nuevo sobre el mismo Canvas");
+rendererNuevo.destruir();
+
+const ResizeObserverOriginal = ventana.ResizeObserver;
+ventana.ResizeObserver = null;
+const canvasResizeAlternativo = new CanvasFalso(300);
+const oyentesResizeAntes = (oyentesVentana.resize || []).length;
+const rendererResizeAlternativo = new ventana.TableroCanvas(
+  canvasResizeAlternativo, descriptor, {}
+);
+ok((oyentesVentana.resize || []).length === oyentesResizeAntes + 1,
+"sin ResizeObserver se registra el listener alternativo de resize");
+rendererResizeAlternativo.destruir();
+ok((oyentesVentana.resize || []).length === oyentesResizeAntes,
+"destruir retira el listener alternativo de resize");
+ventana.ResizeObserver = ResizeObserverOriginal;
 
 if (fallos) process.exit(1);
 console.log("TABLERO CANVAS OK");
