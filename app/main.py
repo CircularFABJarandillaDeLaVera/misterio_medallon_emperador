@@ -513,7 +513,8 @@ def _respuesta_error(mensaje: str, estado: int = 400):
     return JSONResponse(status_code=estado, content={"detalle": mensaje})
 
 
-def _desconectar_ws(codigo: str, jugador_id: str, ws: WebSocket) -> None:
+def _desconectar_ws(codigo: str, jugador_id: str, ws: WebSocket) -> bool:
+    """Retira una pantalla y devuelve si era la última del jugador."""
     pantallas = conexiones.get(codigo, {}).get(jugador_id, [])
     if ws in pantallas:
         pantallas.remove(ws)
@@ -521,6 +522,7 @@ def _desconectar_ws(codigo: str, jugador_id: str, ws: WebSocket) -> None:
         conexiones.get(codigo, {}).pop(jugador_id, None)
     if not conexiones.get(codigo):
         conexiones.pop(codigo, None)
+    return not pantallas
 
 
 async def _enviar_privado(
@@ -1119,9 +1121,9 @@ async def websocket_sala(ws: WebSocket, codigo: str, jugador_id: str):
     except WebSocketDisconnect:
         pass
     finally:
-        _desconectar_ws(sala.codigo, jugador_id, ws)
-        if sala.estado == ESTADO_ESPERANDO:
-            # En el lobby la salida sí elimina al jugador.
+        ultima_conexion = _desconectar_ws(sala.codigo, jugador_id, ws)
+        if sala.estado == ESTADO_ESPERANDO and ultima_conexion:
+            # En el lobby solo la última pantalla elimina al jugador.
             sala.quitar_jugador(jugador_id)
             if not sala.jugadores:
                 gestor.salas.pop(sala.codigo, None)
