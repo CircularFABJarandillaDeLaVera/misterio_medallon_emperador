@@ -106,6 +106,7 @@ function crearEntorno() {
     inmersiones: () => inmersiones,
     focoActivo: () => documentStub.activeElement && documentStub.activeElement.id,
     tieneClaseHtml: (clase) => clasesHtml.has(clase),
+    preparacion: () => windowStub.PreparacionPortadaMovil,
   };
 }
 
@@ -143,6 +144,20 @@ for (const [abrir, modal, foco, cancelar, nombre] of casos) {
   elementos[cancelar].click();
   ok(elementos[modal].hidden === true, `${nombre}: cancelar vuelve a la portada`);
 }
+
+const continuidad = crearEntorno();
+const botonPreparacion = continuidad.elementos["btn-entrar-pantalla-completa"];
+const oyenteCompletar = botonPreparacion._oyentes.click;
+continuidad.preparacion().inicializar();
+ok(botonPreparacion._oyentes.click === oyenteCompletar,
+  "reinicializar la primera vista no duplica el evento de preparación");
+botonPreparacion.click();
+const inmersionesTrasCompletar = continuidad.inmersiones();
+continuidad.preparacion().inicializar({ cambioInterno: true });
+ok(continuidad.elementos["modal-preparacion-movil"].hidden === true,
+  "un cambio interno no repite la preparación cinematográfica");
+ok(continuidad.inmersiones() === inmersionesTrasCompletar,
+  "un cambio interno no solicita de nuevo fullscreen ni orientación");
 
 if (fallos) process.exitCode = 1;
 else console.log("PREPARACIÓN PORTADA MÓVIL OK");

@@ -21,20 +21,61 @@ function ok(condicion, nombre) {
 function nodo(tag) {
   return {
     tag, type: "", className: "", innerHTML: "", hidden: false,
-    children: [], _attrs: {}, _oyentes: {},
+    textContent: "", children: [], parentNode: null, _attrs: {}, _oyentes: {},
+    classList: {
+      _dueno: null,
+      contains(clase) {
+        return this._dueno.className.split(/\s+/).includes(clase);
+      },
+      add(clase) {
+        if (!this.contains(clase)) this._dueno.className += ` ${clase}`;
+      },
+      remove(clase) {
+        this._dueno.className = this._dueno.className
+          .split(/\s+/).filter((valor) => valor && valor !== clase).join(" ");
+      },
+      toggle(clase, fuerza) {
+        const activar = fuerza === undefined ? !this.contains(clase) : Boolean(fuerza);
+        if (activar) this.add(clase);
+        else this.remove(clase);
+        return activar;
+      },
+    },
     setAttribute(k, v) { this._attrs[k] = String(v); },
     getAttribute(k) { return this._attrs[k]; },
-    appendChild(h) { this.children.push(h); return h; },
+    appendChild(h) {
+      if (h.parentNode) {
+        h.parentNode.children = h.parentNode.children.filter((n) => n !== h);
+      }
+      h.parentNode = this;
+      this.children.push(h);
+      return h;
+    },
     addEventListener(e, fn) { (this._oyentes[e] = this._oyentes[e] || []).push(fn); },
     click() { (this._oyentes.click || []).forEach((fn) => fn()); },
   };
 }
 
+function prepararNodo(tag) {
+  const elemento = nodo(tag);
+  elemento.classList._dueno = elemento;
+  return elemento;
+}
+
+function crearAlmacen(inicial = {}) {
+  const datos = new Map(Object.entries(inicial));
+  return {
+    getItem(clave) { return datos.has(clave) ? datos.get(clave) : null; },
+    setItem(clave, valor) { datos.set(clave, String(valor)); },
+    removeItem(clave) { datos.delete(clave); },
+  };
+}
+
 function montar(opciones) {
-  const raiz = nodo("html");
+  const raiz = prepararNodo("html");
   const oyentesDoc = {};
-  const cuerpo = nodo("body");
-  const marco = nodo("section");
+  const cuerpo = prepararNodo("body");
+  const marco = prepararNodo("section");
   if (opciones.sinMarco !== true) {
     marco.className = opciones.marcoClase || "portada-escena";
   }
@@ -43,7 +84,8 @@ function montar(opciones) {
     body: cuerpo,
     fullscreenElement: null,
     webkitFullscreenElement: null,
-    createElement: nodo,
+    createElement: prepararNodo,
+    getElementById() { return null; },
     addEventListener(e, fn) { (oyentesDoc[e] = oyentesDoc[e] || []).push(fn); },
     querySelector(sel) {
       if (sel === ".barra-controles-inferior" && marco.className === "barra-controles-inferior") return marco;
@@ -67,17 +109,90 @@ function montar(opciones) {
       return Promise.resolve();
     };
   }
-  const sandbox = { console, document: doc, Promise, Error };
+  const sandbox = {
+    console, document: doc, Promise, Error,
+    sessionStorage: opciones.almacen || crearAlmacen(),
+  };
   vm.createContext(sandbox);
   vm.runInContext(FUENTE, sandbox, { filename: "pantalla_completa.js" });
   return {
-    doc, cuerpo, raiz, marco,
+    doc, cuerpo, raiz, marco, pantalla: () => sandbox.PantallaCompleta,
     boton: () => marco.children[0] || cuerpo.children[0],
     pide: () => pedirLlamadas,
     pedir: () => pedirLlamadas,
     salir: () => salirLlamadas,
     cambiarFullscreen: () => (oyentesDoc.fullscreenchange || []).forEach((fn) => fn()),
     error: () => (oyentesDoc.fullscreenerror || []).forEach((fn) => fn()),
+    oyentes: () => Object.values(oyentesDoc).reduce((total, lista) => total + lista.length, 0),
+    recargarModulo: () => vm.runInContext(FUENTE, sandbox, { filename: "pantalla_completa-repetida.js" }),
+  };
+}
+
+function montarSalaReal({ almacen, rechaza = false }) {
+  const raiz = prepararNodo("html");
+  const cuerpo = prepararNodo("body");
+  const tarjeta = prepararNodo("section");
+  tarjeta.className = "tarjeta lobby-marco";
+  const lobby = prepararNodo("p");
+  lobby.className = "lobby-sala-linea";
+  const barra = prepararNodo("nav");
+  barra.className = "barra-controles-inferior";
+  barra.hidden = true;
+  const codigo = prepararNodo("span");
+  codigo.textContent = "JARA-TEST";
+  const oyentesDoc = {};
+  let observador = null;
+  let observadoresCreados = 0;
+  let pedirLlamadas = 0;
+
+  raiz.requestFullscreen = () => {
+    pedirLlamadas += 1;
+    if (rechaza) return Promise.reject(new Error("denegado"));
+    doc.fullscreenElement = raiz;
+    return Promise.resolve();
+  };
+  const doc = {
+    documentElement: raiz,
+    body: cuerpo,
+    fullscreenElement: null,
+    webkitFullscreenElement: null,
+    exitFullscreen() {
+      this.fullscreenElement = null;
+      return Promise.resolve();
+    },
+    createElement: prepararNodo,
+    getElementById(id) { return id === "codigo" ? codigo : null; },
+    addEventListener(e, fn) { (oyentesDoc[e] = oyentesDoc[e] || []).push(fn); },
+    querySelector(selector) {
+      if (selector === ".lobby-sala-linea") return lobby;
+      if (selector === ".barra-controles-inferior") return barra;
+      if (selector === ".tarjeta") return tarjeta;
+      return null;
+    },
+  };
+  class ObservadorFalso {
+    constructor(fn) { observador = fn; observadoresCreados += 1; }
+    observe() {}
+  }
+  const sandbox = {
+    console, document: doc, Promise, Error,
+    sessionStorage: almacen,
+    MutationObserver: ObservadorFalso,
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(FUENTE, sandbox, { filename: "pantalla_completa.js" });
+  const boton = () => lobby.children[0] || barra.children[0];
+  return {
+    doc, lobby, barra, boton, pantalla: () => sandbox.PantallaCompleta,
+    pedir: () => pedirLlamadas,
+    observadores: () => observadoresCreados,
+    recargarModulo: () => vm.runInContext(FUENTE, sandbox, { filename: "pantalla-sala-repetida.js" }),
+    cambiarFullscreen: () => (oyentesDoc.fullscreenchange || []).forEach((fn) => fn()),
+    errorFullscreen: () => (oyentesDoc.fullscreenerror || []).forEach((fn) => fn()),
+    empezarPartida() {
+      cuerpo.classList.add("en-partida");
+      if (observador) observador();
+    },
   };
 }
 
@@ -93,10 +208,17 @@ ok(
 );
 ok(boton && boton._attrs.title === "Pantalla completa", "tooltip inicial: Pantalla completa");
 ok(boton && boton._attrs["aria-label"] === "Pantalla completa", "aria-label inicial correcto");
-ok(boton && boton.children.length === 2, "icono entrar/salir presentes");
+ok(boton && boton.children.length === 3, "iconos y etiqueta de recuperación presentes");
 ok(boton && boton.children[0].innerHTML.includes("<svg"), "icono de entrada es SVG (⛶)");
 ok(boton && boton.children[0].hidden === false && boton.children[1].hidden === true,
   "estado inicial: muestra entrar, oculta salir");
+const servicioPantalla = m.pantalla();
+const oyentesPantallaIniciales = m.oyentes();
+m.recargarModulo();
+ok(m.pantalla() === servicioPantalla && m.boton() === boton,
+  "una segunda carga reutiliza el servicio y el mismo control");
+ok(m.marco.children.length === 1 && m.oyentes() === oyentesPantallaIniciales,
+  "una segunda carga no duplica controles ni eventos fullscreen");
 
 // Entrar: el propio click entra y el evento resincroniza.
 boton.click();
@@ -141,6 +263,14 @@ const inicioJs = fs.readFileSync(path.join(__dirname, "..", "app", "static", "js
 const salaJs = fs.readFileSync(path.join(__dirname, "..", "app", "static", "js", "sala.js"), "utf8");
 ok(!/requestFullscreen/.test(inicioJs) && !/requestFullscreen/.test(salaJs),
   "inicio.js y sala.js no reimplementan el control");
+ok(/PantallaCompleta\.actualizarFase/.test(salaJs),
+  "la sala actualiza la ubicación mediante la interfaz compartida");
+ok(
+  (inicioJs.match(
+    /registrarContinuidadPantallaCompleta\(datos\);\s*window\.location\.href/g
+  ) || []).length === 3,
+  "crear, unirse y cargar registran continuidad justo antes de navegar"
+);
 
 // Lobby y partida comparten el mismo módulo con su marco canónico.
 const lobby = montar({ soportado: true, marcoClase: "tarjeta" });
@@ -152,6 +282,73 @@ ok(lobby.boton().className === boton.className,
 const sala = montar({ soportado: true, marcoClase: "barra-controles-inferior" });
 ok(sala.marco.children.length === 1 && sala.cuerpo.children.length === 0,
   "en la sala el control se monta dentro de la barra inferior compartida");
+
+// Navegación real: el documento de portada registra intención, la sala nace
+// fuera de fullscreen y ofrece recuperar mediante el mismo control.
+const almacenContinuidad = crearAlmacen({ jugador_id: "jugador-1" });
+const portadaActiva = montar({ soportado: true, almacen: almacenContinuidad });
+portadaActiva.boton().click();
+ok(
+  portadaActiva.pantalla().registrarContinuidad({
+    codigo: "JARA-TEST", jugador_id: "jugador-1",
+  }),
+  "la portada registra continuidad solo mientras Fullscreen API está activa"
+);
+const lobbyReal = montarSalaReal({ almacen: almacenContinuidad });
+const servicioSala = lobbyReal.pantalla();
+lobbyReal.recargarModulo();
+ok(lobbyReal.pantalla() === servicioSala && lobbyReal.observadores() === 1,
+  "reinicializar la sala no duplica el observador de ubicación");
+ok(lobbyReal.lobby.children.length === 1 && lobbyReal.barra.children.length === 0,
+  "con lobby y barra coexistiendo, el control visible se monta junto al código");
+ok(
+  lobbyReal.boton().children[2].hidden === false &&
+    lobbyReal.boton()._attrs["aria-label"] === "Continuar en pantalla completa",
+  "la sala muestra la acción explícita de recuperación"
+);
+ok(almacenContinuidad.getItem("pantalla_completa_pendiente") === null,
+  "la señal temporal se consume al llegar a la sala correcta");
+lobbyReal.boton().click();
+ok(lobbyReal.pedir() === 1, "la recuperación requiere y usa un clic del jugador");
+lobbyReal.cambiarFullscreen();
+ok(
+  lobbyReal.boton().children[2].hidden &&
+    lobbyReal.boton()._attrs["aria-label"] === "Salir de pantalla completa",
+  "al recuperar, el texto deja paso al control normal"
+);
+lobbyReal.empezarPartida();
+ok(lobbyReal.barra.children[0] === lobbyReal.boton() && lobbyReal.lobby.children.length === 0,
+  "al empezar, el mismo nodo se traslada a la barra del tablero");
+const controlMovible = lobbyReal.boton();
+lobbyReal.pantalla().actualizarFase("seleccion");
+ok(lobbyReal.lobby.children[0] === controlMovible && lobbyReal.barra.children.length === 0,
+  "la API de fase devuelve el mismo control a la selección");
+lobbyReal.pantalla().actualizarFase("tablero");
+ok(lobbyReal.barra.children[0] === controlMovible && lobbyReal.lobby.children.length === 0,
+  "la API de fase mueve la única instancia al tablero");
+
+const almacenNormal = crearAlmacen({ jugador_id: "jugador-1" });
+const lobbyNormal = montarSalaReal({ almacen: almacenNormal });
+ok(
+  lobbyNormal.boton().children[2].hidden &&
+    lobbyNormal.boton()._attrs["aria-label"] === "Pantalla completa",
+  "sin fullscreen previo no aparece una recuperación innecesaria"
+);
+
+const almacenRechazo = crearAlmacen({
+  jugador_id: "jugador-1",
+  pantalla_completa_pendiente: JSON.stringify({
+    codigo: "JARA-TEST", jugador_id: "jugador-1",
+  }),
+});
+const lobbyRechazo = montarSalaReal({ almacen: almacenRechazo, rechaza: true });
+lobbyRechazo.boton().click();
+lobbyRechazo.errorFullscreen();
+ok(
+  lobbyRechazo.doc.fullscreenElement === null &&
+    lobbyRechazo.boton().children[2].hidden === false,
+  "si el navegador rechaza la solicitud, el lobby sigue estable y permite reintentar"
+);
 
 // Sin marco identificado: degradación sin romper la aplicación.
 const suelto = montar({ soportado: true, sinMarco: true });

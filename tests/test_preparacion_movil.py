@@ -30,7 +30,7 @@ def test_la_escena_tiene_el_contenido_y_una_unica_accion_principal():
 
 def test_la_preparacion_se_abre_antes_de_pintar_la_seleccion():
     inicio = SALA_JS.index("function presentarEstadoPrivado")
-    fin = SALA_JS.index("ws.onclose", inicio)
+    fin = SALA_JS.index("\nconst TITULOS =", inicio)
     presentacion = SALA_JS[inicio:fin]
     assert presentacion.index("prepararInterfazMovilAntesDeMostrar(sala)") < presentacion.index(
         "pintarSala(sala)"
@@ -120,6 +120,9 @@ def test_la_sala_no_repite_la_preparacion_terminada_en_portada():
     assert "entradaPendiente.preparacion_completada === true" in preparacion
     assert "guardarPreparacionMovilVista();" in preparacion
     assert "borrarEntradaPreparacionMovil();" in preparacion
+    assert "window.PreparacionPortadaMovil" in INICIO_JS
+    assert "preparacionCompletadaEnEsteDocumento" in SALA_JS
+    assert "window.PreparacionSalaMovil" in SALA_JS
 
 
 def test_fullscreen_y_orientacion_son_mejoras_progresivas():

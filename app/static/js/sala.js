@@ -327,8 +327,21 @@ function completarPreparacionMovil() {
   focoTrasPreparacionMovil = null;
 }
 
-function prepararInterfazMovilAntesDeMostrar(sala) {
+function prepararInterfazMovilAntesDeMostrar(sala, opciones = {}) {
   const entradaPendiente = entradaPreparacionMovilPendiente();
+  const preparacionCompletadaEnEsteDocumento = Boolean(
+    window.PreparacionPortadaMovil &&
+    typeof window.PreparacionPortadaMovil.estaCompletada === "function" &&
+    window.PreparacionPortadaMovil.estaCompletada()
+  );
+  if (opciones.cambioInterno === true || preparacionCompletadaEnEsteDocumento) {
+    guardarPreparacionMovilVista();
+    borrarEntradaPreparacionMovil();
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+    document.documentElement.classList.remove("preparacion-movil-activa");
+    if (interfazSala) interfazSala.inert = false;
+    return false;
+  }
   if (!esTelefonoMovil()) {
     if (entradaPendiente) borrarEntradaPreparacionMovil();
     document.documentElement.classList.remove("preparacion-movil-inicial");
@@ -351,6 +364,11 @@ function prepararInterfazMovilAntesDeMostrar(sala) {
   }
   return false;
 }
+
+window.PreparacionSalaMovil = {
+  actualizar: prepararInterfazMovilAntesDeMostrar,
+  completar: completarPreparacionMovil,
+};
 
 if (btnEntrarPantallaCompleta) {
   btnEntrarPantallaCompleta.addEventListener("click", completarPreparacionMovil);
@@ -1029,6 +1047,14 @@ function pintarSala(sala) {
     } else {
       estado.textContent = "";
     }
+  }
+  if (
+    window.PantallaCompleta &&
+    typeof window.PantallaCompleta.actualizarFase === "function"
+  ) {
+    window.PantallaCompleta.actualizarFase(
+      sala.estado === "esperando" ? "seleccion" : "tablero"
+    );
   }
 }
 

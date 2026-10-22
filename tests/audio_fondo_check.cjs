@@ -8,6 +8,9 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const FUENTE_AUDIO = fs.readFileSync(
+  path.join(__dirname, "..", "app", "static", "js", "audio.js"), "utf8"
+);
 
 let fallos = 0;
 function ok(cond, nombre) {
@@ -67,7 +70,14 @@ function makeElemento(tag) {
     get textContent() { return this._texto; },
     set innerHTML(v) { this._html = String(v); },
     get innerHTML() { return this._html; },
-    appendChild(hijo) { hijo.parentElement = el; this.children.push(hijo); return hijo; },
+    appendChild(hijo) {
+      if (hijo.parentElement) {
+        hijo.parentElement.children = hijo.parentElement.children.filter((nodo) => nodo !== hijo);
+      }
+      hijo.parentElement = el;
+      this.children.push(hijo);
+      return hijo;
+    },
     addEventListener(evento, fn) {
       (this._oyentes[evento] = this._oyentes[evento] || []).push(fn);
     },
@@ -219,12 +229,14 @@ function crearEntorno({
   sandbox.setTimeout = setTimeout;
   sandbox.clearTimeout = clearTimeout;
   vm.createContext(sandbox);
-  vm.runInContext(
-    fs.readFileSync(path.join(__dirname, "..", "app", "static", "js", "audio.js"), "utf8"),
-    sandbox,
-    { filename: "audio.js" }
-  );
-  return { sandbox, instancias, almacen, sesion, documentStub, tarjeta, barra, marcoCompleta };
+  vm.runInContext(FUENTE_AUDIO, sandbox, { filename: "audio.js" });
+  return {
+    sandbox, instancias, almacen, sesion, documentStub, tarjeta, barra, marcoCompleta,
+    oyentes: () => Object.values(oyentesDoc).reduce((total, lista) => total + lista.length, 0),
+    recargarModulo: () => vm.runInContext(
+      FUENTE_AUDIO, sandbox, { filename: "audio-repetido.js" }
+    ),
+  };
 }
 
 function control(entorno) {
@@ -308,6 +320,31 @@ async function main() {
   ok(Math.abs(musica.volume - 0.22) < 1e-9, "D · en el lobby el nivel objetivo es 0,22");
   ok(audio.volumenActual() === 0.15, "D · el volumen general por defecto sigue siendo 0,15");
   ok(musica.preload === "metadata", "la musica sigue pidiendo solo metadato");
+
+  // Ciclo de vida compartido: recargar accidentalmente el módulo y cambiar
+  // de vista reutilizan tanto la pista como el control y los listeners.
+  const controlCompartido = control(entorno);
+  const instanciasAntesDeRecargar = entorno.instancias.length;
+  const oyentesAntesDeRecargar = entorno.oyentes();
+  const servicioAudio = entorno.sandbox.window.AudioFondo;
+  musica.currentTime = 31;
+  entorno.recargarModulo();
+  ok(entorno.sandbox.window.AudioFondo === servicioAudio,
+    "una segunda carga conserva la misma instancia del servicio de audio");
+  ok(entorno.instancias.length === instanciasAntesDeRecargar,
+    "una segunda carga no crea otra pista ni otro reproductor");
+  ok(entorno.oyentes() === oyentesAntesDeRecargar,
+    "una segunda carga no duplica eventos de audio");
+  const anfitrionSeleccion = makeElemento("div");
+  const reproduccionesAntesDeFase = musica.reproducciones;
+  audio.actualizarFase("seleccion", anfitrionSeleccion);
+  ok(anfitrionSeleccion.children[0] === controlCompartido,
+    "la selección recibe el mismo control de sonido");
+  audio.actualizarFase("tablero", entorno.barra);
+  ok(entorno.barra.children.includes(controlCompartido),
+    "el tablero recupera la única instancia del control de sonido");
+  ok(musica.currentTime === 31 && musica.reproducciones === reproduccionesAntesDeFase,
+    "cambiar de fase no reinicia ni reproduce de nuevo la música");
 
   // La cancion continua: se fija un punto y se comprueba que sigue en el.
   musica.currentTime = 77;
@@ -439,13 +476,16 @@ async function main() {
         if (!registro[id]) registro[id] = makeElemento("div");
         return registro[id];
       },
+      querySelector() { return null; },
       querySelectorAll() { return []; },
       createElement: (tag) => makeElemento(tag),
       addEventListener() {},
       removeEventListener() {},
       body: makeElemento("body"),
       activeElement: null,
-      documentElement: {},
+      documentElement: {
+        classList: { add() {}, remove() {}, contains() { return false; } },
+      },
     };
     registro.codigo = makeElemento("p");
     registro.codigo.textContent = "JARA-AUDIO";

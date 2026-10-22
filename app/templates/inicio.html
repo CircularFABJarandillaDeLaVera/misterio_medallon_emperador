@@ -426,12 +426,11 @@
     </div>
   </div>
 
-  <script src="/static/js/inicio.js?v=admin6&amp;preparacion=movil4"></script>
-  <script src="/static/js/pantalla_completa.js?v=8b19"></script>
-  <!-- 8B.33B: solo la infraestructura de EFECTOS (clic). La musica
-       ambiental sigue existiendo solo en la sala y no se descarga aqui:
-       la pista musical se crea de forma perezosa al pedirla. -->
-  <script src="/static/js/audio.js?v=8b33b"></script>
+  <script src="/static/js/inicio.js?v=admin6&amp;preparacion=movil4&amp;ciclo=2"></script>
+  <script src="/static/js/pantalla_completa.js?v=8b19&amp;continuidad=1&amp;ciclo=2"></script>
+  <!-- Audio compartido: ambiente continuo y efectos reutilizan una sola
+       instancia por pista; el navegador conserva siempre la decisión de play. -->
+  <script src="/static/js/audio.js?v=8b33b&amp;ciclo=2"></script>
   <script src="/static/js/aprender_a_jugar.js?v=fase3a"></script>
   <script src="/static/js/historia.js?v=fase3b&amp;preparacion=movil1"></script>
 </body>

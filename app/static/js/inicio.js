@@ -26,6 +26,7 @@ let ultimoFoco = null;
 let cargandoPartida = false;
 let preparacionPortadaCompletada = false;
 let preparacionPortadaActiva = false;
+let preparacionPortadaInicializada = false;
 
 function modalAbierto() {
   for (const id of MODALES_PORTADA) {
@@ -86,14 +87,23 @@ function ajustarSuperficiePreparacionMovil() {
   modalPreparacionMovil.style.height = `${alto}px`;
 }
 
-function iniciarPreparacionPortadaMovil() {
+function iniciarPreparacionPortadaMovil(opciones = {}) {
+  if (
+    opciones.cambioInterno === true ||
+    preparacionPortadaCompletada ||
+    preparacionPortadaInicializada
+  ) {
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+    return false;
+  }
+  preparacionPortadaInicializada = true;
   if (!esTelefonoMovil()) {
     document.documentElement.classList.remove("preparacion-movil-inicial");
-    return;
+    return false;
   }
   if (!modalPreparacionMovil || !btnEntrarPantallaCompleta) {
     document.documentElement.classList.remove("preparacion-movil-inicial");
-    return;
+    return false;
   }
   ajustarSuperficiePreparacionMovil();
   modalPreparacionMovil.hidden = false;
@@ -108,6 +118,7 @@ function iniciarPreparacionPortadaMovil() {
   }
   preparacionPortadaActiva = true;
   btnEntrarPantallaCompleta.focus();
+  return true;
 }
 
 function completarPreparacionPortada() {
@@ -129,6 +140,14 @@ function completarPreparacionPortada() {
   const focoPortada = $("btn-nueva");
   if (focoPortada && focoPortada.focus) focoPortada.focus();
 }
+
+// Interfaz de ciclo de vida para la futura navegación interna. Reentrar en
+// portada no vuelve a ejecutar la preparación cinematográfica del documento.
+window.PreparacionPortadaMovil = {
+  inicializar: iniciarPreparacionPortadaMovil,
+  completar: completarPreparacionPortada,
+  estaCompletada: () => preparacionPortadaCompletada,
+};
 
 if (btnEntrarPantallaCompleta) {
   btnEntrarPantallaCompleta.addEventListener("click", completarPreparacionPortada);
@@ -202,6 +221,15 @@ function prepararEntradaMovil(datos, origen) {
   }
 }
 
+function registrarContinuidadPantallaCompleta(datos) {
+  if (
+    window.PantallaCompleta &&
+    typeof window.PantallaCompleta.registrarContinuidad === "function"
+  ) {
+    window.PantallaCompleta.registrarContinuidad(datos);
+  }
+}
+
 async function crearPartida() {
   const alias = $("alias").value.trim();
   $("error-nueva").textContent = "";
@@ -230,6 +258,7 @@ async function crearPartida() {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
     prepararEntradaMovil(datos, "crear");
+    registrarContinuidadPantallaCompleta(datos);
     window.location.href = `/sala/${datos.codigo}`;
   } finally {
     if (boton) boton.disabled = false;
@@ -266,6 +295,7 @@ async function unirsePartida() {
     sessionStorage.setItem("jugador_id", datos.jugador_id);
     sessionStorage.setItem("alias", datos.alias);
     prepararEntradaMovil(datos, "unirse");
+    registrarContinuidadPantallaCompleta(datos);
     window.location.href = `/sala/${datos.codigo}`;
   } finally {
     if (boton) boton.disabled = false;
@@ -336,6 +366,7 @@ async function cargarPartida() {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
     prepararEntradaMovil(datos, "cargar");
+    registrarContinuidadPantallaCompleta(datos);
     window.location.href = `/sala/${datos.codigo}`;
   } catch (e) {
     if (error) error.textContent = "NO SE PUDO LEER EL ARCHIVO.";

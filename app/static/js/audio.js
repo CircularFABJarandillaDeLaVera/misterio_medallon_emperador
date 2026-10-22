@@ -17,6 +17,11 @@
      ningun sistema de audio paralelo. */(function () {
   "use strict";
 
+  if (window.AudioFondo && window.AudioFondo.__servicioCompartido === true) {
+    window.AudioFondo.inicializar();
+    return;
+  }
+
   const CLAVE_VOLUMEN = "volumen_musica";
   const VOLUMEN_POR_DEFECTO = 0.15;
   const NOMBRE_TRACK = "musica_fondo";
@@ -440,6 +445,31 @@
     valor.textContent = `${Math.round(volumen * 100)}%`;
   }
 
+  function colocarControl(fase, anfitrion) {
+    if (fase === "portada") {
+      panel.hidden = true;
+      boton.hidden = true;
+      sincronizarControl();
+      return;
+    }
+    boton.hidden = false;
+    const destino = anfitrion || (
+      fase === "tablero" || fase === "final"
+        ? doc.querySelector(".barra-controles-inferior")
+        : doc.querySelector(".lobby-sala-linea") ||
+          doc.querySelector(".barra-controles-inferior")
+    ) || doc.querySelector(".tarjeta") || doc.body;
+    if (destino && boton.parentElement !== destino) destino.appendChild(boton);
+  }
+
+  function actualizarFase(fase, anfitrion) {
+    colocarControl(fase, anfitrion);
+    if (fase === "final") detener();
+    else if (fase === "tablero") iniciar();
+    else reanudarAmbiental();
+    return boton;
+  }
+
   boton.addEventListener("click", function () {
     panel.hidden = !panel.hidden;
     boton.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
@@ -506,7 +536,15 @@
       /* Manifiesto no disponible: se mantienen las rutas por defecto. */
     });
 
+  function inicializar(fase, anfitrion) {
+    if (fase) actualizarFase(fase, anfitrion);
+    return window.AudioFondo;
+  }
+
   window.AudioFondo = {
+    __servicioCompartido: true,
+    inicializar: inicializar,
+    actualizarFase: actualizarFase,
     iniciar: iniciar,
     reanudarAmbiental: reanudarAmbiental,
     detener: detener,
