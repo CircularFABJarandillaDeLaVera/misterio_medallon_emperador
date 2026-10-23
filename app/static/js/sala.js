@@ -166,6 +166,7 @@ let salaInicializada = false;
 let ws = null;
 let cargaTableroVisual = null;
 let observadorBarraControles = null;
+let raizObservadaBarraControles;
 
 let PERSONAJES = [];
 let cargaPersonajes = null;
@@ -419,22 +420,58 @@ if (window.visualViewport && window.visualViewport.addEventListener) {
 prepararInterfazMovilAntesDeMostrar(null);
 
 function sincronizarBarraControlesInferior() {
-  if (!barraControlesInferior) return;
+  const raizSalaActual = document.querySelector(".interfaz-sala");
+  const barraActual = raizSalaActual
+    ? document.getElementById("barra-controles-inferior")
+    : null;
+  const partidaActual = raizSalaActual
+    ? document.getElementById("partida")
+    : null;
+  if (!barraActual) return;
   const tableroPrincipalVisible = Boolean(
-    partida &&
-    !partida.hidden &&
+    partidaActual &&
+    !partidaActual.hidden &&
     document.body &&
     document.body.classList &&
     document.body.classList.contains("en-partida")
   );
-  const raizSalaActual = document.querySelector(".interfaz-sala");
   const modales = raizSalaActual && raizSalaActual.querySelectorAll
     ? Array.from(raizSalaActual.querySelectorAll(".modal"))
     : document.querySelectorAll
       ? Array.from(document.querySelectorAll(".modal"))
       : [];
   const modalVisible = modales.some((modal) => !modal.hidden);
-  barraControlesInferior.hidden = !tableroPrincipalVisible || modalVisible;
+  barraActual.hidden = !tableroPrincipalVisible || modalVisible;
+}
+
+function observarRaizActualBarraControles() {
+  if (!observadorBarraControles) return false;
+  const raizActual = document.querySelector(".interfaz-sala");
+  if (raizObservadaBarraControles !== undefined && raizActual === raizObservadaBarraControles) {
+    return false;
+  }
+
+  if (raizObservadaBarraControles !== undefined) {
+    observadorBarraControles.disconnect();
+  }
+  raizObservadaBarraControles = raizActual;
+
+  if (document.body) {
+    observadorBarraControles.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+      childList: true,
+    });
+  }
+  if (raizActual) {
+    observadorBarraControles.observe(raizActual, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+  }
+  return true;
 }
 
 function actualizarIndicadorChat() {
@@ -574,28 +611,12 @@ function inicializarSala() {
     cargarPersonajes();
 
     if (typeof MutationObserver !== "undefined" && document.body) {
-      observadorBarraControles = new MutationObserver(
-        sincronizarBarraControlesInferior
-      );
-      observadorCreadoEnIntento = true;
-      observadorBarraControles.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class"],
+      observadorBarraControles = new MutationObserver(() => {
+        observarRaizActualBarraControles();
+        sincronizarBarraControlesInferior();
       });
-      if (partida) {
-        observadorBarraControles.observe(partida, {
-          attributes: true,
-          attributeFilter: ["hidden"],
-        });
-      }
-      if (interfazSala) {
-        observadorBarraControles.observe(interfazSala, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ["hidden"],
-        });
-      }
+      observadorCreadoEnIntento = true;
+      observarRaizActualBarraControles();
     }
 
     if (!cargaTableroVisual) {
@@ -647,6 +668,7 @@ function inicializarSala() {
         console.error("No se pudo desconectar el observador incompleto.", falloAlDesconectar);
       }
       observadorBarraControles = null;
+      raizObservadaBarraControles = undefined;
     }
     salaInicializada = false;
     error.textContent = "No se pudo iniciar la sala. Vuelve a intentarlo.";
