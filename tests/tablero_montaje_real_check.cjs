@@ -12,6 +12,7 @@ const CSS = fs.readFileSync(
 
 let fallos = 0;
 let riesgos = 0;
+let contratosPendientes = 0;
 function ok(condicion, nombre) {
   console.log(`${condicion ? "PASS" : "FAIL"} ${nombre}`);
   if (!condicion) fallos += 1;
@@ -20,6 +21,15 @@ function ok(condicion, nombre) {
 function riesgo(condicion, nombre) {
   console.log(`${condicion ? "PASS" : "RIESGO CONOCIDO"} ${nombre}`);
   if (!condicion) riesgos += 1;
+}
+
+function contrato(condicion, nombre, motivo) {
+  console.log(
+    condicion
+      ? `PASS CONTRATO ${nombre}`
+      : `XFAIL CONTRATO ${nombre} · ${motivo}`
+  );
+  if (!condicion) contratosPendientes += 1;
 }
 
 function elemento(tag) {
@@ -140,6 +150,429 @@ const descriptor = {
     alvaro: "#176b73", mateo: "#c49324", eulalia: "#b33a2f",
   },
 };
+
+/* Contrato futuro de SalaJuego. Este escenario empieza como una portada real:
+   no inventa nodos al consultarlos y solo incorpora la interfaz cuando la
+   prueba llama a insertarSala(). Los contadores observan efectos efectivos,
+   no la presencia textual de nombres o funciones en sala.js. */
+function crearEscenarioContrato(interfazSala) {
+  const nodos = {};
+  const metricas = {
+    listeners: 0,
+    observadores: 0,
+    sockets: [],
+    peticiones: [],
+    temporizadores: [],
+    redirecciones: [],
+  };
+  let siguienteTemporizadorContrato = 1;
+  let raizSala = null;
+
+  function nodoContrato(tag, id = null) {
+    const nodo = tag === "canvas" ? new CanvasMontaje() : elemento(tag);
+    const agregarOriginal = nodo.addEventListener.bind(nodo);
+    nodo.addEventListener = (tipo, fn) => {
+      metricas.listeners += 1;
+      agregarOriginal(tipo, fn);
+    };
+    nodo.removeEventListener = (tipo, fn) => {
+      const lista = nodo._oyentes[tipo] || [];
+      nodo._oyentes[tipo] = lista.filter((oyente) => oyente !== fn);
+    };
+    nodo.querySelector = (selector) => {
+      if (selector === '[role="dialog"]') return elemento("div");
+      if (selector.startsWith("#")) return nodos[selector.slice(1)] || null;
+      return null;
+    };
+    nodo.querySelectorAll = (selector) => {
+      if (selector === ".modal") {
+        return Object.entries(nodos)
+          .filter(([clave]) => clave.startsWith("modal-"))
+          .map(([, modal]) => modal);
+      }
+      return [];
+    };
+    nodo.ownerDocument = null;
+    if (id) nodos[id] = nodo;
+    return nodo;
+  }
+
+  const body = nodoContrato("body");
+  const documentElement = nodoContrato("html");
+  const documentStubContrato = {
+    body,
+    documentElement,
+    activeElement: null,
+    readyState: "complete",
+    _oyentes: {},
+    getElementById(id) { return nodos[id] || null; },
+    createElement(tag) { return nodoContrato(tag); },
+    createElementNS(_ns, tag) { return nodoContrato(tag); },
+    addEventListener(tipo, fn) {
+      metricas.listeners += 1;
+      (this._oyentes[tipo] ||= []).push(fn);
+    },
+    removeEventListener(tipo, fn) {
+      const lista = this._oyentes[tipo] || [];
+      this._oyentes[tipo] = lista.filter((oyente) => oyente !== fn);
+    },
+    querySelector(selector) {
+      if (selector === ".interfaz-sala") return raizSala;
+      if (selector.startsWith("#")) return nodos[selector.slice(1)] || null;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === ".modal") {
+        return Object.entries(nodos)
+          .filter(([clave]) => clave.startsWith("modal-"))
+          .map(([, modal]) => modal);
+      }
+      return [];
+    },
+  };
+  body.ownerDocument = documentStubContrato;
+  documentElement.ownerDocument = documentStubContrato;
+
+  const ubicacion = { protocol: "http:", host: "localhost:8000" };
+  let href = "http://localhost:8000/";
+  Object.defineProperty(ubicacion, "href", {
+    get() { return href; },
+    set(valor) {
+      href = String(valor);
+      metricas.redirecciones.push(href);
+    },
+  });
+
+  class WebSocketContrato {
+    constructor(url) {
+      this.url = url;
+      this.readyState = 1;
+      metricas.sockets.push(this);
+    }
+    send() {}
+    close() { this.readyState = 3; }
+  }
+  WebSocketContrato.OPEN = 1;
+  WebSocketContrato.CLOSED = 3;
+
+  class ObservadorContrato {
+    constructor(callback) {
+      this.callback = callback;
+      this.desconectado = false;
+      metricas.observadores += 1;
+    }
+    observe() {}
+    disconnect() { this.desconectado = true; }
+  }
+
+  const visualViewport = {
+    width: 1280, height: 720, offsetLeft: 0, offsetTop: 0, _oyentes: {},
+    addEventListener(tipo, fn) {
+      metricas.listeners += 1;
+      (this._oyentes[tipo] ||= []).push(fn);
+    },
+    removeEventListener(tipo, fn) {
+      const lista = this._oyentes[tipo] || [];
+      this._oyentes[tipo] = lista.filter((oyente) => oyente !== fn);
+    },
+  };
+
+  const contexto = {
+    console,
+    document: documentStubContrato,
+    location: ubicacion,
+    visualViewport,
+    innerWidth: 1280,
+    innerHeight: 720,
+    screen: { width: 1280, height: 720 },
+    devicePixelRatio: 1,
+    Image: ImagenMontaje,
+    navigator: { maxTouchPoints: 0 },
+    sessionStorage: {
+      getItem(clave) { return clave === "jugador_id" ? "jug-contrato" : null; },
+      setItem() {},
+      removeItem() {},
+    },
+    fetch(url, opciones) {
+      metricas.peticiones.push({ url, opciones });
+      if (url === "/api/tablero") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ tablero: descriptor }) });
+      }
+      if (url === "/api/recursos") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ recursos: {} }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ personajes: [] }) });
+    },
+    WebSocket: WebSocketContrato,
+    MutationObserver: ObservadorContrato,
+    ResizeObserver: class { observe() {} disconnect() {} },
+    Set,
+    Map,
+    URL,
+    Blob,
+    _oyentes: {},
+    addEventListener(tipo, fn) {
+      metricas.listeners += 1;
+      (this._oyentes[tipo] ||= []).push(fn);
+    },
+    removeEventListener(tipo, fn) {
+      const lista = this._oyentes[tipo] || [];
+      this._oyentes[tipo] = lista.filter((oyente) => oyente !== fn);
+    },
+    setTimeout(fn, ms) {
+      const registroTemporizador = {
+        id: siguienteTemporizadorContrato++, fn, ms, activo: true,
+      };
+      metricas.temporizadores.push(registroTemporizador);
+      return registroTemporizador.id;
+    },
+    clearTimeout(id) {
+      const registroTemporizador = metricas.temporizadores.find((item) => item.id === id);
+      if (registroTemporizador) registroTemporizador.activo = false;
+    },
+  };
+  contexto.window = contexto;
+  contexto.globalThis = contexto;
+  contexto.matchMedia = () => ({ matches: false });
+  vm.createContext(contexto);
+
+  function insertarSala() {
+    for (const coincidencia of interfazSala.matchAll(/id="([^"]+)"/g)) {
+      const id = coincidencia[1];
+      if (!nodos[id]) nodoContrato(id === "tablero-canvas" ? "canvas" : "div", id);
+    }
+    for (const id of [
+      "modal-preparacion-movil",
+      "btn-entrar-pantalla-completa",
+      "preparacion-movil-nota",
+    ]) {
+      if (!nodos[id]) nodoContrato("div", id);
+    }
+    nodos.codigo.textContent = "JARA-CONTRATO";
+    raizSala = nodoContrato("main");
+    raizSala.className = "contenedor lobby-contenedor interfaz-sala";
+    raizSala.ownerDocument = documentStubContrato;
+    return raizSala;
+  }
+
+  function servicioSala() {
+    return contexto.SalaJuego || contexto.window.SalaJuego || null;
+  }
+
+  function peticionesSala() {
+    return metricas.peticiones.filter(({ url }) =>
+      url === "/api/personajes" || url === "/api/recursos" || url === "/api/tablero"
+    );
+  }
+
+  return {
+    contexto,
+    metricas,
+    insertarSala,
+    servicioSala,
+    peticionesSala,
+  };
+}
+
+async function comprobarContratoSalaJuego(fuenteSala, interfazSala) {
+  console.log("\nCONTRATO FUTURO DE MONTAJE SALAJUEGO");
+
+  const portada = crearEscenarioContrato(interfazSala);
+  let errorCargaPortada = null;
+  try {
+    vm.runInContext(fuenteSala, portada.contexto, {
+      filename: "sala-contrato-portada.js",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+  } catch (error) {
+    errorCargaPortada = error;
+  }
+  const detalleCarga = errorCargaPortada
+    ? `la evaluacion aborta: ${errorCargaPortada.name}: ${errorCargaPortada.message}`
+    : "SalaJuego todavia no esta publicado";
+  contrato(
+    errorCargaPortada === null,
+    "cargar sala.js sin HTML de sala no provoca excepciones",
+    detalleCarga
+  );
+  contrato(
+    errorCargaPortada === null && portada.metricas.redirecciones.length === 0,
+    "la portada no se redirige al evaluar el controlador de sala",
+    detalleCarga
+  );
+  contrato(
+    errorCargaPortada === null && portada.metricas.sockets.length === 0,
+    "la carga sin interfaz no abre WebSockets",
+    detalleCarga
+  );
+  contrato(
+    errorCargaPortada === null && portada.peticionesSala().length === 0,
+    "la carga sin interfaz no solicita recursos propios de sala",
+    detalleCarga
+  );
+  contrato(
+    errorCargaPortada === null && portada.metricas.listeners === 0,
+    "la carga sin interfaz no registra listeners propios de sala",
+    detalleCarga
+  );
+  contrato(
+    errorCargaPortada === null &&
+      portada.servicioSala() &&
+      typeof portada.servicioSala().montar === "function",
+    "la evaluacion deja disponible SalaJuego.montar()",
+    detalleCarga
+  );
+
+  const raizMontaje = portada.insertarSala();
+  const servicio = portada.servicioSala();
+  const antesMontaje = {
+    sockets: portada.metricas.sockets.length,
+    observadores: portada.metricas.observadores,
+    peticiones: portada.peticionesSala().length,
+    listeners: portada.metricas.listeners,
+    temporizadores: portada.metricas.temporizadores.filter((item) => item.activo).length,
+  };
+  let errorMontaje = null;
+  if (servicio && typeof servicio.montar === "function") {
+    try {
+      await servicio.montar({
+        codigo: "JARA-CONTRATO",
+        jugadorId: "jug-contrato",
+        raiz: raizMontaje,
+        cambioInterno: true,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    } catch (error) {
+      errorMontaje = error;
+    }
+  }
+  const motivoSinServicio = errorMontaje
+    ? `montar() falla: ${errorMontaje.name}: ${errorMontaje.message}`
+    : "SalaJuego.montar() no existe todavia";
+  const peticionesTrasMontaje = portada.peticionesSala();
+  const cantidadesPorRuta = peticionesTrasMontaje.reduce((cantidades, { url }) => {
+    cantidades[url] = (cantidades[url] || 0) + 1;
+    return cantidades;
+  }, {});
+  const recursosSinDuplicar = ["/api/personajes", "/api/recursos", "/api/tablero"]
+    .every((url) => cantidadesPorRuta[url] === 1);
+  contrato(
+    Boolean(servicio) && errorMontaje === null &&
+      portada.metricas.sockets.length === antesMontaje.sockets + 1,
+    "el montaje diferido abre exactamente un WebSocket",
+    motivoSinServicio
+  );
+  contrato(
+    Boolean(servicio) && errorMontaje === null &&
+      portada.metricas.observadores === antesMontaje.observadores + 1,
+    "el montaje diferido registra exactamente un observador de sala",
+    motivoSinServicio
+  );
+  contrato(
+    Boolean(servicio) && errorMontaje === null &&
+      peticionesTrasMontaje.length > antesMontaje.peticiones && recursosSinDuplicar,
+    "el montaje carga una sola vez cada recurso necesario",
+    motivoSinServicio
+  );
+  contrato(
+    Boolean(servicio) && errorMontaje === null &&
+      portada.metricas.listeners > antesMontaje.listeners,
+    "el montaje asocia los listeners despues de existir la interfaz",
+    motivoSinServicio
+  );
+
+  const trasPrimerMontaje = {
+    sockets: portada.metricas.sockets.length,
+    observadores: portada.metricas.observadores,
+    peticiones: portada.peticionesSala().length,
+    listeners: portada.metricas.listeners,
+    temporizadores: portada.metricas.temporizadores.filter((item) => item.activo).length,
+  };
+  let errorRepeticionMontaje = null;
+  if (servicio && typeof servicio.montar === "function") {
+    try {
+      await servicio.montar({
+        codigo: "JARA-CONTRATO", jugadorId: "jug-contrato",
+        raiz: raizMontaje, cambioInterno: true,
+      });
+      await servicio.montar({
+        codigo: "JARA-CONTRATO", jugadorId: "jug-contrato",
+        raiz: raizMontaje, cambioInterno: true,
+      });
+    } catch (error) {
+      errorRepeticionMontaje = error;
+    }
+  }
+  const montajeIdempotente = Boolean(servicio) && errorMontaje === null &&
+    errorRepeticionMontaje === null &&
+    portada.metricas.sockets.length === trasPrimerMontaje.sockets &&
+    portada.metricas.observadores === trasPrimerMontaje.observadores &&
+    portada.peticionesSala().length === trasPrimerMontaje.peticiones &&
+    portada.metricas.listeners === trasPrimerMontaje.listeners &&
+    portada.metricas.temporizadores.filter((item) => item.activo).length ===
+      trasPrimerMontaje.temporizadores;
+  contrato(
+    montajeIdempotente,
+    "montar dos veces la misma sala no duplica recursos",
+    errorRepeticionMontaje
+      ? `la repeticion falla: ${errorRepeticionMontaje.name}: ${errorRepeticionMontaje.message}`
+      : motivoSinServicio
+  );
+
+  const directa = crearEscenarioContrato(interfazSala);
+  directa.insertarSala();
+  let errorEntradaDirecta = null;
+  try {
+    vm.runInContext(fuenteSala, directa.contexto, {
+      filename: "sala-contrato-directa.js",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+  } catch (error) {
+    errorEntradaDirecta = error;
+  }
+  const servicioDirecto = directa.servicioSala();
+  contrato(
+    errorEntradaDirecta === null && Boolean(servicioDirecto) &&
+      directa.metricas.sockets.length === 1 &&
+      directa.metricas.sockets[0].url ===
+        "ws://localhost:8000/ws/JARA-CONTRATO/jug-contrato",
+    "la entrada directa monta automaticamente con codigo e identidad existentes",
+    errorEntradaDirecta
+      ? `el arranque directo falla: ${errorEntradaDirecta.name}: ${errorEntradaDirecta.message}`
+      : "la entrada directa actual conecta, pero no expone el servicio SalaJuego"
+  );
+
+  const socketsAntesDeRecarga = directa.metricas.sockets.length;
+  const observadoresAntesDeRecarga = directa.metricas.observadores;
+  const peticionesAntesDeRecarga = directa.peticionesSala().length;
+  const listenersAntesDeRecarga = directa.metricas.listeners;
+  const servicioAntesDeRecarga = servicioDirecto;
+  let errorCargaDuplicada = null;
+  try {
+    vm.runInContext(fuenteSala, directa.contexto, {
+      filename: "sala-contrato-carga-duplicada.js",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+  } catch (error) {
+    errorCargaDuplicada = error;
+  }
+  contrato(
+    errorCargaDuplicada === null && servicioAntesDeRecarga &&
+      directa.servicioSala() === servicioAntesDeRecarga &&
+      directa.metricas.sockets.length === socketsAntesDeRecarga &&
+      directa.metricas.observadores === observadoresAntesDeRecarga &&
+      directa.peticionesSala().length === peticionesAntesDeRecarga &&
+      directa.metricas.listeners === listenersAntesDeRecarga,
+    "una carga accidental duplicada conserva una sola instancia y sus recursos",
+    errorCargaDuplicada
+      ? `la segunda evaluacion lanza ${errorCargaDuplicada.name}: ${errorCargaDuplicada.message}`
+      : "SalaJuego no conserva todavia una instancia compartida verificable"
+  );
+}
 
 let resolverTablero;
 let socket;
@@ -585,9 +1018,9 @@ vm.createContext(sandbox);
   ok(registro["tablero-canvas-accesible"].children.length > 0,
     "la capa accesible y sus controles sobreviven al fallo visual de Canvas");
 
-  function crearContextoConFalloInicializacion() {
+  function crearContextoConFalloInicializacion(opciones = {}) {
     const fallosIniciales = {
-      constructorObservador: true,
+      constructorObservador: opciones.falloConstructorObservador !== false,
       observar: false,
       fetchTablero: false,
       constructorWebSocket: false,
@@ -595,6 +1028,7 @@ vm.createContext(sandbox);
       intentosWebSocket: 0,
       sockets: [],
       solicitudesTablero: 0,
+      solicitudesPersonajes: 0,
     };
     class ObservadorConFallo {
       constructor(callback) {
@@ -627,6 +1061,13 @@ vm.createContext(sandbox);
     }
     WebSocketConFallo.OPEN = 1;
     const fetchConFallo = (url) => {
+      if (url === "/api/personajes") {
+        fallosIniciales.solicitudesPersonajes += 1;
+        const respuesta = opciones.respuestasPersonajes?.shift();
+        if (respuesta instanceof Error) return Promise.reject(respuesta);
+        if (respuesta) return Promise.resolve(respuesta);
+        return Promise.resolve({ ok: true, json: async () => ({ personajes: [] }) });
+      }
       if (url === "/api/tablero") {
         fallosIniciales.solicitudesTablero += 1;
         if (fallosIniciales.fetchTablero) {
@@ -710,6 +1151,59 @@ vm.createContext(sandbox);
     typeof falloConstructorSocket.fallosIniciales.sockets[0].onmessage === "function",
   "reintentar tras fallo WebSocket reutiliza la carga y enlaza los handlers");
 
+  const personajesHttp = crearContextoConFalloInicializacion({
+    falloConstructorObservador: false,
+    respuestasPersonajes: [
+      { ok: false, status: 503, json: async () => ({ detalle: "no disponible" }) },
+      { ok: true, json: async () => ({ personajes: [{ id: "vera", nombre: "Vera" }] }) },
+    ],
+  });
+  await new Promise((resolver) => setImmediate(resolver));
+  ok(personajesHttp.fallosIniciales.solicitudesPersonajes === 1,
+    "el error HTTP de personajes se solicita una vez y se captura");
+  ok(personajesHttp.fallosIniciales.sockets.length === 1 &&
+    personajesHttp.fallosIniciales.observadores.filter((observador) => !observador.desconectado).length === 1,
+  "el fallo de personajes no impide montar ni duplica el socket y el observador");
+  vm.runInContext(
+    'ultimaSala = { jugadores: [], personaje_id: null }',
+    personajesHttp.contexto
+  );
+  const reintentoHttp = personajesHttp.contexto.reintentarCargaPersonajes();
+  const repetidoHttp = personajesHttp.contexto.reintentarCargaPersonajes();
+  ok(reintentoHttp === repetidoHttp,
+    "dos solicitudes simultáneas de personajes comparten la misma promesa");
+  ok(await reintentoHttp === true &&
+    personajesHttp.fallosIniciales.solicitudesPersonajes === 2,
+  "el reintento tras HTTP fallido recupera personajes con una sola petición");
+  ok(personajesHttp.fallosIniciales.sockets.length === 1 &&
+    personajesHttp.fallosIniciales.observadores.filter((observador) => !observador.desconectado).length === 1,
+  "recuperar personajes con la sala activa conserva un solo socket y observador");
+  ok(vm.runInContext("PERSONAJES.length", personajesHttp.contexto) === 1 &&
+    registro.personajes.children.length === 1,
+  "la carga recuperada actualiza los datos y pinta la selección de personajes");
+  ok(personajesHttp.contexto.reintentarCargaPersonajes() === reintentoHttp &&
+    personajesHttp.fallosIniciales.solicitudesPersonajes === 2,
+  "una carga exitosa permanece cacheada y no duplica peticiones");
+
+  const personajesRed = crearContextoConFalloInicializacion({
+    falloConstructorObservador: false,
+    respuestasPersonajes: [
+      new Error("fallo de conexión"),
+      { ok: true, json: async () => ({ personajes: [{ id: "bruno", nombre: "Bruno" }] }) },
+    ],
+  });
+  await new Promise((resolver) => setImmediate(resolver));
+  const reintentoRed = personajesRed.contexto.reintentarCargaPersonajes();
+  ok(await reintentoRed === true &&
+    personajesRed.fallosIniciales.solicitudesPersonajes === 2 &&
+    vm.runInContext('PERSONAJES[0].id', personajesRed.contexto) === "bruno",
+  "el rechazo asíncrono de fetch permite un reintento exitoso posterior");
+
+  await comprobarContratoSalaJuego(fuenteSala, interfazSala);
+
   if (fallos) process.exit(1);
-  console.log(`MONTAJE REAL TABLERO OK · RIESGOS CONOCIDOS ${riesgos}`);
+  console.log(
+    `MONTAJE REAL TABLERO OK · RIESGOS CONOCIDOS ${riesgos} ` +
+    `· CONTRATOS FUTUROS PENDIENTES ${contratosPendientes}`
+  );
 })().catch((error) => { console.error(error); process.exit(1); });

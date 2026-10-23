@@ -171,19 +171,45 @@ const modalesSala = document.querySelectorAll
   ? Array.from(document.querySelectorAll(".modal"))
   : [];
 
-if (!jugadorId) {
-  window.location.href = "/";
+let PERSONAJES = [];
+let cargaPersonajes = null;
+
+function cargarPersonajes() {
+  if (cargaPersonajes) return cargaPersonajes;
+
+  const carga = Promise.resolve()
+    .then(() => fetch("/api/personajes"))
+    .then((respuesta) => {
+      if (!respuesta.ok) {
+        throw new Error(`GET /api/personajes: HTTP ${respuesta.status}`);
+      }
+      return respuesta.json();
+    })
+    .then((datos) => {
+      if (!datos || !Array.isArray(datos.personajes)) {
+        throw new Error("GET /api/personajes: respuesta de personajes no válida");
+      }
+      PERSONAJES = datos.personajes;
+      if (ultimaSala) pintarPersonajes(ultimaSala);
+      return true;
+    })
+    .catch((fallo) => {
+      if (cargaPersonajes === carga) cargaPersonajes = null;
+      console.error("No se pudieron cargar los personajes.", fallo);
+      return false;
+    });
+
+  cargaPersonajes = carga;
+  return carga;
 }
 
-let PERSONAJES = [];
-fetch("/api/personajes")
-  .then((r) => r.json())
-  .then((datos) => {
-    PERSONAJES = datos.personajes;
-    if (ultimaSala) {
-      pintarPersonajes(ultimaSala);
-    }
-  });
+function reintentarCargaPersonajes() {
+  if (!jugadorId) {
+    window.location.href = "/";
+    return Promise.resolve(false);
+  }
+  return cargarPersonajes();
+}
 
 let ultimaSala = null;
 let TABLERO_VISUAL = null;
@@ -538,6 +564,13 @@ function inicializarSala() {
   let observadorCreadoEnIntento = false;
 
   try {
+    if (!jugadorId) {
+      window.location.href = "/";
+      return false;
+    }
+
+    cargarPersonajes();
+
     if (typeof MutationObserver !== "undefined" && document.body) {
       observadorBarraControles = new MutationObserver(
         sincronizarBarraControlesInferior
@@ -619,6 +652,7 @@ function inicializarSala() {
 }
 
 window.inicializarSala = inicializarSala;
+window.reintentarCargaPersonajes = reintentarCargaPersonajes;
 
 // Manifiesto público (nombres e imágenes de personajes): sin secretos.
 fetch("/api/recursos")
