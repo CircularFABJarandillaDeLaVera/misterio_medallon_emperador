@@ -167,10 +167,6 @@ let ws = null;
 let cargaTableroVisual = null;
 let observadorBarraControles = null;
 
-const modalesSala = document.querySelectorAll
-  ? Array.from(document.querySelectorAll(".modal"))
-  : [];
-
 let PERSONAJES = [];
 let cargaPersonajes = null;
 
@@ -431,7 +427,13 @@ function sincronizarBarraControlesInferior() {
     document.body.classList &&
     document.body.classList.contains("en-partida")
   );
-  const modalVisible = modalesSala.some((modal) => !modal.hidden);
+  const raizSalaActual = document.querySelector(".interfaz-sala");
+  const modales = raizSalaActual && raizSalaActual.querySelectorAll
+    ? Array.from(raizSalaActual.querySelectorAll(".modal"))
+    : document.querySelectorAll
+      ? Array.from(document.querySelectorAll(".modal"))
+      : [];
+  const modalVisible = modales.some((modal) => !modal.hidden);
   barraControlesInferior.hidden = !tableroPrincipalVisible || modalVisible;
 }
 
@@ -586,12 +588,14 @@ function inicializarSala() {
           attributeFilter: ["hidden"],
         });
       }
-      modalesSala.forEach((modal) => {
-        observadorBarraControles.observe(modal, {
+      if (interfazSala) {
+        observadorBarraControles.observe(interfazSala, {
+          childList: true,
+          subtree: true,
           attributes: true,
           attributeFilter: ["hidden"],
         });
-      });
+      }
     }
 
     if (!cargaTableroVisual) {
