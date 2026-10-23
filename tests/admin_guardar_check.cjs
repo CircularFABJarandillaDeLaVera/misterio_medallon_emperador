@@ -11,7 +11,7 @@ const vm = require("vm");
 const RAIZ = path.join(__dirname, "..");
 const leer = (...partes) => fs.readFileSync(path.join(RAIZ, ...partes), "utf8");
 const SALA_JS = leer("app", "static", "js", "sala.js");
-const SALA_HTML = leer("app", "templates", "sala.html");
+const SALA_HTML = leer("app", "templates", "_sala_interfaz.html");
 const CSS = leer("app", "static", "css", "estilos.css");
 
 let fallos = 0;

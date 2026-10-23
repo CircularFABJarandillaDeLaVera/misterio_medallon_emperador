@@ -4,13 +4,66 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, gestor
 
 cliente = TestClient(app)
 RAIZ = Path(__file__).parents[1]
-SALA_HTML = (RAIZ / "app" / "templates" / "sala.html").read_text(encoding="utf-8")
+SALA_DOCUMENTO = (RAIZ / "app" / "templates" / "sala.html").read_text(
+    encoding="utf-8"
+)
+SALA_INTERFAZ = (RAIZ / "app" / "templates" / "_sala_interfaz.html").read_text(
+    encoding="utf-8"
+)
+INCLUSION_SALA = '{% include "_sala_interfaz.html" %}'
+SALA_HTML = SALA_DOCUMENTO.replace(INCLUSION_SALA, SALA_INTERFAZ)
 SALA_JS = (RAIZ / "app" / "static" / "js" / "sala.js").read_text(encoding="utf-8")
 CSS = (RAIZ / "app" / "static" / "css" / "estilos.css").read_text(encoding="utf-8")
+
+
+def test_plantilla_de_sala_extrae_una_unica_interfaz_reutilizable():
+    assert SALA_DOCUMENTO.count(INCLUSION_SALA) == 1
+    preparacion = '{% include "_preparacion_movil.html" %}'
+    assert SALA_DOCUMENTO.index(preparacion) < SALA_DOCUMENTO.index(INCLUSION_SALA)
+    assert SALA_INTERFAZ.count(
+        '<main class="contenedor lobby-contenedor interfaz-sala">'
+    ) == 1
+    assert "<!DOCTYPE" not in SALA_INTERFAZ
+    assert "<html" not in SALA_INTERFAZ
+    assert "<body" not in SALA_INTERFAZ
+    assert "<script" not in SALA_INTERFAZ
+    assert '{% include "_preparacion_movil.html" %}' not in SALA_INTERFAZ
+    assert '{% include "_aprender_a_jugar.html" %}' in SALA_INTERFAZ
+    scripts = re.findall(r'<script src="([^?"]+)[^"]*"', SALA_DOCUMENTO)
+    assert scripts == [
+        "/static/js/tablero_canvas.js",
+        "/static/js/audio.js",
+        "/static/js/sala.js",
+        "/static/js/aprender_a_jugar.js",
+        "/static/js/pantalla_completa.js",
+    ]
+
+
+def test_sala_renderizada_conserva_codigo_elementos_e_ids_unicos():
+    sala, _ = gestor.crear_sala("Plantilla", "tablero")
+    try:
+        respuesta = cliente.get(f"/sala/{sala.codigo}")
+    finally:
+        gestor.salas.pop(sala.codigo, None)
+
+    assert respuesta.status_code == 200
+    html = respuesta.text
+    assert f'id="codigo">{sala.codigo}</span>' in html
+    for elemento in (
+        "lobby-personajes",
+        "personajes",
+        "btn-comenzar",
+        "partida",
+        "tablero-canvas",
+        "barra-controles-inferior",
+    ):
+        assert f'id="{elemento}"' in html
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    assert len(ids) == len(set(ids))
 
 
 def test_1_layout_escritorio_tablero_mas_panel():

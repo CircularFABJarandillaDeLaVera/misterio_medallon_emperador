@@ -151,7 +151,7 @@ const $ = (id) => documentStub.getElementById(id);
 
 // 0. Resolver ya no usa selects; el modo rápido conserva los suyos.
 const htmlSala = fs.readFileSync(
-  path.join(__dirname, "..", "app", "templates", "sala.html"),
+  path.join(__dirname, "..", "app", "templates", "_sala_interfaz.html"),
   "utf8"
 );
 const css = fs.readFileSync(

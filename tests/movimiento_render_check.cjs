@@ -128,7 +128,7 @@ sandbox.pintarMovimiento({
 ok($("movimiento").hidden === false, "el panel de movimiento aparece en modo tablero");
 ok($("btn-tirar").hidden === false, "puede_tirar=true muestra TIRAR DADO");
 ok(
-  !fs.readFileSync(path.join(__dirname, "..", "app", "templates", "sala.html"), "utf8")
+  !fs.readFileSync(path.join(__dirname, "..", "app", "templates", "_sala_interfaz.html"), "utf8")
     .includes('id="btn-sospecha-aqui"'),
   "la interfaz no ofrece sospecha gratuita al inicio"
 );

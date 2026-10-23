@@ -2,7 +2,13 @@ from pathlib import Path
 
 
 RAIZ = Path(__file__).resolve().parents[1]
-HTML = (RAIZ / "app/templates/sala.html").read_text(encoding="utf-8")
+SALA_DOCUMENTO = (RAIZ / "app/templates/sala.html").read_text(encoding="utf-8")
+SALA_INTERFAZ = (RAIZ / "app/templates/_sala_interfaz.html").read_text(
+    encoding="utf-8"
+)
+HTML = SALA_DOCUMENTO.replace(
+    '{% include "_sala_interfaz.html" %}', SALA_INTERFAZ
+)
 INICIO_HTML = (RAIZ / "app/templates/inicio.html").read_text(encoding="utf-8")
 PREPARACION_HTML = (RAIZ / "app/templates/_preparacion_movil.html").read_text(
     encoding="utf-8"

@@ -212,7 +212,18 @@ vm.createContext(sandbox);
 
 (async () => {
   const raiz = path.join(__dirname, "..");
-  const html = fs.readFileSync(path.join(raiz, "app", "templates", "sala.html"), "utf8");
+  const documentoSala = fs.readFileSync(
+    path.join(raiz, "app", "templates", "sala.html"),
+    "utf8"
+  );
+  const interfazSala = fs.readFileSync(
+    path.join(raiz, "app", "templates", "_sala_interfaz.html"),
+    "utf8"
+  );
+  const html = documentoSala.replace(
+    '{% include "_sala_interfaz.html" %}',
+    interfazSala
+  );
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");

@@ -16,7 +16,7 @@ function ok(condicion, nombre) {
 
 const parcial = leer("app", "templates", "_aprender_a_jugar.html");
 const inicio = leer("app", "templates", "inicio.html");
-const sala = leer("app", "templates", "sala.html");
+const sala = leer("app", "templates", "_sala_interfaz.html");
 const css = leer("app", "static", "css", "estilos.css");
 const js = leer("app", "static", "js", "aprender_a_jugar.js");
 const cartasFuente = leer("app", "datos", "jarandilla.py");

@@ -9,7 +9,7 @@ const vm = require("vm");
 const raiz = path.join(__dirname, "..");
 const leer = (...partes) => fs.readFileSync(path.join(raiz, ...partes), "utf8");
 const salaJs = leer("app", "static", "js", "sala.js");
-const salaHtml = leer("app", "templates", "sala.html");
+const salaHtml = leer("app", "templates", "_sala_interfaz.html");
 const css = leer("app", "static", "css", "estilos.css");
 
 let fallos = 0;
