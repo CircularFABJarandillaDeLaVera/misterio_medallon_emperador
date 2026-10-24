@@ -39,7 +39,9 @@
   }
 
   function abrirInstrucciones(evento) {
-    focoAnterior = evento && evento.currentTarget ? evento.currentTarget : document.activeElement;
+    focoAnterior = evento && evento.target && evento.target.closest
+      ? evento.target.closest("[data-abrir-aprender]") || document.activeElement
+      : document.activeElement;
     mostrarPaso(0);
     modal.hidden = false;
     sincronizarBarraSala();
@@ -62,7 +64,15 @@
     }
   }
 
-  abrir.forEach((boton) => boton.addEventListener("click", abrirInstrucciones));
+  // El montaje de sala sustituye el contenido de <body>, pero conserva este
+  // modal y crea un activador nuevo. Delegar en document mantiene accesibles
+  // ambos activadores durante ese cambio de árbol.
+  document.addEventListener("click", (evento) => {
+    const boton = evento.target && evento.target.closest
+      ? evento.target.closest("[data-abrir-aprender]")
+      : null;
+    if (boton) abrirInstrucciones(evento);
+  });
   indices.forEach((boton) => boton.addEventListener("click", () => {
     mostrarPaso(Number(boton.dataset.aprenderPaso), true);
   }));

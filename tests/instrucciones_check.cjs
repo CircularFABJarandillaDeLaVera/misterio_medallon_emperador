@@ -104,11 +104,19 @@ class Elemento {
     this.enfocado = false;
   }
   addEventListener(tipo, fn) { (this.oyentes[tipo] ||= []).push(fn); }
-  click() { for (const fn of this.oyentes.click || []) fn({ target: this, currentTarget: this }); }
+  click() {
+    const evento = { target: this, currentTarget: this };
+    for (const fn of this.oyentes.click || []) fn(evento);
+    for (const fn of globales.click || []) fn(evento);
+  }
   focus() { documentStub.activeElement = this; this.enfocado = true; }
   setAttribute(nombre, valor) { this.atributos[nombre] = String(valor); }
   removeAttribute(nombre) { delete this.atributos[nombre]; }
   getAttribute(nombre) { return this.atributos[nombre]; }
+  closest(selector) {
+    return selector === "[data-abrir-aprender]" &&
+      ["btn-aprender-inicio", "btn-aprender-sala"].includes(this.id) ? this : null;
+  }
 }
 
 const modal = new Elemento("modal-aprender");
@@ -199,6 +207,21 @@ ok(
   modal.hidden === true && escape.prevenido && escape.detenido && documentStub.activeElement === abrirInicio,
   "Escape cierra solo la capa de ayuda y restaura el foco"
 );
+
+const abrirSalaTrasMontaje = new Elemento("btn-aprender-sala");
+abrirSalaTrasMontaje.click();
+ok(
+  modal.hidden === false && documentStub.activeElement === elementos["btn-cerrar-aprender"] &&
+    (globales.click || []).length === 1,
+  "el activador sustituido tras montar la sala abre la ayuda sin duplicar el listener"
+);
+elementos["btn-cerrar-aprender"].click();
+abrirSalaTrasMontaje.click();
+ok(
+  modal.hidden === false && (globales.click || []).length === 1,
+  "una segunda apertura funciona con el mismo listener"
+);
+elementos["btn-cerrar-aprender"].click();
 
 if (fallos) process.exit(1);
 console.log("INSTRUCCIONES FASE 3A OK");

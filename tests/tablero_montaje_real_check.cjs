@@ -660,7 +660,7 @@ vm.createContext(sandbox);
   ok(html.includes('id="tablero-visual"'), "sala.html contiene el contenedor real");
   ok(html.includes('/static/js/tablero_canvas.js?v=8b8b'),
     "la plantilla invalida la caché del renderer Canvas animado");
-  ok(html.includes('/static/js/sala.js?v=admin9'),
+  ok(html.includes('/static/js/sala.js?v=admin10'),
     "la plantilla invalida la caché tras recuperar la geometría estable");
   ok(html.includes('/static/css/estilos.css?v=chat1'),
     "la plantilla invalida la caché de la barra inferior");
@@ -785,6 +785,111 @@ vm.createContext(sandbox);
 
   socket.onmessage({ data: JSON.stringify({ tipo: "estado_privado", sala }) });
   ok(registro["tablero-visual"].hidden === false, "el estado WS real de modo tablero muestra el contenedor");
+  const idsMapaPantalla = [
+    "bloque-codigo", "lobby-personajes", "btn-comenzar", "partida",
+    "bloque-orden", "total", "resumen-sala", "tablero-visual",
+    "admin-pausa-aviso",
+  ];
+  const visible = (id) => id === "lobby-personajes" || id === "btn-comenzar"
+    ? registro[id].style.display !== "none"
+    : !registro[id].hidden;
+  ok(registro.partida.hidden === false && registro["resumen-sala"].hidden === false &&
+      visible("tablero-visual") && registro["lobby-personajes"].style.display === "none" &&
+      registro["btn-comenzar"].style.display === "none",
+    "el estado iniciado conserva tablero y resumen y oculta las zonas de selección");
+
+  sandbox.pintarSala({ ...sala, estado: "esperando", pausada: false });
+  ok(registro["bloque-codigo"].hidden === false &&
+      registro["lobby-personajes"].style.display !== "none" &&
+      registro["btn-comenzar"].style.display !== "none" &&
+      registro.partida.hidden === true && registro["bloque-orden"].hidden === false &&
+      registro.total.hidden === false && registro["resumen-sala"].hidden === true,
+    "selección de personaje muestra sus zonas y oculta la partida, incluido su tablero");
+
+  sandbox.pintarSala(sala);
+  sandbox.pintarSala({ ...sala, pausada: true });
+  ok(registro.partida.hidden === false && registro["tablero-visual"].hidden === false &&
+      registro["admin-pausa-aviso"].hidden === false &&
+      documentStub.body.classList.contains("partida-en-pausa"),
+    "la pausa conserva el tablero y aplica el aviso y la clase de pausa");
+  sandbox.pintarSala(sala);
+  ok(registro["admin-pausa-aviso"].hidden === true &&
+      !documentStub.body.classList.contains("partida-en-pausa") &&
+      registro.partida.hidden === false && registro["tablero-visual"].hidden === false,
+    "reanudar retira el aviso y la clase y conserva el tablero");
+
+  sandbox.pintarSala({ ...sala, estado: "terminada" });
+  ok(registro.partida.hidden === false && registro["tablero-visual"].hidden === false &&
+      registro["resumen-sala"].hidden === false,
+    "la partida terminada conserva la vista general para presentar el diálogo final");
+  sandbox.pintarSala({ ...sala, estado: "estado-desconocido", pausada: false });
+  ok(registro.partida.hidden === true && registro["lobby-personajes"].style.display !== "none" &&
+      !documentStub.body.classList.contains("en-partida"),
+    "un estado desconocido sigue la misma vista de selección que la rama de lobby");
+  sandbox.pintarSala(sala);
+
+  const escriturasMapa = {};
+  for (const id of idsMapaPantalla) {
+    const nodo = registro[id];
+    if (!nodo) continue;
+    let oculto = nodo.hidden;
+    Object.defineProperty(nodo, "hidden", {
+      configurable: true,
+      get() { return oculto; },
+      set(valor) { escriturasMapa[id] = (escriturasMapa[id] || 0) + 1; oculto = valor; },
+    });
+    if (id === "lobby-personajes" || id === "btn-comenzar") {
+      let display = nodo.style.display;
+      Object.defineProperty(nodo.style, "display", {
+        configurable: true,
+        get() { return display; },
+        set(valor) { escriturasMapa[id] = (escriturasMapa[id] || 0) + 1; display = valor; },
+      });
+    }
+  }
+  vm.runInContext('aplicarPantallaInterfaz("partida")', sandbox);
+  for (const id of Object.keys(escriturasMapa)) escriturasMapa[id] = 0;
+  vm.runInContext('aplicarPantallaInterfaz("partida")', sandbox);
+  ok(Object.values(escriturasMapa).every((cantidad) => cantidad === 0),
+    "reaplicar la misma pantalla no vuelve a escribir estados ya aplicados");
+
+  const zonaPartidaAnterior = registro.partida;
+  zonaPartidaAnterior.hidden = true;
+  registro.partida = elemento("div");
+  vm.runInContext('aplicarPantallaInterfaz("partida")', sandbox);
+  ok(registro.partida !== zonaPartidaAnterior && registro.partida.hidden === false &&
+      zonaPartidaAnterior.hidden === true,
+    "el mapa vuelve a resolver por ID y no conserva el nodo sustituido");
+  const getElementByIdOriginal = documentStub.getElementById;
+  documentStub.getElementById = (id) => id === "admin-pausa-aviso"
+    ? null : getElementByIdOriginal.call(documentStub, id);
+  let errorElementoOpcional = null;
+  try {
+    vm.runInContext('aplicarPantallaInterfaz("partidaPausada")', sandbox);
+  } catch (errorDeElemento) {
+    errorElementoOpcional = errorDeElemento;
+  } finally {
+    documentStub.getElementById = getElementByIdOriginal;
+  }
+  ok(errorElementoOpcional === null,
+    "un elemento opcional ausente no interrumpe la aplicación del mapa");
+
+  vm.runInContext('aplicarPantallaInterfaz("partida")', sandbox);
+  const zonasAntesDeModal = idsMapaPantalla.map((id) => [
+    id, registro[id] && registro[id].hidden, registro[id] && registro[id].style.display,
+  ]);
+  const pausaAntesDeModal = documentStub.body.classList.contains("partida-en-pausa");
+  registro["modal-aprender"].hidden = false;
+  registro["modal-chat"].hidden = false;
+  sincronizarBarra();
+  registro["modal-aprender"].hidden = true;
+  registro["modal-chat"].hidden = true;
+  sincronizarBarra();
+  ok(JSON.stringify(zonasAntesDeModal) === JSON.stringify(idsMapaPantalla.map((id) => [
+      id, registro[id] && registro[id].hidden, registro[id] && registro[id].style.display,
+    ])) && documentStub.body.classList.contains("partida-en-pausa") === pausaAntesDeModal,
+    "abrir y cerrar ayuda o chat no modifica el estado base de pantalla");
+
   sincronizarBarra();
   ok(registro["barra-controles-inferior"].hidden === false,
     "la barra aparece en el tablero principal del anfitrión");

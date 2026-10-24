@@ -1,3 +1,4 @@
+
 :root {
   --fondo: #12101c;
   --fondo-tarjeta: #1d1930;
@@ -1992,6 +1993,8 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 }
 
 .carta-sospecha-compacta {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
   padding: 2px;
   border-radius: 5px;
 }
@@ -2006,10 +2009,16 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 
 .selector-cartas-sospecha[data-categoria="sospechoso"] .carta-sospecha-compacta img {
   height: 125px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .selector-cartas-sospecha[data-categoria="objeto"] .carta-sospecha-compacta img {
   height: 115px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  object-position: center;
 }
 
 #modal-contextual-detalle.modo-sospecha-compacta > label {
@@ -2022,8 +2031,7 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   padding: 5px 14px;
 }
 
-@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px)
-  and (pointer: coarse) {
+@media (orientation: landscape) and (max-height: 560px) {
   #modal-ubicacion-caja:has(#modal-contextual-detalle.modo-sospecha-compacta) {
     width: min(96vw, 860px);
     max-height: calc(100dvh - 12px);
@@ -2070,8 +2078,8 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
     height: 100% !important;
     width: 100%;
     aspect-ratio: 1 / 1;
-    object-fit: cover;
-    object-position: center top;
+    object-fit: contain;
+    object-position: center;
   }
 
   #modal-contextual-detalle.modo-sospecha-compacta > button {
@@ -2178,7 +2186,13 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 .selector-cartas-resolver .carta-selector-sospecha {
   min-width: 0;
   min-height: 0;
+  width: auto;
   height: 100%;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  justify-self: center;
+  align-self: center;
+  overflow: hidden;
   padding: 2px;
   border-radius: 5px;
 }
@@ -2188,10 +2202,16 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  aspect-ratio: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 4px;
+  background: #101727;
+}
+
+.selector-cartas-resolver[data-categoria="objeto"] .carta-selector-sospecha img {
   object-fit: contain;
   object-position: center;
-  background: #101727;
 }
 
 .selector-cartas-resolver .carta-selector-marca {
@@ -2870,6 +2890,29 @@ body.en-partida .tarjeta:not(:fullscreen)
   background: #101727;
 }
 
+/* En la retícula de la Hoja de investigación, las miniaturas son cuadradas
+   y recortan el título inferior en personajes y lugares */
+.hoja-grid-cartas .carta-visual-compacta {
+  aspect-ratio: 1 / 1;
+  width: auto;
+  max-width: 100%;
+  justify-self: center;
+  align-self: center;
+  overflow: hidden;
+}
+
+.hoja-grid-cartas .carta-visual-compacta img {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 4px;
+}
+
+#hoja > .grupo-hoja:nth-child(3) .carta-visual-compacta img {
+  object-fit: contain;
+  object-position: center;
+}
+
 .carta-visual-compacta .carta-selector-nombre {
   min-height: 2.15em;
   padding: 2px 0 1px;
@@ -2896,7 +2939,7 @@ body.en-partida .tarjeta:not(:fullscreen)
   font-size: 0.75rem;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 620px) and (orientation: portrait) {
   .selector-cartas-sospecha {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2951,40 +2994,6 @@ body.en-partida .tarjeta:not(:fullscreen)
   #hoja > .grupo-hoja:nth-child(2) .hoja-grid-cartas,
   #hoja > .grupo-hoja:nth-child(3) .hoja-grid-cartas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* Miniaturas de deducción para teléfonos apaisados. El recorte parte de la
-   zona superior de cada ilustración y deja fuera la banda impresa inferior,
-   sin modificar la imagen, el nombre accesible ni los estados superpuestos. */
-@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px)
-  and (pointer: coarse) {
-  #modal-hoja .modal-caja,
-  .modal-resolver-caja {
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .selector-cartas-resolver .carta-selector-sospecha,
-  .hoja-grid-cartas .carta-visual-compacta {
-    width: auto;
-    height: 100%;
-    max-width: 100%;
-    aspect-ratio: 1 / 1;
-    justify-self: center;
-    align-self: center;
-    overflow: hidden;
-  }
-
-  .selector-cartas-resolver .carta-selector-sospecha img,
-  .hoja-grid-cartas .carta-visual-compacta img {
-    width: 100%;
-    height: 100% !important;
-    aspect-ratio: 1 / 1;
-    object-fit: cover;
-    object-position: center top;
-    border-radius: 4px;
   }
 }
 
@@ -3535,6 +3544,29 @@ body:not(.portada) .tarjeta {
 
 .barra-controles-inferior > .control-pantalla-completa {
   order: 5;
+}
+
+.control-pantalla-recuperacion[hidden] {
+  display: none;
+}
+
+body:not(.en-partida) .lobby-sala-linea > .control-pantalla-completa {
+  gap: 6px;
+}
+
+body:not(.en-partida) .lobby-sala-linea > .control-pantalla-completa .control-pantalla-icono {
+  width: 16px;
+  height: 16px;
+}
+
+body:not(.en-partida) .lobby-sala-linea > .control-pantalla-recuperar {
+  white-space: normal;
+}
+
+body:not(.en-partida) .control-pantalla-recuperacion {
+  max-width: 17em;
+  font-size: 0.64rem;
+  line-height: 1.1;
 }
 
 .barra-controles-inferior > .control-chat {
@@ -6429,5 +6461,76 @@ body.en-partida .modal-carta-revelacion > #btn-continuar-revelacion {
     margin: 0;
     font-size: 0.72rem;
     line-height: 1.15;
+  }
+}
+
+/* ============================================================
+   MÓVIL · Continuidad visual del lobby.
+   La selección conserva la escena a tamaño de viewport y el marco se apoya
+   sobre ella como una superficie translúcida. No cambia la geometría de la
+   rejilla ni reserva espacio adicional para las insignias.
+   ============================================================ */
+@media (orientation: portrait) and (max-width: 600px) and (pointer: coarse),
+  (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  html:has(.lobby-contenedor) {
+    min-height: 100%;
+    background: #07151c;
+  }
+
+  body:has(.lobby-contenedor):not(.en-partida) {
+    min-height: 100svh;
+    background:
+      linear-gradient(180deg, rgba(3, 10, 15, 0.55), rgba(3, 9, 13, 0.76)),
+      radial-gradient(ellipse at 50% 28%, transparent 20%, rgba(2, 7, 10, 0.6) 100%),
+      url("/static/img/lugares/parador.jpeg") center 42% / cover no-repeat;
+  }
+
+  body:not(.en-partida) .lobby-marco {
+    background:
+      linear-gradient(112deg, rgba(232, 193, 92, 0.06), transparent 28%, transparent 72%, rgba(48, 102, 92, 0.07)),
+      radial-gradient(ellipse at 14% 0%, rgba(190, 139, 44, 0.17), transparent 40%),
+      radial-gradient(ellipse at 92% 96%, rgba(27, 91, 83, 0.2), transparent 48%),
+      linear-gradient(145deg, rgba(7, 35, 36, 0.82), rgba(4, 18, 24, 0.84) 54%, rgba(31, 20, 20, 0.83));
+    box-shadow:
+      0 18px 52px rgba(0, 0, 0, 0.48),
+      inset 0 1px 0 rgba(232, 199, 102, 0.1);
+    backdrop-filter: blur(2px) saturate(0.82);
+  }
+
+  body:not(.en-partida) .lobby-cartas .carta-selector-marca.marca-suave {
+    top: 6px;
+    left: 6px;
+    max-width: calc(100% - 12px);
+    padding: 2px 5px;
+    border-color: rgba(201, 162, 39, 0.46);
+    border-radius: 999px;
+    background: rgba(8, 17, 27, 0.66);
+    font-size: 0.52rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.2px;
+  }
+
+  body:not(.en-partida) .lobby-sala-linea:has(> .control-pantalla-recuperar) {
+    flex-wrap: wrap;
+  }
+
+  body:not(.en-partida) .lobby-cabecera:has(.control-pantalla-recuperar) {
+    flex-wrap: wrap;
+  }
+
+  body:not(.en-partida) .lobby-cabecera #bloque-codigo:has(.control-pantalla-recuperar) {
+    flex: 1 0 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body:not(.en-partida) .lobby-sala-linea > .control-pantalla-recuperar {
+    flex: 1 0 100%;
+    width: min(100%, 250px);
+    max-width: 250px;
+    min-height: 36px;
+    margin: 0 auto;
+    padding: 5px 8px;
   }
 }

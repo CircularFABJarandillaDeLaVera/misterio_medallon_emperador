@@ -102,6 +102,12 @@ const documento = {
     return selector === ".modal" ? [this.getElementById("modal-chat")] : [];
   },
   querySelector(selector) {
+    if (selector === ".interfaz-sala") {
+      return {
+        querySelectorAll: (interno) =>
+          interno === ".modal" ? [this.getElementById("modal-chat")] : [],
+      };
+    }
     return selector === ".barra-controles-inferior"
       ? this.getElementById("barra-controles-inferior")
       : null;

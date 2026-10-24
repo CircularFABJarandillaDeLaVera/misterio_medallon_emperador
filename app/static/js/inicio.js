@@ -230,6 +230,102 @@ function registrarContinuidadPantallaCompleta(datos) {
   }
 }
 
+let entradaSalaEnCurso = false;
+
+function cargarScriptDeSala(src, comoModulo = false) {
+  return new Promise((resolver, rechazar) => {
+    const script = document.createElement("script");
+    if (comoModulo) script.type = "module";
+    script.src = src;
+    script.onload = () => resolver();
+    script.onerror = () => rechazar(new Error(`No se pudo cargar ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function entrarEnSalaSinNavegar(datos) {
+  if (entradaSalaEnCurso || !datos || !datos.codigo) return false;
+  if (
+    typeof DOMParser === "undefined" ||
+    !document.createElement ||
+    !document.body ||
+    typeof document.body.replaceChildren !== "function"
+  ) return false;
+  entradaSalaEnCurso = true;
+  try {
+    const respuesta = await fetch(`/sala/${encodeURIComponent(datos.codigo)}`, {
+      headers: { Accept: "text/html" },
+    });
+    if (!respuesta.ok) throw new Error(`GET sala: HTTP ${respuesta.status}`);
+
+    const html = await respuesta.text();
+    const documentoSala = new DOMParser().parseFromString(html, "text/html");
+    const interfaz = documentoSala.querySelector(".interfaz-sala");
+    if (!interfaz) throw new Error("La respuesta no contiene la interfaz de sala.");
+    const scriptTablero = documentoSala.querySelector('script[src*="/static/js/tablero_canvas.js"]');
+    const scriptSala = documentoSala.querySelector('script[src*="/static/js/sala.js"]');
+    if (!scriptSala) throw new Error("La respuesta no contiene el controlador de sala.");
+
+    const hojaSala = documentoSala.querySelector('link[href*="/static/css/estilos.css"]');
+    const hojaActual = document.querySelector('link[href*="/static/css/estilos.css"]');
+    if (hojaSala && hojaActual) hojaActual.setAttribute("href", hojaSala.getAttribute("href"));
+
+    const ayudaActual = $("modal-aprender");
+    const ayudaIncluida = interfaz.querySelector("#modal-aprender");
+    if (ayudaIncluida) ayudaIncluida.remove();
+    if (ayudaActual) interfaz.appendChild(ayudaActual);
+
+    const historia = $("historia-intro");
+    if (historia && !historia.hidden) {
+      const saltarHistoria = $("btn-saltar-historia");
+      if (saltarHistoria) saltarHistoria.click();
+    }
+
+    document.title = documentoSala.title;
+    document.body.className = documentoSala.body.className;
+    document.body.replaceChildren(
+      ...[$("modal-preparacion-movil"), interfaz].filter(Boolean)
+    );
+    document.documentElement.classList.remove("preparacion-movil-inicial");
+
+    try {
+      history.replaceState(
+        { vista: "sala", codigo: datos.codigo },
+        "",
+        `/sala/${encodeURIComponent(datos.codigo)}`
+      );
+    } catch (errorHistorial) {
+      // La URL puede quedarse en portada; el documento y la sala siguen activos.
+    }
+
+    if (!window.TableroCanvas && scriptTablero) {
+      await cargarScriptDeSala(scriptTablero.getAttribute("src"));
+    }
+    await cargarScriptDeSala(scriptSala.getAttribute("src"), true);
+
+    if (window.PantallaCompleta) {
+      window.PantallaCompleta.actualizarFase("lobby");
+    }
+    if (window.AudioFondo) {
+      window.AudioFondo.actualizarFase("lobby");
+    }
+
+    const abrirAyudaPortada = $("btn-aprender-inicio");
+    const abrirAyudaSala = document.querySelector("[data-abrir-aprender]");
+    if (abrirAyudaSala && abrirAyudaPortada) {
+      abrirAyudaSala.addEventListener("click", () => abrirAyudaPortada.click());
+    }
+    return true;
+  } catch (errorEntradaSala) {
+    console.error("No se pudo montar la sala en el documento actual.", errorEntradaSala);
+    const mensaje = $("error-nueva") || $("error");
+    if (mensaje) mensaje.textContent = "No se pudo abrir la sala. Se continuará con la navegación habitual.";
+    return false;
+  } finally {
+    entradaSalaEnCurso = false;
+  }
+}
+
 async function crearPartida() {
   const alias = $("alias").value.trim();
   $("error-nueva").textContent = "";
@@ -258,8 +354,10 @@ async function crearPartida() {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
     prepararEntradaMovil(datos, "crear");
-    registrarContinuidadPantallaCompleta(datos);
-    window.location.href = `/sala/${datos.codigo}`;
+    if (!(await entrarEnSalaSinNavegar(datos))) {
+      registrarContinuidadPantallaCompleta(datos);
+      window.location.href = `/sala/${datos.codigo}`;
+    }
   } finally {
     if (boton) boton.disabled = false;
   }
@@ -295,8 +393,10 @@ async function unirsePartida() {
     sessionStorage.setItem("jugador_id", datos.jugador_id);
     sessionStorage.setItem("alias", datos.alias);
     prepararEntradaMovil(datos, "unirse");
-    registrarContinuidadPantallaCompleta(datos);
-    window.location.href = `/sala/${datos.codigo}`;
+    if (!(await entrarEnSalaSinNavegar(datos))) {
+      registrarContinuidadPantallaCompleta(datos);
+      window.location.href = `/sala/${datos.codigo}`;
+    }
   } finally {
     if (boton) boton.disabled = false;
   }
@@ -366,8 +466,10 @@ async function cargarPartida() {
       sessionStorage.setItem("credencial_admin", datos.credencial_admin);
     }
     prepararEntradaMovil(datos, "cargar");
-    registrarContinuidadPantallaCompleta(datos);
-    window.location.href = `/sala/${datos.codigo}`;
+    if (!(await entrarEnSalaSinNavegar(datos))) {
+      registrarContinuidadPantallaCompleta(datos);
+      window.location.href = `/sala/${datos.codigo}`;
+    }
   } catch (e) {
     if (error) error.textContent = "NO SE PUDO LEER EL ARCHIVO.";
   } finally {

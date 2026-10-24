@@ -10,12 +10,10 @@ const jugadorId = sessionStorage.getItem("jugador_id") || "";
 const estado = document.getElementById("estado");
 const error = document.getElementById("error");
 const btnComenzar = document.getElementById("btn-comenzar");
-const lobbyPersonajes = document.getElementById("lobby-personajes");
 const personajesDiv = document.getElementById("personajes");
 const modalPreparacionMovil = document.getElementById("modal-preparacion-movil");
 const btnEntrarPantallaCompleta = document.getElementById("btn-entrar-pantalla-completa");
 const interfazSala = document.querySelector(".interfaz-sala");
-const partida = document.getElementById("partida");
 const barraControlesInferior = document.getElementById("barra-controles-inferior");
 const turnoP = document.getElementById("turno");
 const ordenOl = document.getElementById("orden");
@@ -102,7 +100,6 @@ const ritmoValor = document.getElementById("admin-ritmo-valor");
 const btnRitmoMas = document.getElementById("btn-ritmo-mas");
 const btnRitmoMenos = document.getElementById("btn-ritmo-menos");
 // Microfase 3 · Pausa. El aviso NO es del anfitrión: lo ve todo el mundo.
-const avisoPausa = document.getElementById("admin-pausa-aviso");
 const btnPausarPartida = document.getElementById("btn-pausar-partida");
 const btnReanudarPartida = document.getElementById("btn-reanudar-partida");
 // Microfase 4 · Guardar partida.
@@ -134,8 +131,6 @@ let victoriaDescartada = false;
 const finalPartida = document.getElementById("final-partida");
 const modoPartida = document.getElementById("modo-partida");
 const resumenSala = document.getElementById("resumen-sala");
-const bloqueCodigo = document.getElementById("bloque-codigo");
-const bloqueOrden = document.getElementById("bloque-orden");
 const btnCopiarCodigo = document.getElementById("btn-copiar-codigo");
 const contadorJugadores = document.getElementById("contador-jugadores");
 const vistaContextual = document.getElementById("vista-contextual");
@@ -441,7 +436,10 @@ function sincronizarBarraControlesInferior() {
       ? Array.from(document.querySelectorAll(".modal"))
       : [];
   const modalVisible = modales.some((modal) => !modal.hidden);
-  barraActual.hidden = !tableroPrincipalVisible || modalVisible;
+  const debeOcultarse = !tableroPrincipalVisible || modalVisible;
+  if (barraActual.hidden !== debeOcultarse) {
+    barraActual.hidden = debeOcultarse;
+  }
 }
 
 function observarRaizActualBarraControles() {
@@ -912,16 +910,18 @@ function pintarRitmo(sala) {
   // Microfase 3: el aviso de pausa es para TODOS. El panel con los botones
   // es solo del anfitrión. Un jugador normal puede ver el aviso, pero no
   // tocar nada: el servidor rechaza sus acciones con o sin botones.
-  const pausada = Boolean(sala && sala.pausada);
-  if (avisoPausa) avisoPausa.hidden = !pausada;
-  if (document.body && document.body.classList) {
-    document.body.classList.toggle("partida-en-pausa", pausada);
-  }
-  if (!panelRitmo) return;
-  const esAnfitrion = Boolean(sala && sala.es_anfitrion);
   const partidaActiva = Boolean(
     sala && (sala.estado === "iniciada" || sala.estado === "terminada")
   );
+  const pantalla = !partidaActiva
+    ? "seleccionPersonaje"
+    : sala.estado === "iniciada" && sala.pausada
+      ? "partidaPausada"
+      : "partida";
+  aplicarPantallaInterfaz(pantalla);
+  const pausada = Boolean(sala && sala.pausada);
+  if (!panelRitmo) return;
+  const esAnfitrion = Boolean(sala && sala.es_anfitrion);
   const puedeConfigurar = esAnfitrion && partidaActiva;
   if (btnConfiguracionPartida) btnConfiguracionPartida.hidden = !puedeConfigurar;
   if (!puedeConfigurar && modalConfiguracionPartida) {
@@ -1050,6 +1050,58 @@ function avisarGuardado(texto, esError) {
   estadoGuardar.classList.toggle("error", Boolean(esError));
 }
 
+// Este mapa concentra las zonas que cambian al pasar de selección a partida.
+// Se resuelven por ID en cada transición porque la portada puede haber
+// sustituido el árbol del documento antes de cargar este controlador.
+const zonasPartida = [
+  { id: "bloque-codigo", propiedad: "hidden", valor: true },
+  { id: "lobby-personajes", propiedad: "display", valor: "none" },
+  { id: "btn-comenzar", propiedad: "display", valor: "none" },
+  { id: "partida", propiedad: "hidden", valor: false },
+  { id: "bloque-orden", propiedad: "hidden", valor: true },
+  { id: "total", propiedad: "hidden", valor: true },
+  { id: "resumen-sala", propiedad: "hidden", valor: false },
+];
+
+const elementosPorPantalla = {
+  seleccionPersonaje: [
+    { id: "bloque-codigo", propiedad: "hidden", valor: false },
+    { id: "lobby-personajes", propiedad: "display", valor: "" },
+    { id: "btn-comenzar", propiedad: "display", valor: "" },
+    { id: "partida", propiedad: "hidden", valor: true },
+    { id: "bloque-orden", propiedad: "hidden", valor: false },
+    { id: "total", propiedad: "hidden", valor: false },
+    { id: "resumen-sala", propiedad: "hidden", valor: true },
+  ],
+  partida: [
+    ...zonasPartida,
+    { id: "admin-pausa-aviso", propiedad: "hidden", valor: true },
+  ],
+  partidaPausada: [
+    ...zonasPartida,
+    { id: "admin-pausa-aviso", propiedad: "hidden", valor: false },
+  ],
+};
+
+function aplicarPantallaInterfaz(pantalla) {
+  const elementos = elementosPorPantalla[pantalla];
+  if (!elementos) return;
+  elementos.forEach(({ id, propiedad, valor }) => {
+    const elemento = document.getElementById(id);
+    if (!elemento) return;
+    if (propiedad === "display") {
+      if (elemento.style.display !== valor) elemento.style.display = valor;
+    } else if (elemento[propiedad] !== valor) {
+      elemento[propiedad] = valor;
+    }
+  });
+  if (document.body && document.body.classList) {
+    const enPartida = pantalla === "partida" || pantalla === "partidaPausada";
+    document.body.classList.toggle("en-partida", enPartida);
+    document.body.classList.toggle("partida-en-pausa", pantalla === "partidaPausada");
+  }
+}
+
 async function guardarPartida() {
   if (btnGuardarPartida) btnGuardarPartida.disabled = true;
   avisarGuardado("GUARDANDO...", false);
@@ -1094,6 +1146,7 @@ if (btnGuardarPartida) {
 
 function pintarSala(sala) {
   error.textContent = "";
+  const partidaActiva = sala.estado === "iniciada" || sala.estado === "terminada";
   // Modo de partida
   modoPartida.textContent = sala.modo === "tablero" ? "MODO TABLERO" : "MODO RÁPIDO";
   if (contadorJugadores) {
@@ -1101,20 +1154,10 @@ function pintarSala(sala) {
     contadorJugadores.textContent = `👥 ${humanos}/6`;
   }
 
-  if (sala.estado === "iniciada" || sala.estado === "terminada") {
+  if (partidaActiva) {
     estado.textContent = "";
-    btnComenzar.style.display = "none";
-    lobbyPersonajes.style.display = "none";
-    partida.hidden = false;
-    if (document.body && document.body.classList) {
-      document.body.classList.add("en-partida");
-    }
     // Cabecera compacta: el detalle técnico deja la vista principal.
-    if (bloqueCodigo) bloqueCodigo.hidden = true;
-    if (bloqueOrden) bloqueOrden.hidden = true;
-    total.hidden = true;
     if (resumenSala) {
-      resumenSala.hidden = false;
       resumenSala.textContent = `Sala ${sala.codigo}`;
     }
     pintarTurno(sala);
@@ -1131,17 +1174,7 @@ function pintarSala(sala) {
     const repartidas = sala.jugadores.reduce((n, j) => n + j.num_cartas, 0);
     total.textContent = `${repartidas} cartas han sido repartidas.`;
   } else {
-    if (document.body && document.body.classList) {
-      document.body.classList.remove("en-partida");
-    }
-    if (bloqueCodigo) bloqueCodigo.hidden = false;
-    if (bloqueOrden) bloqueOrden.hidden = false;
-    total.hidden = false;
-    if (resumenSala) resumenSala.hidden = true;
-    partida.hidden = true;
     pintarRitmo(sala);
-    btnComenzar.style.display = "";
-    lobbyPersonajes.style.display = "";
     pintarPersonajes(sala);
     const sinPersonaje = sala.jugadores.filter((j) => !j.personaje_id).length;
     btnComenzar.disabled = !sala.es_anfitrion || sinPersonaje > 0;

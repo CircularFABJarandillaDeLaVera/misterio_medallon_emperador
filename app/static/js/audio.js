@@ -429,6 +429,9 @@
   etiqueta.appendChild(slider);
   panel.appendChild(etiqueta);
   panel.appendChild(valor);
+  // En portada el control permanece oculto; al entrar en sala se reutiliza
+  // esta misma instancia y el panel de volumen debe viajar con el botón.
+  boton.appendChild(panel);
 
   function sincronizarControl() {
     const silenciado = volumen === 0;
@@ -499,7 +502,6 @@
       (doc.querySelector(".control-pantalla-completa") || {}).parentElement ||
       doc.querySelector(".tarjeta") ||
       doc.body;
-    boton.appendChild(panel);
     anfitrion.appendChild(boton);
   }
 
