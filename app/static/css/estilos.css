@@ -3730,19 +3730,17 @@ body:not(.en-partida) .control-pantalla-recuperacion {
    Jerarquía heredada: oro = acción del turno, transparente = herramientas.
    ============================================================ */
 @media (min-width: 768px) {
-  /* El panel deja de ser una columna vacía: su alto es el de su
-     contenido en cada fase (antes de tirar, con destinos, sospecha
-     o final). El tablero queda como protagonista del espacio. */
+  /* El panel se adapta al contenido y reserva el pie del marco para los
+     controles flotantes inferiores cuando hay muchas acciones. */
   body.en-partida .panel-contextual {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-self: start;
-    /* La base fija height:100%; aquí el alto lo dicta el contenido. */
+    align-self: center;
     height: auto;
-    max-height: 100%;
+    max-height: calc(100% - 64px);
     min-height: 0;
-    overflow-y: hidden;
+    overflow-y: auto;
   }
 
   /* Zonas de contenido: pueden encogerse y desplazarse dentro. */
@@ -3754,7 +3752,7 @@ body:not(.en-partida) .control-pantalla-recuperacion {
     min-height: 0;
   }
 
-  /* Pie de herramientas siempre visible, ya sin anclaje al fondo. */
+  /* La barra sigue al contenido; el panel puede desplazarse si hace falta. */
   body.en-partida .panel-contextual > #barra-herramientas {
     flex: 0 0 auto;
     margin-top: 0;
@@ -5768,6 +5766,12 @@ body.en-partida.modo-tablero-activo .panel-contextual .medallon {
   box-shadow:
     inset 0 1px 0 rgba(255, 238, 183, 0.08),
     0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+/* Las acciones doradas necesitan texto oscuro: la regla común del panel
+   sobrescribe el color oscuro definido por .medallon-primario. */
+body.en-partida.modo-tablero-activo .panel-contextual .medallon-primario {
+  color: #141021;
 }
 
 body.en-partida.modo-tablero-activo .panel-contextual .medallon:hover:not(:disabled),
