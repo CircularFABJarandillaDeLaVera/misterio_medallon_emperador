@@ -1236,7 +1236,7 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   max-height: 760px;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   overflow: hidden;
   padding: 16px 18px;
@@ -1255,12 +1255,14 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
 }
 
 .aprender-cabecera {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
   text-align: left;
 }
+
+.aprender-cabecera > div { min-width: 0; }
 
 .aprender-cabecera h2 {
   margin-bottom: 2px;
@@ -1624,6 +1626,14 @@ body.modo-tablero-activo #zona-juego > #jugada.grupo-cartas {
   .aprender-cabecera h2 { font-size: 1rem; }
   .aprender-cabecera #aprender-intro,
   .aprender-cabecera .aprender-antetitulo { display: none; }
+  .aprender-cabecera {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "titulo cerrar" "indices indices";
+    gap: 6px 10px;
+  }
+  .aprender-cabecera > div { grid-area: titulo; }
+  .aprender-cabecera .aprender-indices { grid-area: indices; justify-content: flex-start; }
+  .aprender-cabecera .aprender-cerrar-superior { grid-area: cerrar; }
   .aprender-cerrar-superior.medallon { min-height: 34px; padding: 5px 8px; }
   .aprender-indices { gap: 7px; }
   .aprender-indice.medallon { width: 38px; min-width: 38px; height: 38px; min-height: 38px; }
