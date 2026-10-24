@@ -244,13 +244,14 @@ def test_ida_y_vuelta_de_una_sospecha_pendiente_de_refutacion():
 
 
 def test_ida_y_vuelta_de_una_presentacion_pendiente():
+    ahora = 1000.0
     sala, anfitrion, _ = partida_en_curso()
     sala.estado_jugada = "esperando_sospecha"
     sala.turno_actual = sala.orden_turnos.index(anfitrion["id"])
     sala.formular_sospecha(
-        anfitrion["id"], "lucia", "parador", "baul-imperial", ahora=1000.0
+        anfitrion["id"], "lucia", "parador", "baul-imperial", ahora=ahora
     )
-    nueva, _ = ida_y_vuelta(persistencia.exportar(sala))
+    nueva, _ = ida_y_vuelta(persistencia.exportar(sala, ahora=ahora))
     assert nueva.presentacion_sospecha["id"] == sala.presentacion_sospecha["id"]
     assert nueva.presentacion_sospecha["sospecha"] == sala.presentacion_sospecha["sospecha"]
     for jugador_id, datos in nueva.presentacion_sospecha["participantes"].items():

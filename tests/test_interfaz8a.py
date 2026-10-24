@@ -123,7 +123,17 @@ def test_3_listados_tecnicos_no_permanentes_y_4_sala_modo_discretos():
     # Los datos siguen en el estado interno (payload intacto).
     assert '"jugadores"' in SALA_JS or "sala.jugadores" in SALA_JS
     assert "contadorJugadores" in SALA_JS
-    assert "bloqueOrden.hidden = true" in SALA_JS
+    zonas_partida = re.search(r"const zonasPartida = \[(.*?)\n\];", SALA_JS, re.S)
+    assert zonas_partida
+    assert re.search(
+        r'\{ id: "bloque-orden", propiedad: "hidden", valor: true \}',
+        zonas_partida.group(1),
+    )
+    pantallas = re.search(
+        r"const elementosPorPantalla = \{(.*?)\n\};", SALA_JS, re.S
+    )
+    assert pantallas
+    assert re.search(r"partida:\s*\[\s*\.\.\.zonasPartida", pantallas.group(1))
     assert "resumenSala" in SALA_JS and "Modo" in SALA_JS
 
 

@@ -2,6 +2,7 @@
 import asyncio
 import re
 import time
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.datos.jarandilla import CARTA_POR_ID
 from app.main import app, cerrojos, conexiones, gestor
+import app.motor.sala as modulo_sala
 from app.motor.sala import (
 
 
@@ -578,7 +580,11 @@ def test_timeout_real_dispara_en_flujo_pnj(monkeypatch):
         reloj["t"] += seg
         await sueño_real(0)  # cede el turno, sin espera real
 
-    monkeypatch.setattr(time, "monotonic", lambda: reloj["t"])
+    # El motor usa el reloj virtual, pero asyncio conserva su reloj real para
+    # que los timeout de seguridad de wait_for no avancen con el simulador.
+    reloj_virtual = SimpleNamespace(monotonic=lambda: reloj["t"])
+    monkeypatch.setattr(main, "time", reloj_virtual)
+    monkeypatch.setattr(modulo_sala, "time", reloj_virtual)
     monkeypatch.setattr(asyncio, "sleep", falso_sleep)
 
     async def escenario():
